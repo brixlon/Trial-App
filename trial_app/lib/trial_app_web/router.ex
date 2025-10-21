@@ -20,7 +20,9 @@ defmodule TrialAppWeb.Router do
   scope "/", TrialAppWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+
+    get "/home", PageController, :home  # Keep Phoenix page at /home
+  live "/", UserLive.Login
   end
 
   # Other scopes may use custom stacks.
@@ -64,11 +66,21 @@ defmodule TrialAppWeb.Router do
 
     live_session :current_user,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
+      # Registration routes
       live "/users/register", UserLive.Registration, :new
-      live "/users/log-in", UserLive.Login, :new
-      live "/users/log-in/:token", UserLive.Confirmation, :new
+
+      # Login routes - only keep one to avoid conflicts
+      live "/users/login", UserLive.Login
+
+      # Dashboard route
+      live "/dashboard", DashboardLive
+
+      # Remove conflicting routes:
+      # live "/users/log-in", UserLive.Login, :new
+      # live "/users/log-in/:token", UserLive.Confirmation, :new
     end
 
+    # Keep these controller routes
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end
