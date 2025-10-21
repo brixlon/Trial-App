@@ -30,11 +30,11 @@ defmodule TrialAppWeb.DashboardLive do
               <p class="text-blue-100">Manage your account</p>
             </div>
 
-            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+            <.link navigate="/users/settings" class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-300 cursor-pointer block">
               <div class="text-5xl mb-2">⚙️</div>
               <h3 class="text-xl font-bold mb-1">Settings</h3>
               <p class="text-purple-100">Configure preferences</p>
-            </div>
+            </.link>
 
             <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
               <div class="text-5xl mb-2">📊</div>

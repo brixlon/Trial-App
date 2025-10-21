@@ -32,6 +32,13 @@ defmodule TrialAppWeb.UserLive.Settings do
               class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               required
             />
+            <%= if @email_form[:email].errors != [] do %>
+              <div class="mt-1 text-sm text-red-600">
+                <%= for {msg, _} <- @email_form[:email].errors do %>
+                  <p><%= msg %></p>
+                <% end %>
+              </div>
+            <% end %>
           </div>
           <button
             type="submit"
@@ -70,10 +77,18 @@ defmodule TrialAppWeb.UserLive.Settings do
             <input
               type="password"
               name="user[password]"
+              value={@password_form[:password].value}
               placeholder="Enter new password"
               class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               required
             />
+            <%= if @password_form[:password].errors != [] do %>
+              <div class="mt-1 text-sm text-red-600">
+                <%= for {msg, _} <- @password_form[:password].errors do %>
+                  <p><%= msg %></p>
+                <% end %>
+              </div>
+            <% end %>
           </div>
 
           <div>
@@ -81,10 +96,18 @@ defmodule TrialAppWeb.UserLive.Settings do
             <input
               type="password"
               name="user[password_confirmation]"
+              value={@password_form[:password_confirmation].value}
               placeholder="Confirm new password"
               class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               required
             />
+            <%= if @password_form[:password_confirmation].errors != [] do %>
+              <div class="mt-1 text-sm text-red-600">
+                <%= for {msg, _} <- @password_form[:password_confirmation].errors do %>
+                  <p><%= msg %></p>
+                <% end %>
+              </div>
+            <% end %>
           </div>
 
           <button
@@ -188,5 +211,9 @@ defmodule TrialAppWeb.UserLive.Settings do
       changeset ->
         {:noreply, assign(socket, password_form: to_form(changeset, action: :insert))}
     end
+  end
+
+  def handle_event("lv:clear-flash", %{"key" => key}, socket) do
+    {:noreply, clear_flash(socket, String.to_atom(key))}
   end
 end

@@ -75,5 +75,11 @@
     <main>
       {@inner_content}
     </main>
+
+    <!-- Flash Messages -->
+    <div id="flash-group" aria-live="polite">
+      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:error} flash={@flash} />
+    </div>
   </body>
 </html>
