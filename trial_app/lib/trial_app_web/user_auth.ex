@@ -224,7 +224,7 @@ defmodule TrialAppWeb.UserAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/login")
 
       {:halt, socket}
     end
@@ -239,7 +239,7 @@ defmodule TrialAppWeb.UserAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/login")
 
       {:halt, socket}
     end
@@ -262,7 +262,7 @@ defmodule TrialAppWeb.UserAuth do
     ~p"/users/settings"
   end
 
-  def signed_in_path(_), do: ~p"/"
+  def signed_in_path(_), do: ~p"/users/settings"
 
   @doc """
   Plug for routes that require the user to be authenticated.
@@ -274,7 +274,7 @@ defmodule TrialAppWeb.UserAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: ~p"/users/login")
       |> halt()
     end
   end

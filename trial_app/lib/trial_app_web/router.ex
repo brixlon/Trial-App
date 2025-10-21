@@ -54,6 +54,7 @@ defmodule TrialAppWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
+      live "/dashboard", DashboardLive
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
@@ -72,8 +73,6 @@ defmodule TrialAppWeb.Router do
       # Login routes - only keep one to avoid conflicts
       live "/users/login", UserLive.Login
 
-      # Dashboard route
-      live "/dashboard", DashboardLive
 
       # Remove conflicting routes:
       # live "/users/log-in", UserLive.Login, :new
@@ -81,7 +80,7 @@ defmodule TrialAppWeb.Router do
     end
 
     # Keep these controller routes
-    post "/users/log-in", UserSessionController, :create
-    delete "/users/log-out", UserSessionController, :delete
+    post "/users/login", UserSessionController, :create
+    delete "/users/logout", UserSessionController, :delete
   end
 end

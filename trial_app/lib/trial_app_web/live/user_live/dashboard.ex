@@ -2,13 +2,7 @@ defmodule TrialAppWeb.DashboardLive do
   use TrialAppWeb, :live_view
 
   def mount(_params, _session, socket) do
-    current_user = %{
-      email: "test@test.com",
-      id: "user_123",
-      name: "Test User"
-    }
-
-    {:ok, assign(socket, current_user: current_user)}
+    {:ok, socket}
   end
 
   def render(assigns) do
@@ -19,12 +13,12 @@ defmodule TrialAppWeb.DashboardLive do
           <div class="flex items-center justify-between mb-8">
             <div>
               <h1 class="text-4xl font-bold text-gray-800 mb-2">
-                🎉 Welcome, <%= @current_user.email %>!
+                 Welcome, <%= @current_scope.user.email %>!
               </h1>
               <p class="text-gray-600">You're successfully logged in!</p>
             </div>
 
-            <.link navigate="/users/login" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all shadow-lg">
+            <.link href="/users/logout" method="delete" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all shadow-lg">
               🚪 Logout
             </.link>
           </div>
@@ -54,11 +48,11 @@ defmodule TrialAppWeb.DashboardLive do
             <div class="space-y-3">
               <div class="flex items-center gap-3">
                 <span class="text-gray-600 font-semibold w-32">Email:</span>
-                <span class="text-gray-800"><%= @current_user.email %></span>
+                <span class="text-gray-800"><%= @current_scope.user.email %></span>
               </div>
               <div class="flex items-center gap-3">
                 <span class="text-gray-600 font-semibold w-32">Account ID:</span>
-                <span class="text-gray-800"><%= @current_user.id %></span>
+                <span class="text-gray-800"><%= @current_scope.user.id %></span>
               </div>
               <div class="flex items-center gap-3">
                 <span class="text-gray-600 font-semibold w-32">Status:</span>

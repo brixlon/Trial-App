@@ -3,29 +3,9 @@ defmodule TrialAppWeb.UserLive.Login do
 
   def mount(_params, _session, socket) do
     form = to_form(%{"email" => "", "password" => ""}, as: "user")
-    {:ok, assign(socket, form: form, error: nil, loading: false)}
+    {:ok, assign(socket, form: form)}
   end
 
-  def handle_event("login", %{"user" => user_params}, socket) do
-    socket = assign(socket, loading: true, error: nil)
-
-    case authenticate_user(user_params["email"], user_params["password"]) do
-      {:ok, user} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Welcome back, #{user.email}!")
-         |> push_navigate(to: "/dashboard")}
-
-      {:error, message} ->
-        {:noreply, assign(socket, error: message, loading: false)}
-    end
-  end
-
-  # Mock authentication
-  defp authenticate_user("test@test.com", "password"), do: {:ok, %{email: "test@test.com"}}
-  defp authenticate_user("", _), do: {:error, "Please enter your email"}
-  defp authenticate_user(_, ""), do: {:error, "Please enter your password"}
-  defp authenticate_user(_email, _password), do: {:error, "Invalid email or password"}
 
   def render(assigns) do
     ~H"""
@@ -37,7 +17,26 @@ defmodule TrialAppWeb.UserLive.Login do
             <p class="text-gray-600">Sign in to your account 🔐</p>
           </div>
 
-          <.form for={@form} phx-submit="login" class="space-y-6">
+          <!-- Flash Messages -->
+          <%= if @flash[:info] do %>
+            <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div class="flex items-center">
+                <span class="text-green-500 text-lg mr-2">✅</span>
+                <p class="text-green-700 font-semibold"><%= @flash[:info] %></p>
+              </div>
+            </div>
+          <% end %>
+
+          <%= if @flash[:error] do %>
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div class="flex items-center">
+                <span class="text-red-500 text-lg mr-2">⚠️</span>
+                <p class="text-red-700 font-semibold"><%= @flash[:error] %></p>
+              </div>
+            </div>
+          <% end %>
+
+          <.form for={@form} action={~p"/users/login"} method="post" class="space-y-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 📧 Email
@@ -48,7 +47,7 @@ defmodule TrialAppWeb.UserLive.Login do
                 value={@form[:email].value}
                 required
                 placeholder="your@email.com"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>
 
@@ -62,7 +61,7 @@ defmodule TrialAppWeb.UserLive.Login do
                 value={@form[:password].value}
                 required
                 placeholder="••••••••"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>
 
@@ -83,29 +82,11 @@ defmodule TrialAppWeb.UserLive.Login do
 
             <button
               type="submit"
-              disabled={@loading}
-              class="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              class="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              <%= if @loading do %>
-                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Signing in...
-              <% else %>
-                🚀 Sign In
-              <% end %>
+              🚀 Sign In
             </button>
           </.form>
-
-          <%= if @error do %>
-            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-              <div class="flex items-center">
-                <span class="text-red-500 text-lg mr-2">⚠️</span>
-                <p class="text-red-700 font-semibold"><%= @error %></p>
-              </div>
-            </div>
-          <% end %>
 
           <div class="mt-6 text-center">
             <p class="text-gray-600">

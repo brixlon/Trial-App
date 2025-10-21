@@ -6,8 +6,9 @@ defmodule TrialAppWeb.UserLive.Confirmation do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-sm">
+    <div class="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center p-6">
+      <div class="max-w-md w-full">
+        <div class="bg-white rounded-2xl shadow-2xl p-8">
         <div class="text-center">
           <.header>Welcome {@user.email}</.header>
         </div>
@@ -18,7 +19,7 @@ defmodule TrialAppWeb.UserLive.Confirmation do
           id="confirmation_form"
           phx-mounted={JS.focus_first()}
           phx-submit="submit"
-          action={~p"/users/log-in?_action=confirmed"}
+          action={~p"/users/login?_action=confirmed"}
           phx-trigger-action={@trigger_submit}
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
@@ -41,7 +42,7 @@ defmodule TrialAppWeb.UserLive.Confirmation do
           id="login_form"
           phx-submit="submit"
           phx-mounted={JS.focus_first()}
-          action={~p"/users/log-in"}
+          action={~p"/users/login"}
           phx-trigger-action={@trigger_submit}
         >
           <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
@@ -67,8 +68,9 @@ defmodule TrialAppWeb.UserLive.Confirmation do
         <p :if={!@user.confirmed_at} class="alert alert-outline mt-8">
           Tip: If you prefer passwords, you can enable them in the user settings.
         </p>
+        </div>
       </div>
-    </Layouts.app>
+    </div>
     """
   end
 
@@ -83,7 +85,7 @@ defmodule TrialAppWeb.UserLive.Confirmation do
       {:ok,
        socket
        |> put_flash(:error, "Magic link is invalid or it has expired.")
-       |> push_navigate(to: ~p"/users/log-in")}
+       |> push_navigate(to: ~p"/users/login")}
     end
   end
 

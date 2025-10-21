@@ -29,50 +29,25 @@ defmodule TrialAppWeb.UserLive.Registration do
   def handle_event("save", %{"user" => user_params}, socket) do
     socket = assign(socket, loading: true, error: nil)
 
-    # Validate all fields
-    errors = []
+    # Create user with proper validation
+    case TrialApp.Accounts.register_user(user_params) do
+      {:ok, _user} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Account created successfully! Please log in.")
+         |> push_navigate(to: "/users/login")}
 
-    # Email validation
-    if user_params["email"] == "" do
-      errors = errors ++ ["Email is required"]
-    else
-      unless String.contains?(user_params["email"], "@") do
-        errors = errors ++ ["Please enter a valid email address"]
-      end
-    end
+      {:error, changeset} ->
+        error_message =
+          changeset.errors
+          |> Enum.map(fn {field, {message, _}} -> "#{field}: #{message}" end)
+          |> Enum.join(", ")
 
-    # Password validation
-    if user_params["password"] == "" do
-      errors = errors ++ ["Password is required"]
-    else
-      if String.length(user_params["password"]) < 6 do
-        errors = errors ++ ["Password must be at least 6 characters"]
-      end
-    end
-
-    # Password confirmation validation
-    if user_params["password_confirmation"] == "" do
-      errors = errors ++ ["Please confirm your password"]
-    else
-      if user_params["password"] != user_params["password_confirmation"] do
-        errors = errors ++ ["Passwords don't match"]
-      end
-    end
-
-    if Enum.empty?(errors) do
-      # Success - redirect to login
-      {:noreply,
-       socket
-       |> put_flash(:info, "Account created successfully! You can now login.")
-       |> push_navigate(to: "/users/login")}
-    else
-      # Show errors but KEEP the form data
-      error_message = Enum.join(errors, ", ")
-      {:noreply, assign(socket,
-        loading: false,
-        error: error_message,
-        form: to_form(user_params, as: "user")
-      )}
+        {:noreply, assign(socket,
+          loading: false,
+          error: error_message,
+          form: to_form(user_params, as: "user")
+        )}
     end
   end
 
@@ -86,6 +61,25 @@ defmodule TrialAppWeb.UserLive.Registration do
             <p class="text-gray-600">Join us today! It's free 🎉</p>
           </div>
 
+          <!-- Flash Messages -->
+          <%= if @flash[:info] do %>
+            <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+              <div class="flex items-center">
+                <span class="text-green-500 text-lg mr-2">✅</span>
+                <p class="text-green-700 font-semibold"><%= @flash[:info] %></p>
+              </div>
+            </div>
+          <% end %>
+
+          <%= if @flash[:error] do %>
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div class="flex items-center">
+                <span class="text-red-500 text-lg mr-2">⚠️</span>
+                <p class="text-red-700 font-semibold"><%= @flash[:error] %></p>
+              </div>
+            </div>
+          <% end %>
+
           <.form for={@form} phx-submit="save" phx-change="validate" class="space-y-6">
             <!-- Email Field -->
             <div>
@@ -98,7 +92,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                 value={@form[:email].value}
                 required
                 placeholder="your@email.com"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>
 
@@ -113,7 +107,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                 value={@form[:password].value}
                 required
                 placeholder="••••••••"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               />
               <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
