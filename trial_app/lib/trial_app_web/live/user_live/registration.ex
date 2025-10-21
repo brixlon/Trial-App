@@ -8,7 +8,9 @@ defmodule TrialAppWeb.UserLive.Registration do
       form: to_form(form_data, as: "user"),
       loading: false,
       error: nil,
-      password_match: true
+      password_match: true,
+      show_password: false,
+      show_confirm_password: false
     )}
   end
 
@@ -49,6 +51,14 @@ defmodule TrialAppWeb.UserLive.Registration do
           form: to_form(user_params, as: "user")
         )}
     end
+  end
+
+  def handle_event("toggle_password_visibility", _params, socket) do
+    {:noreply, assign(socket, show_password: !socket.assigns.show_password)}
+  end
+
+  def handle_event("toggle_confirm_password_visibility", _params, socket) do
+    {:noreply, assign(socket, show_confirm_password: !socket.assigns.show_confirm_password)}
   end
 
   def render(assigns) do
@@ -101,14 +111,32 @@ defmodule TrialAppWeb.UserLive.Registration do
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 🔒 Password
               </label>
-              <input
-                type="password"
-                name="user[password]"
-                value={@form[:password].value}
-                required
-                placeholder="••••••••"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-              />
+              <div class="relative">
+                <input
+                  type={if @show_password, do: "text", else: "password"}
+                  name="user[password]"
+                  value={@form[:password].value}
+                  required
+                  placeholder="••••••••"
+                  class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
+                />
+                <button
+                  type="button"
+                  phx-click="toggle_password_visibility"
+                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <%= if @show_password do %>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                    </svg>
+                  <% else %>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                  <% end %>
+                </button>
+              </div>
               <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
 
@@ -117,14 +145,32 @@ defmodule TrialAppWeb.UserLive.Registration do
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 🔒 Confirm Password
               </label>
-              <input
-                type="password"
-                name="user[password_confirmation]"
-                value={@form[:password_confirmation].value}
-                required
-                placeholder="••••••••"
-                class={"w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all #{if !@password_match && @form[:password_confirmation].value != "", do: "border-red-300 bg-red-50", else: "border-gray-300"}"}
-              />
+              <div class="relative">
+                <input
+                  type={if @show_confirm_password, do: "text", else: "password"}
+                  name="user[password_confirmation]"
+                  value={@form[:password_confirmation].value}
+                  required
+                  placeholder="••••••••"
+                  class={"w-full px-4 py-3 pr-12 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all #{if !@password_match && @form[:password_confirmation].value != "", do: "border-red-300 bg-red-50", else: "border-gray-300"}"}
+                />
+                <button
+                  type="button"
+                  phx-click="toggle_confirm_password_visibility"
+                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <%= if @show_confirm_password do %>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                    </svg>
+                  <% else %>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                  <% end %>
+                </button>
+              </div>
               <%= if !@password_match && @form[:password_confirmation].value != "" do %>
                 <p class="mt-1 text-sm text-red-600 flex items-center">
                   <span class="mr-1">⚠️</span> Passwords don't match
