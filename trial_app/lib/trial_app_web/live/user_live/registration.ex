@@ -60,6 +60,10 @@ defmodule TrialAppWeb.UserLive.Registration do
     {:noreply, assign(socket, show_confirm_password: !socket.assigns.show_confirm_password)}
   end
 
+  def handle_event(_, _, socket) do
+    {:noreply, socket}
+  end
+
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 flex items-center justify-center p-6">
