@@ -156,7 +156,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                   <%= if @show_confirm_password do %>
                     👁️
                   <% else %>
-                    👁️‍🗨️
+                    🫣
                   <% end %>
                 </button>
               </div>
