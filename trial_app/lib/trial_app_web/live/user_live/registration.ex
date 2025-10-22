@@ -67,7 +67,8 @@ defmodule TrialAppWeb.UserLive.Registration do
     {:noreply, assign(socket, show_confirm_password: !socket.assigns.show_confirm_password)}
   end
 
-  def handle_event(_, _, socket) do
+  def handle_event(_event, _params, socket) do
+    # Gracefully ignore unknown events
     {:noreply, socket}
   end
 
