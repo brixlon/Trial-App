@@ -15,7 +15,7 @@ defmodule TrialAppWeb.UserLive.Settings do
             <h1 class="text-4xl font-bold text-gray-800 mb-2">⚙️ Account Settings</h1>
             <p class="text-gray-600">Manage your account email address and password settings</p>
           </div>
-          
+
     <!-- Email Settings Section -->
           <div class="mb-8 p-6 bg-gray-50 rounded-xl">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">📧 Email Settings</h2>
@@ -58,7 +58,7 @@ defmodule TrialAppWeb.UserLive.Settings do
               </button>
             </.form>
           </div>
-          
+
     <!-- Password Settings Section -->
           <div class="p-6 bg-gray-50 rounded-xl">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">🔒 Password Settings</h2>
