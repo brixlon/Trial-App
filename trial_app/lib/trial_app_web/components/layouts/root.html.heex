@@ -23,25 +23,28 @@
               <span class="text-xl font-bold text-gray-800">TrialApp</span>
             </.link>
           </div>
-
-          <!-- Navigation Links -->
+          
+<!-- Navigation Links -->
           <div class="flex items-center space-x-4">
             <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
               <!-- Authenticated User Menu -->
               <div class="flex items-center space-x-4">
                 <span class="text-gray-600 text-sm">
-                  Welcome, <span class="font-semibold text-gray-800"><%= assigns[:current_scope].user.email %></span>
+                  Welcome,
+                  <span class="font-semibold text-gray-800">
+                    {assigns[:current_scope].user.email}
+                  </span>
                 </span>
-                
-                <.link 
-                  href="/users/settings" 
+
+                <.link
+                  href="/users/settings"
                   class="px-4 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium"
                 >
                   ⚙️ Settings
                 </.link>
-                
-                <.link 
-                  href="/users/logout" 
+
+                <.link
+                  href="/users/logout"
                   method="delete"
                   class="px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
                 >
@@ -51,15 +54,15 @@
             <% else %>
               <!-- Guest User Menu -->
               <div class="flex items-center space-x-4">
-                <.link 
-                  href="/users/register" 
+                <.link
+                  href="/users/register"
                   class="px-4 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium"
                 >
                   ✨ Register
                 </.link>
-                
-                <.link 
-                  href="/users/login" 
+
+                <.link
+                  href="/users/login"
                   class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors duration-200 font-medium"
                 >
                   🔐 Login
@@ -70,13 +73,13 @@
         </div>
       </div>
     </nav>
-
-    <!-- Main Content -->
+    
+<!-- Main Content -->
     <main>
       {@inner_content}
     </main>
-
-    <!-- Flash Messages -->
+    
+<!-- Flash Messages -->
     <div id="flash-group" aria-live="polite">
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />

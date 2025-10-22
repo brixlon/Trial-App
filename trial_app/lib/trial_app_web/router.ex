@@ -2,6 +2,7 @@ defmodule TrialAppWeb.Router do
   use TrialAppWeb, :router
 
   import TrialAppWeb.UserAuth
+  import Plug.Conn
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -10,6 +11,7 @@ defmodule TrialAppWeb.Router do
     plug :put_root_layout, html: {TrialAppWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :put_custom_permissions_policy
     plug :fetch_current_scope_for_user
   end
 
@@ -20,9 +22,9 @@ defmodule TrialAppWeb.Router do
   scope "/", TrialAppWeb do
     pipe_through :browser
 
-
-    get "/home", PageController, :home  # Keep Phoenix page at /home
-  live "/", UserLive.Login
+    # Keep Phoenix page at /home
+    get "/home", PageController, :home
+    live "/", UserLive.Login
   end
 
   # Other scopes may use custom stacks.
@@ -73,7 +75,6 @@ defmodule TrialAppWeb.Router do
       # Login routes - only keep one to avoid conflicts
       live "/users/login", UserLive.Login
 
-
       # Remove conflicting routes:
       # live "/users/log-in", UserLive.Login, :new
       # live "/users/log-in/:token", UserLive.Confirmation, :new
@@ -82,5 +83,29 @@ defmodule TrialAppWeb.Router do
     # Keep these controller routes
     post "/users/login", UserSessionController, :create
     delete "/users/logout", UserSessionController, :delete
+  end
+
+  # Custom plug to override Permissions-Policy header with only supported features
+  def put_custom_permissions_policy(conn, _opts) do
+    # Override the Permissions-Policy header with only widely supported features
+    # This removes experimental features that cause console errors
+    permissions_policy =
+      [
+        "camera=()",
+        "microphone=()",
+        "geolocation=()",
+        "payment=()",
+        "usb=()",
+        "magnetometer=()",
+        "gyroscope=()",
+        "accelerometer=()",
+        "ambient-light-sensor=()",
+        "autoplay=()",
+        "fullscreen=(self)",
+        "picture-in-picture=()"
+      ]
+      |> Enum.join(", ")
+
+    put_resp_header(conn, "permissions-policy", permissions_policy)
   end
 end

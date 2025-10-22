@@ -4,27 +4,32 @@ defmodule TrialAppWeb.UserLive.Registration do
   def mount(_params, _session, socket) do
     # Start with empty form
     form_values = %{"email" => "", "password" => "", "password_confirmation" => ""}
-    {:ok, assign(socket,
-      form: to_form(form_values, as: "user"),
-      form_values: form_values,          # keep password values manually
-      loading: false,
-      error: nil,
-      password_match: true,
-      show_password: false,
-      show_confirm_password: false
-    )}
+
+    {:ok,
+     assign(socket,
+       form: to_form(form_values, as: "user"),
+       # keep password values manually
+       form_values: form_values,
+       loading: false,
+       error: nil,
+       password_match: true,
+       show_password: false,
+       show_confirm_password: false
+     )}
   end
 
   def handle_event("validate", %{"user" => user_params}, socket) do
     # Check if passwords match
     passwords_match = user_params["password"] == user_params["password_confirmation"]
 
-    {:noreply, assign(socket,
-      form: to_form(user_params, as: "user"),
-      form_values: user_params,          # update manual copy
-      password_match: passwords_match,
-      error: if(!passwords_match, do: "Passwords don't match", else: nil)
-    )}
+    {:noreply,
+     assign(socket,
+       form: to_form(user_params, as: "user"),
+       # update manual copy
+       form_values: user_params,
+       password_match: passwords_match,
+       error: if(!passwords_match, do: "Passwords don't match", else: nil)
+     )}
   end
 
   def handle_event("save", %{"user" => user_params}, socket) do
@@ -43,12 +48,14 @@ defmodule TrialAppWeb.UserLive.Registration do
           |> Enum.map(fn {field, {message, _}} -> "#{field}: #{message}" end)
           |> Enum.join(", ")
 
-        {:noreply, assign(socket,
-          loading: false,
-          error: error_message,
-          form: to_form(user_params, as: "user"),
-          form_values: user_params  # keep typed passwords
-        )}
+        {:noreply,
+         assign(socket,
+           loading: false,
+           error: error_message,
+           form: to_form(user_params, as: "user"),
+           # keep typed passwords
+           form_values: user_params
+         )}
     end
   end
 
@@ -67,15 +74,15 @@ defmodule TrialAppWeb.UserLive.Registration do
         <div class="bg-white rounded-2xl shadow-2xl p-8">
           <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Create Account</h1>
-            <p class="text-gray-600">Join us today! It's free </p>
+            <p class="text-gray-600">Join us today! It's free</p>
           </div>
-
-          <!-- Flash Messages -->
+          
+    <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
               <div class="flex items-center">
                 <span class="text-green-500 text-lg mr-2">✅</span>
-                <p class="text-green-700 font-semibold"><%= @flash[:info] %></p>
+                <p class="text-green-700 font-semibold">{@flash[:info]}</p>
               </div>
             </div>
           <% end %>
@@ -84,7 +91,7 @@ defmodule TrialAppWeb.UserLive.Registration do
             <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div class="flex items-center">
                 <span class="text-red-500 text-lg mr-2">⚠️</span>
-                <p class="text-red-700 font-semibold"><%= @flash[:error] %></p>
+                <p class="text-red-700 font-semibold">{@flash[:error]}</p>
               </div>
             </div>
           <% end %>
@@ -104,8 +111,8 @@ defmodule TrialAppWeb.UserLive.Registration do
                 class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>
-
-            <!-- Password Field -->
+            
+    <!-- Password Field -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 🔒 Password
@@ -133,8 +140,8 @@ defmodule TrialAppWeb.UserLive.Registration do
               </div>
               <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
-
-            <!-- Confirm Password Field -->
+            
+    <!-- Confirm Password Field -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 🔒 Confirm Password
@@ -168,8 +175,8 @@ defmodule TrialAppWeb.UserLive.Registration do
                 <p class="mt-1 text-xs text-gray-500">Re-enter your password</p>
               <% end %>
             </div>
-
-            <!-- Submit Button -->
+            
+    <!-- Submit Button -->
             <button
               type="submit"
               disabled={@loading}
@@ -182,22 +189,25 @@ defmodule TrialAppWeb.UserLive.Registration do
               <% end %>
             </button>
           </.form>
-
-          <!-- Error Message -->
+          
+    <!-- Error Message -->
           <%= if @error do %>
             <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div class="flex items-center">
                 <span class="text-red-500 text-lg mr-2">⚠️</span>
-                <p class="text-red-700 font-semibold"><%= @error %></p>
+                <p class="text-red-700 font-semibold">{@error}</p>
               </div>
             </div>
           <% end %>
-
-          <!-- Login Link -->
+          
+    <!-- Login Link -->
           <div class="mt-6 text-center">
             <p class="text-gray-600">
               Already have an account?
-              <.link navigate="/users/login" class="text-purple-600 font-semibold hover:text-purple-700">
+              <.link
+                navigate="/users/login"
+                class="text-purple-600 font-semibold hover:text-purple-700"
+              >
                 Sign in here
               </.link>
             </p>

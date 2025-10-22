@@ -6,7 +6,6 @@ defmodule TrialAppWeb.UserLive.Login do
     {:ok, assign(socket, form: form)}
   end
 
-
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex items-center justify-center p-6">
@@ -16,13 +15,13 @@ defmodule TrialAppWeb.UserLive.Login do
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
             <p class="text-gray-600">Sign in to your account 🔐</p>
           </div>
-
-          <!-- Flash Messages -->
+          
+    <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
               <div class="flex items-center">
                 <span class="text-green-500 text-lg mr-2">✅</span>
-                <p class="text-green-700 font-semibold"><%= @flash[:info] %></p>
+                <p class="text-green-700 font-semibold">{@flash[:info]}</p>
               </div>
             </div>
           <% end %>
@@ -31,7 +30,7 @@ defmodule TrialAppWeb.UserLive.Login do
             <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div class="flex items-center">
                 <span class="text-red-500 text-lg mr-2">⚠️</span>
-                <p class="text-red-700 font-semibold"><%= @flash[:error] %></p>
+                <p class="text-red-700 font-semibold">{@flash[:error]}</p>
               </div>
             </div>
           <% end %>
@@ -75,7 +74,10 @@ defmodule TrialAppWeb.UserLive.Login do
                 <span class="ml-2 text-sm text-gray-600">Remember me</span>
               </label>
 
-              <.link navigate="/users/register" class="text-sm text-blue-600 hover:text-blue-700 font-semibold">
+              <.link
+                navigate="/users/register"
+                class="text-sm text-blue-600 hover:text-blue-700 font-semibold"
+              >
                 Forgot password?
               </.link>
             </div>
@@ -91,7 +93,10 @@ defmodule TrialAppWeb.UserLive.Login do
           <div class="mt-6 text-center">
             <p class="text-gray-600">
               Don't have an account?
-              <.link navigate="/users/register" class="text-blue-600 font-semibold hover:text-blue-700">
+              <.link
+                navigate="/users/register"
+                class="text-blue-600 font-semibold hover:text-blue-700"
+              >
                 Create one here
               </.link>
             </p>
