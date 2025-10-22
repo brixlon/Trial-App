@@ -2,7 +2,7 @@ defmodule TrialAppWeb.UserLive.Login do
   use TrialAppWeb, :live_view
 
   def mount(_params, _session, socket) do
-    form = to_form(%{"email" => "", "password" => ""}, as: "user")
+    form = to_form(%{"email_or_username" => "", "password" => ""}, as: "user")
     {:ok, assign(socket, form: form)}
   end
 
@@ -15,7 +15,7 @@ defmodule TrialAppWeb.UserLive.Login do
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
             <p class="text-gray-600">Sign in to your account 🔐</p>
           </div>
-          
+
     <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
@@ -38,14 +38,14 @@ defmodule TrialAppWeb.UserLive.Login do
           <.form for={@form} action={~p"/users/login"} method="post" class="space-y-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
-                📧 Email
+                👤 Username or Email
               </label>
               <input
-                type="email"
-                name="user[email]"
-                value={@form[:email].value}
+                type="text"
+                name="user[email_or_username]"
+                value={@form[:email_or_username].value}
                 required
-                placeholder="your@email.com"
+                placeholder="username or your@email.com"
                 class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>

@@ -13,7 +13,7 @@ defmodule TrialAppWeb.DashboardLive do
           <div class="flex items-center justify-between mb-8">
             <div>
               <h1 class="text-4xl font-bold text-gray-800 mb-2">
-                Welcome, {@current_scope.user.email}!
+                Welcome, {@current_scope.user.username}!
               </h1>
               <p class="text-gray-600">You're successfully logged in!</p>
             </div>
@@ -53,6 +53,10 @@ defmodule TrialAppWeb.DashboardLive do
           <div class="bg-gray-50 rounded-xl p-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Account Information</h2>
             <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <span class="text-gray-600 font-semibold w-32">Username:</span>
+                <span class="text-gray-800">{@current_scope.user.username}</span>
+              </div>
               <div class="flex items-center gap-3">
                 <span class="text-gray-600 font-semibold w-32">Email:</span>
                 <span class="text-gray-800">{@current_scope.user.email}</span>

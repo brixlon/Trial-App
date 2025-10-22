@@ -3,12 +3,11 @@ defmodule TrialAppWeb.UserLive.Registration do
 
   def mount(_params, _session, socket) do
     # Start with empty form
-    form_values = %{"email" => "", "password" => "", "password_confirmation" => ""}
+    form_values = %{"email" => "", "username" => "", "password" => "", "password_confirmation" => ""}
 
     {:ok,
      assign(socket,
        form: to_form(form_values, as: "user"),
-       # keep password values manually
        form_values: form_values,
        loading: false,
        error: nil,
@@ -20,13 +19,11 @@ defmodule TrialAppWeb.UserLive.Registration do
   end
 
   def handle_event("validate", %{"user" => user_params}, socket) do
-    # Check if passwords match
     passwords_match = user_params["password"] == user_params["password_confirmation"]
 
     {:noreply,
      assign(socket,
        form: to_form(user_params, as: "user"),
-       # update manual copy
        form_values: user_params,
        password_match: passwords_match,
        error: if(!passwords_match, do: "Passwords don't match", else: nil)
@@ -39,7 +36,6 @@ defmodule TrialAppWeb.UserLive.Registration do
     case TrialApp.Accounts.register_user(user_params) do
       {:ok, _user} ->
         # Auto-login the user after successful registration
-        # Use a hidden form to trigger the login via the controller
         form = to_form(user_params, as: "user")
 
         {:noreply,
@@ -58,7 +54,6 @@ defmodule TrialAppWeb.UserLive.Registration do
            loading: false,
            error: error_message,
            form: to_form(user_params, as: "user"),
-           # keep typed passwords
            form_values: user_params
          )}
     end
@@ -73,7 +68,6 @@ defmodule TrialAppWeb.UserLive.Registration do
   end
 
   def handle_event(_event, _params, socket) do
-    # Gracefully ignore unknown events
     {:noreply, socket}
   end
 
@@ -87,7 +81,7 @@ defmodule TrialAppWeb.UserLive.Registration do
             <p class="text-gray-600">Join us today! It's free</p>
           </div>
 
-    <!-- Flash Messages -->
+          <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
               <div class="flex items-center">
@@ -107,100 +101,61 @@ defmodule TrialAppWeb.UserLive.Registration do
           <% end %>
 
           <.form for={@form} phx-submit="save" phx-change="validate" class="space-y-6">
+            <!-- Username Field -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">👤 Username</label>
+              <input type="text" name="user[username]" value={@form_values["username"]} required placeholder="your_username"
+                     class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"/>
+              <p class="mt-1 text-xs text-gray-500">3-30 characters, letters, numbers, and underscores only</p>
+            </div>
+
             <!-- Email Field -->
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                📧 Email
-              </label>
-              <input
-                type="email"
-                name="user[email]"
-                value={@form_values["email"]}
-                required
-                placeholder="your@email.com"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-              />
+              <label class="block text-sm font-semibold text-gray-700 mb-2">📧 Email</label>
+              <input type="email" name="user[email]" value={@form_values["email"]} required placeholder="your@email.com"
+                     class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"/>
             </div>
 
-           <!-- Password Field -->
+            <!-- Password Field -->
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                🔒 Password
-              </label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">🔒 Password</label>
               <div class="relative">
-                <input
-                  type={if @show_password, do: "text", else: "password"}
-                  name="user[password]"
-                  value={@form_values["password"]}
-                  required
-                  placeholder="••••••••"
-                  class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-                />
-                <button
-                  type="button"
-                  phx-click="toggle_password_visibility"
-                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <%= if @show_password do %>
-                  👁️‍🗨️
-                  <% else %>
-                    🫣
-                  <% end %>
+                <input type={if @show_password, do: "text", else: "password"} name="user[password]" value={@form_values["password"]} required placeholder="••••••••"
+                       class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"/>
+                <button type="button" phx-click="toggle_password_visibility"
+                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                  <%= if @show_password, do: "👁️‍🗨️", else: "🫣" %>
                 </button>
               </div>
-              <p class="mt-1 text-xs text-gray-500">Must be at least 12 characters</p>
+              <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
 
-           <!-- Confirm Password Field -->
+            <!-- Confirm Password Field -->
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">
-                🔒 Confirm Password
-              </label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">🔒 Confirm Password</label>
               <div class="relative">
-                <input
-                  type={if @show_confirm_password, do: "text", else: "password"}
-                  name="user[password_confirmation]"
-                  value={@form_values["password_confirmation"]}
-                  required
-                  placeholder="••••••••"
-                  class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-                />
-                <button
-                  type="button"
-                  phx-click="toggle_confirm_password_visibility"
-                  class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <%= if @show_confirm_password do %>
-                  👁️‍🗨️
-                  <% else %>
-                    🫣
-                  <% end %>
+                <input type={if @show_confirm_password, do: "text", else: "password"} name="user[password_confirmation]" value={@form_values["password_confirmation"]} required placeholder="••••••••"
+                       class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"/>
+                <button type="button" phx-click="toggle_confirm_password_visibility"
+                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none">
+                  <%= if @show_confirm_password, do: "👁️‍🗨️", else: "🫣" %>
                 </button>
               </div>
               <%= if !@password_match && @form_values["password_confirmation"] != "" do %>
-                <p class="mt-1 text-sm text-red-600 flex items-center">
-                  ⚠️ Passwords don't match
-                </p>
+                <p class="mt-1 text-sm text-red-600 flex items-center">⚠️ Passwords don't match</p>
               <% else %>
                 <p class="mt-1 text-xs text-gray-500">Re-enter your password</p>
               <% end %>
             </div>
 
             <!-- Submit Button -->
-            <button
-              type="submit"
-              disabled={@loading}
-              class="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              <%= if @loading do %>
-                Creating Account...
-              <% else %>
-                ✨ Create Account
-              <% end %>
+            <button type="submit" disabled={@loading}
+                    class="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+              <%= if @loading, do: "Creating Account...", else: " Create Account" %>
             </button>
           </.form>
 
-    <!-- Error Message -->
+          <!-- Error Message -->
           <%= if @error do %>
             <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div class="flex items-center">
@@ -210,14 +165,11 @@ defmodule TrialAppWeb.UserLive.Registration do
             </div>
           <% end %>
 
-    <!-- Login Link -->
+          <!-- Login Link -->
           <div class="mt-6 text-center">
             <p class="text-gray-600">
               Already have an account?
-              <.link
-                navigate="/users/login"
-                class="text-purple-600 font-semibold hover:text-purple-700"
-              >
+              <.link navigate="/users/login" class="text-purple-600 font-semibold hover:text-purple-700">
                 Sign in here
               </.link>
             </p>
@@ -233,8 +185,8 @@ defmodule TrialAppWeb.UserLive.Registration do
       action={~p"/users/login"}
       phx-trigger-action={@trigger_submit}
     >
-      <input type="hidden" name={@form[:email].name} value={@form[:email].value} />
-      <input type="hidden" name={@form[:password].name} value={@form[:password].value} />
+      <input type="hidden" name="user[email_or_username]" value={@form[:email].value} />
+      <input type="hidden" name="user[password]" value={@form[:password].value} />
     </.form>
     """
   end

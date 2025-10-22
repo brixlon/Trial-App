@@ -45,6 +45,32 @@ defmodule TrialApp.Accounts do
   end
 
   @doc """
+  Gets a user by username or email and password.
+
+  ## Examples
+
+      iex> get_user_by_username_or_email_and_password("username", "correct_password")
+      %User{}
+
+      iex> get_user_by_username_or_email_and_password("user@example.com", "correct_password")
+      %User{}
+
+      iex> get_user_by_username_or_email_and_password("username", "invalid_password")
+      nil
+  """
+  def get_user_by_username_or_email_and_password(username_or_email, password)
+      when is_binary(username_or_email) and is_binary(password) do
+    # Check if it looks like an email (contains @)
+    user = if String.contains?(username_or_email, "@") do
+      Repo.get_by(User, email: username_or_email)
+    else
+      Repo.get_by(User, username: username_or_email)
+    end
+
+    if User.valid_password?(user, password), do: user
+  end
+
+  @doc """
   Gets a single user.
 
   Raises `Ecto.NoResultsError` if the User does not exist.
@@ -77,6 +103,7 @@ defmodule TrialApp.Accounts do
   def register_user(attrs) do
     %User{}
     |> User.email_changeset(attrs)
+    |> User.username_changeset(attrs)
     |> User.password_changeset(attrs)
     |> Repo.insert()
   end
