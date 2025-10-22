@@ -68,7 +68,7 @@ defmodule TrialAppWeb.UserLive.Registration do
         <div class="bg-white rounded-2xl shadow-2xl p-8">
           <div class="text-center mb-8">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Create Account</h1>
-            <p class="text-gray-600">Join us today! It's free 🎉</p>
+            <p class="text-gray-600">Join us today! It's free </p>
           </div>
 
           <!-- Flash Messages -->
