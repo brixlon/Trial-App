@@ -3,7 +3,7 @@ import Config
 # Configure your database
 config :trial_app, TrialApp.Repo,
   username: "postgres",
-  password: "ddeveloper",
+  password: "developer",
   hostname: "localhost",
   database: "trial_app_dev",
   stacktrace: true,
