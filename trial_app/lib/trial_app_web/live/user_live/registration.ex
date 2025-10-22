@@ -14,7 +14,8 @@ defmodule TrialAppWeb.UserLive.Registration do
        error: nil,
        password_match: true,
        show_password: false,
-       show_confirm_password: false
+       show_confirm_password: false,
+       trigger_submit: false
      )}
   end
 
@@ -37,10 +38,14 @@ defmodule TrialAppWeb.UserLive.Registration do
 
     case TrialApp.Accounts.register_user(user_params) do
       {:ok, _user} ->
+        # Auto-login the user after successful registration
+        # Use a hidden form to trigger the login via the controller
+        form = to_form(user_params, as: "user")
+
         {:noreply,
          socket
-         |> put_flash(:info, "Account created successfully! Please log in.")
-         |> push_navigate(to: "/users/login")}
+         |> put_flash(:info, "Account created successfully! Welcome!")
+         |> assign(form: form, trigger_submit: true)}
 
       {:error, changeset} ->
         error_message =
@@ -137,13 +142,13 @@ defmodule TrialAppWeb.UserLive.Registration do
                   class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
                 >
                   <%= if @show_password do %>
-                    
+                  👁️‍🗨️
                   <% else %>
                     🫣
                   <% end %>
                 </button>
               </div>
-              <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
+              <p class="mt-1 text-xs text-gray-500">Must be at least 12 characters</p>
             </div>
 
            <!-- Confirm Password Field -->
@@ -158,7 +163,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                   value={@form_values["password_confirmation"]}
                   required
                   placeholder="••••••••"
-                  class={"w-full px-4 py-3 pr-12 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all #{if !@password_match && @form_values["password_confirmation"] != "", do: "border-red-300 bg-red-50", else: "border-gray-300"}"}
+                  class="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
                 />
                 <button
                   type="button"
@@ -166,7 +171,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                   class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
                 >
                   <%= if @show_confirm_password do %>
-
+                  👁️‍🗨️
                   <% else %>
                     🫣
                   <% end %>
@@ -220,6 +225,17 @@ defmodule TrialAppWeb.UserLive.Registration do
         </div>
       </div>
     </div>
+
+    <!-- Hidden form for auto-login after registration -->
+    <.form
+      for={@form}
+      id="auto-login-form"
+      action={~p"/users/login"}
+      phx-trigger-action={@trigger_submit}
+    >
+      <input type="hidden" name={@form[:email].name} value={@form[:email].value} />
+      <input type="hidden" name={@form[:password].name} value={@form[:password].value} />
+    </.form>
     """
   end
 end
