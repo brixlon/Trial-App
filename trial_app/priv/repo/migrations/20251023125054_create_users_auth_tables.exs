@@ -5,13 +5,15 @@ defmodule TrialApp.Repo.Migrations.CreateUsersAuthTables do
     execute "CREATE EXTENSION IF NOT EXISTS citext", ""
 
     create table(:users) do
+      add :username, :string, null: false
       add :email, :citext, null: false
-      add :hashed_password, :string
+      add :hashed_password, :string, null: false
       add :confirmed_at, :utc_datetime
 
       timestamps(type: :utc_datetime)
     end
 
+    create unique_index(:users, [:username])
     create unique_index(:users, [:email])
 
     create table(:users_tokens) do
