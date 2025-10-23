@@ -9,8 +9,42 @@ defmodule TrialApp.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    # ADD THESE TWO FIELDS:
+    field :status, :string, default: "pending"
+    field :role, :string, default: "user"
 
     timestamps(type: :utc_datetime)
+  end
+
+  @doc """
+  A user changeset for registration.
+  """
+  def registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:email, :username, :password])
+    |> validate_required([:email, :username, :password])
+    |> validate_length(:username, min: 3, max: 50)
+    |> validate_length(:password, min: 8, max: 72)
+    |> validate_confirmation(:password, message: "does not match password")
+    |> unique_constraint(:email)
+    |> unique_constraint(:username)
+    |> put_hashed_password(opts)
+    # Set default status and role
+    |> change(status: "pending", role: "user")
+  end
+
+  defp put_hashed_password(changeset, opts) do
+    hash_password? = Keyword.get(opts, :hash_password, true)
+    password = get_change(changeset, :password)
+
+    if hash_password? && password && changeset.valid? do
+      changeset
+      |> validate_length(:password, max: 72, count: :bytes)
+      |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
+      |> delete_change(:password)
+    else
+      changeset
+    end
   end
 
   @doc """

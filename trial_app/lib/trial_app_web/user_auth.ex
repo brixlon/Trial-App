@@ -193,6 +193,9 @@ defmodule TrialAppWeb.UserAuth do
       on user_token.
       Redirects to login page if there's no logged user.
 
+    * `:require_admin` - Authenticates the user from the session and
+      requires admin role. Redirects to dashboard if not admin.
+
   ## Examples
 
   Use the `on_mount` lifecycle macro in LiveViews to mount or authenticate
@@ -230,6 +233,21 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    if socket.assigns.current_scope && socket.assigns.current_scope.user && socket.assigns.current_scope.user.role == "admin" do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You must be an administrator to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/dashboard")
+
+      {:halt, socket}
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -257,7 +275,11 @@ defmodule TrialAppWeb.UserAuth do
   end
 
   @doc "Returns the path to redirect to after log in."
-  # the user was already logged in, redirect to dashboard
+  # Redirect admins to admin dashboard, regular users to regular dashboard
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{role: "admin"}}}}) do
+    ~p"/admin/dashboard"
+  end
+
   def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
     ~p"/dashboard"
   end
@@ -275,6 +297,20 @@ defmodule TrialAppWeb.UserAuth do
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/login")
+      |> halt()
+    end
+  end
+
+  @doc """
+  Plug for routes that require the user to be an admin.
+  """
+  def require_admin_user(conn, _opts) do
+    if conn.assigns.current_scope && conn.assigns.current_scope.user && conn.assigns.current_scope.user.role == "admin" do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You must be an administrator to access this page.")
+      |> redirect(to: ~p"/dashboard")
       |> halt()
     end
   end
