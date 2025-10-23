@@ -1,3 +1,4 @@
+# lib/trial_app_web/router.ex
 defmodule TrialAppWeb.Router do
   use TrialAppWeb, :router
 
@@ -56,7 +57,33 @@ defmodule TrialAppWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
-      live "/dashboard", DashboardLive
+      live "/dashboard", DashboardLive, :index
+
+      live "/organizations", OrganizationLive.Index, :index
+      live "/organizations/new", OrganizationLive.Index, :new
+      live "/organizations/:id/edit", OrganizationLive.Index, :edit
+      live "/organizations/:id", OrganizationLive.Show, :show
+
+      live "/departments", DepartmentLive.Index, :index
+      live "/departments/new", DepartmentLive.Index, :new
+      live "/departments/:id/edit", DepartmentLive.Index, :edit
+      live "/departments/:id", DepartmentLive.Show, :show
+
+      live "/teams", TeamLive.Index, :index
+      live "/teams/new", TeamLive.Index, :new
+      live "/teams/:id/edit", TeamLive.Index, :edit
+      live "/teams/:id", TeamLive.Show, :show
+
+      live "/employees", EmployeeLive.Index, :index
+      live "/employees/new", EmployeeLive.Index, :new
+      live "/employees/:id/edit", EmployeeLive.Index, :edit
+      live "/employees/:id", EmployeeLive.Show, :show
+
+      live "/positions", PositionLive.Index, :index
+      live "/positions/new", PositionLive.Index, :new
+      live "/positions/:id/edit", PositionLive.Index, :edit
+      live "/positions/:id", PositionLive.Show, :show
+
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
