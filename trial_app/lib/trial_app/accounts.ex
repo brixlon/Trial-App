@@ -86,6 +86,49 @@ defmodule TrialApp.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Lists all users.
+  """
+  def list_users do
+    Repo.all(User)
+  end
+
+  @doc """
+  Lists users by status.
+  """
+  def list_users_by_status(status) when is_binary(status) do
+    User
+    |> where([u], u.status == ^status)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists users by role.
+  """
+  def list_users_by_role(role) when is_binary(role) do
+    User
+    |> where([u], u.role == ^role)
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates a user's status.
+  """
+  def update_user_status(user, status) do
+    user
+    |> Ecto.Changeset.change(%{status: status})
+    |> Repo.update()
+  end
+
+  @doc """
+  Updates a user's role.
+  """
+  def update_user_role(user, role) do
+    user
+    |> Ecto.Changeset.change(%{role: role})
+    |> Repo.update()
+  end
+
   ## User registration
 
   @doc """
@@ -102,9 +145,7 @@ defmodule TrialApp.Accounts do
   """
   def register_user(attrs) do
     %User{}
-    |> User.email_changeset(attrs)
-    |> User.username_changeset(attrs)
-    |> User.password_changeset(attrs)
+    |> User.registration_changeset(attrs)
     |> Repo.insert()
   end
 

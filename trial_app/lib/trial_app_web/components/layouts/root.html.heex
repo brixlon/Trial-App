@@ -7,24 +7,27 @@
     <.live_title default="TrialApp" suffix=" · Your App">
       {assigns[:page_title]}
     </.live_title>
+
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
-    </script>
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}></script>
+
+    <!-- ✅ Add Alpine.js for collapsible sidebar behavior -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   </head>
-  <body class="bg-gray-50">
+
+  <body class="bg-gray-50 text-gray-900">
     <!-- Navigation Bar -->
-    <nav class="bg-white shadow-lg border-b border-gray-200">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <!-- Logo/Brand -->
           <div class="flex items-center">
             <.link href="/" class="flex items-center space-x-2">
-              <div class="text-2xl font-bold text-purple-600"></div>
               <span class="text-xl font-bold text-gray-800">TrialApp</span>
             </.link>
           </div>
-          
-<!-- Navigation Links -->
+
+          <!-- Navigation Links -->
           <div class="flex items-center space-x-4">
             <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
               <!-- Authenticated User Menu -->
@@ -38,7 +41,7 @@
 
                 <.link
                   href="/users/settings"
-                  class="px-4 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium"
+                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
                 >
                   ⚙️ Settings
                 </.link>
@@ -56,14 +59,14 @@
               <div class="flex items-center space-x-4">
                 <.link
                   href="/users/register"
-                  class="px-4 py-2 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 font-medium"
+                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
                 >
                   ✨ Register
                 </.link>
 
                 <.link
                   href="/users/login"
-                  class="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors duration-200 font-medium"
+                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors duration-200 font-medium"
                 >
                   🔐 Login
                 </.link>
@@ -73,13 +76,13 @@
         </div>
       </div>
     </nav>
-    
-<!-- Main Content -->
+
+    <!-- Main Content -->
     <main>
       {@inner_content}
     </main>
-    
-<!-- Flash Messages -->
+
+    <!-- Flash Messages -->
     <div id="flash-group" aria-live="polite">
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />

@@ -1,4 +1,4 @@
-defmodule TrialAppWeb.DepartmentLive.Index do
+defmodule TrialAppWeb.TeamLive.Index do
   use TrialAppWeb, :live_view
 
   def mount(_params, _session, socket) do
@@ -12,26 +12,25 @@ defmodule TrialAppWeb.DepartmentLive.Index do
         |> assign(:has_assignments, false)
       }
     else
-      # User is active, show department data
+      # User is active, show team data
       # Mock data - in real app, this would come from database
-      # For now, we'll simulate: total departments = 4, user's department = Engineering
-      all_departments = [
-        %{id: 1, name: "Engineering", description: "Software development"},
-        %{id: 2, name: "HR", description: "Human resources"},
-        %{id: 3, name: "Marketing", description: "Marketing and sales"},
-        %{id: 4, name: "Finance", description: "Financial operations"}
+      # For now, we'll simulate: total teams = 3, user's team = Frontend Team
+      all_teams = [
+        %{id: 1, name: "Frontend Team", description: "UI/UX development"},
+        %{id: 2, name: "Backend Team", description: "Server-side logic"},
+        %{id: 3, name: "DevOps Team", description: "Infrastructure and deployment"}
       ]
 
-      # User's assigned department (in real app, this would come from user context)
-      user_department = %{id: 1, name: "Engineering", description: "Software development"}
+      # User's assigned team (in real app, this would come from user context)
+      user_team = %{id: 1, name: "Frontend Team", description: "UI/UX development"}
 
       {:ok,
        socket
        |> assign(:user_status, "active")
        |> assign(:has_assignments, true)
-       |> assign(:total_departments, length(all_departments))
-       |> assign(:user_department, user_department)
-       |> stream(:departments, [user_department])}
+       |> assign(:total_teams, length(all_teams))
+       |> assign(:user_team, user_team)
+       |> stream(:teams, [user_team])}
     end
   end
 
@@ -54,33 +53,33 @@ defmodule TrialAppWeb.DepartmentLive.Index do
                   <h1 class="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
                   <p class="text-gray-600 mb-6">
                     Your account is pending administrator approval.
-                    You'll gain access to department information once your roles are assigned.
+                    You'll gain access to team information once your roles are assigned.
                   </p>
                   <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
                     <h3 class="font-semibold text-blue-800 mb-2">What you'll see after approval:</h3>
                     <ul class="text-blue-700 text-sm space-y-1">
-                      <li>• Your assigned department information</li>
-                      <li>• Department-specific data and resources</li>
-                      <li>• Team members in your department</li>
+                      <li>• Your assigned team information</li>
+                      <li>• Team members and collaboration tools</li>
+                      <li>• Team-specific projects and resources</li>
                     </ul>
                   </div>
                 </div>
               </div>
             <% else %>
-              <!-- Active User Departments View -->
-              <h1 class="text-3xl font-bold text-gray-800 mb-8">Departments</h1>
+              <!-- Active User Teams View -->
+              <h1 class="text-3xl font-bold text-gray-800 mb-8">Teams</h1>
 
-              <!-- Total Departments Count -->
-              <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h2 class="text-lg font-semibold text-blue-800">
-                  Total Departments: <span class="text-2xl"><%= @total_departments %></span>
+              <!-- Total Teams Count -->
+              <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h2 class="text-lg font-semibold text-green-800">
+                  Total Teams: <span class="text-2xl"><%= @total_teams %></span>
                 </h2>
-                <p class="text-blue-600 text-sm mt-1">You have access to 1 department</p>
+                <p class="text-green-600 text-sm mt-1">You are a member of 1 team</p>
               </div>
 
-              <!-- User's Department -->
+              <!-- User's Team -->
               <div class="mb-4">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Department</h2>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Team</h2>
                 <table class="w-full table-auto border-collapse">
                   <thead>
                     <tr class="bg-gray-100">
@@ -89,10 +88,10 @@ defmodule TrialAppWeb.DepartmentLive.Index do
                     </tr>
                   </thead>
                   <tbody>
-                    <%= for {dept_id, dept} <- @streams.departments do %>
-                      <tr id={dept_id} class="border-b hover:bg-gray-50">
-                        <td class="p-4 font-medium text-gray-800"><%= dept.name %></td>
-                        <td class="p-4 text-gray-600"><%= dept.description %></td>
+                    <%= for {team_id, team} <- @streams.teams do %>
+                      <tr id={team_id} class="border-b hover:bg-gray-50">
+                        <td class="p-4 font-medium text-gray-800"><%= team.name %></td>
+                        <td class="p-4 text-gray-600"><%= team.description %></td>
                       </tr>
                     <% end %>
                   </tbody>
@@ -102,8 +101,8 @@ defmodule TrialAppWeb.DepartmentLive.Index do
               <!-- Note for regular users -->
               <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <p class="text-yellow-700 text-sm">
-                  <strong>Note:</strong> As a regular user, you can only view the department you're assigned to.
-                  Contact administrator for department changes.
+                  <strong>Note:</strong> As a regular user, you can only view the team you're assigned to.
+                  Contact administrator for team changes.
                 </p>
               </div>
             <% end %>

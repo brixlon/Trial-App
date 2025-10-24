@@ -6,137 +6,6 @@ defmodule TrialAppWeb.UserLive.Settings do
   alias TrialApp.Accounts
 
   @impl true
-  def render(assigns) do
-    ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 p-6">
-      <div class="max-w-4xl mx-auto">
-        <div class="bg-white rounded-2xl shadow-2xl p-8">
-          <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">⚙️ Account Settings</h1>
-            <p class="text-gray-600">Manage your account email address and password settings</p>
-          </div>
-
-    <!-- Email Settings Section -->
-          <div class="mb-8 p-6 bg-gray-50 rounded-xl">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">📧 Email Settings</h2>
-            <p class="text-gray-600 mb-4">
-              Current email: <span class="font-semibold text-gray-800">{@current_email}</span>
-            </p>
-
-            <.form
-              for={@email_form}
-              id="email_form"
-              phx-submit="update_email"
-              phx-change="validate_email"
-              class="space-y-4"
-            >
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                  New Email Address
-                </label>
-                <input
-                  type="email"
-                  name="user[email]"
-                  value={@email_form[:email].value}
-                  placeholder="Enter new email address"
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-                  required
-                />
-                <%= if @email_form[:email].errors != [] do %>
-                  <div class="mt-1 text-sm text-red-600">
-                    <%= for {msg, _} <- @email_form[:email].errors do %>
-                      <p>{msg}</p>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-              <button
-                type="submit"
-                class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all shadow-lg hover:shadow-xl"
-              >
-                📧 Change Email
-              </button>
-            </.form>
-          </div>
-
-    <!-- Password Settings Section -->
-          <div class="p-6 bg-gray-50 rounded-xl">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">🔒 Password Settings</h2>
-            <p class="text-gray-600 mb-4">Update your password to keep your account secure</p>
-
-            <.form
-              for={@password_form}
-              id="password_form"
-              action={~p"/users/update-password"}
-              method="post"
-              phx-change="validate_password"
-              phx-submit="update_password"
-              phx-trigger-action={@trigger_submit}
-              class="space-y-4"
-            >
-              <input
-                name={@password_form[:email].name}
-                type="hidden"
-                id="hidden_user_email"
-                autocomplete="username"
-                value={@current_email}
-              />
-
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
-                <input
-                  type="password"
-                  name="user[password]"
-                  value={@password_form[:password].value}
-                  placeholder="Enter new password"
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-                  required
-                />
-                <%= if @password_form[:password].errors != [] do %>
-                  <div class="mt-1 text-sm text-red-600">
-                    <%= for {msg, _} <- @password_form[:password].errors do %>
-                      <p>{msg}</p>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  name="user[password_confirmation]"
-                  value={@password_form[:password_confirmation].value}
-                  placeholder="Confirm new password"
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-                  required
-                />
-                <%= if @password_form[:password_confirmation].errors != [] do %>
-                  <div class="mt-1 text-sm text-red-600">
-                    <%= for {msg, _} <- @password_form[:password_confirmation].errors do %>
-                      <p>{msg}</p>
-                    <% end %>
-                  </div>
-                <% end %>
-              </div>
-
-              <button
-                type="submit"
-                class="px-6 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
-              >
-                🔒 Save Password
-              </button>
-            </.form>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  @impl true
   def mount(%{"token" => token}, _session, socket) do
     socket =
       case Accounts.update_user_email(socket.assigns.current_scope.user, token) do
@@ -163,6 +32,140 @@ defmodule TrialAppWeb.UserLive.Settings do
       |> assign(:trigger_submit, false)
 
     {:ok, socket}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <div class="min-h-screen bg-white text-gray-900">
+      <div class="flex">
+        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" socket={@socket} />
+
+        <main class="ml-64 w-full p-8">
+          <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="mb-8">
+              <h1 class="text-3xl font-bold text-gray-900">Account Settings</h1>
+              <p class="text-gray-600 mt-2">Manage your email and password settings</p>
+            </div>
+
+            <!-- Settings Grid -->
+            <div class="grid grid-cols-1 gap-8">
+              <!-- Email Settings -->
+              <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Email Settings</h2>
+                <p class="text-gray-600 mb-4 text-sm">
+                  Current email: <span class="font-semibold text-gray-800"><%= @current_email %></span>
+                </p>
+
+                <.form
+                  for={@email_form}
+                  id="email_form"
+                  phx-submit="update_email"
+                  phx-change="validate_email"
+                  class="space-y-4"
+                >
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">New Email Address</label>
+                    <input
+                      type="email"
+                      name="user[email]"
+                      value={@email_form[:email].value}
+                      placeholder="Enter new email address"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 bg-white text-sm"
+                      required
+                    />
+                    <%= if @email_form[:email].errors != [] do %>
+                      <div class="mt-1 text-sm text-red-600">
+                        <%= for {msg, _} <- @email_form[:email].errors do %>
+                          <p><%= msg %></p>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                  <button
+                    type="submit"
+                    class="w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition text-sm"
+                  >
+                    Change Email
+                  </button>
+                </.form>
+              </div>
+
+              <!-- Password Settings -->
+              <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Password Settings</h2>
+                <p class="text-gray-600 mb-4 text-sm">Update your password to keep your account secure</p>
+
+                <.form
+                  for={@password_form}
+                  id="password_form"
+                  action={~p"/users/update-password"}
+                  method="post"
+                  phx-change="validate_password"
+                  phx-submit="update_password"
+                  phx-trigger-action={@trigger_submit}
+                  class="space-y-4"
+                >
+                  <input
+                    name={@password_form[:email].name}
+                    type="hidden"
+                    id="hidden_user_email"
+                    autocomplete="username"
+                    value={@current_email}
+                  />
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                    <input
+                      type="password"
+                      name="user[password]"
+                      value={@password_form[:password].value}
+                      placeholder="Enter new password"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 bg-white text-sm"
+                      required
+                    />
+                    <%= if @password_form[:password].errors != [] do %>
+                      <div class="mt-1 text-sm text-red-600">
+                        <%= for {msg, _} <- @password_form[:password].errors do %>
+                          <p><%= msg %></p>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                    <input
+                      type="password"
+                      name="user[password_confirmation]"
+                      value={@password_form[:password_confirmation].value}
+                      placeholder="Confirm new password"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900 bg-white text-sm"
+                      required
+                    />
+                    <%= if @password_form[:password_confirmation].errors != [] do %>
+                      <div class="mt-1 text-sm text-red-600">
+                        <%= for {msg, _} <- @password_form[:password_confirmation].errors do %>
+                          <p><%= msg %></p>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <button
+                    type="submit"
+                    class="w-full px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition text-sm"
+                  >
+                    Save Password
+                  </button>
+                </.form>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    """
   end
 
   @impl true
