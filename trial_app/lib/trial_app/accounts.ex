@@ -7,6 +7,7 @@ defmodule TrialApp.Accounts do
   alias TrialApp.Repo
 
   alias TrialApp.Accounts.{User, UserToken, UserNotifier}
+  alias TrialApp.Orgs.{Department, Team, Employee}
 
   ## Database getters
 
@@ -348,6 +349,214 @@ defmodule TrialApp.Accounts do
   def delete_user_session_token(token) do
     Repo.delete_all(from(UserToken, where: [token: ^token, context: "session"]))
     :ok
+  end
+
+  ## Department functions
+
+  @doc """
+  Lists all departments.
+  """
+  def list_departments do
+    Repo.all(Department)
+  end
+
+  @doc """
+  Gets a single department.
+
+  Raises `Ecto.NoResultsError` if the Department does not exist.
+  """
+  def get_department!(id), do: Repo.get!(Department, id)
+
+  @doc """
+  Creates a department.
+
+  ## Examples
+
+      iex> create_department(%{field: value})
+      {:ok, %Department{}}
+
+      iex> create_department(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_department(attrs \\ %{}) do
+    %Department{}
+    |> Department.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a department.
+
+  ## Examples
+
+      iex> update_department(department, %{field: new_value})
+      {:ok, %Department{}}
+
+      iex> update_department(department, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_department(%Department{} = department, attrs) do
+    department
+    |> Department.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a department.
+
+  ## Examples
+
+      iex> delete_department(department)
+      {:ok, %Department{}}
+
+      iex> delete_department(department)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_department(%Department{} = department) do
+    Repo.delete(department)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking department changes.
+
+  ## Examples
+
+      iex> change_department(department)
+      %Ecto.Changeset{data: %Department{}}
+
+  """
+  def change_department(%Department{} = department, attrs \\ %{}) do
+    Department.changeset(department, attrs)
+  end
+
+  ## Team functions
+
+  @doc """
+  Lists all teams.
+  """
+  def list_teams do
+    Repo.all(Team)
+  end
+
+  @doc """
+  Gets a single team.
+
+  Raises `Ecto.NoResultsError` if the Team does not exist.
+  """
+  def get_team!(id), do: Repo.get!(Team, id)
+
+  @doc """
+  Creates a team.
+
+  ## Examples
+
+      iex> create_team(%{field: value})
+      {:ok, %Team{}}
+
+      iex> create_team(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_team(attrs \\ %{}) do
+    %Team{}
+    |> Team.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a team.
+
+  ## Examples
+
+      iex> update_team(team, %{field: new_value})
+      {:ok, %Team{}}
+
+      iex> update_team(team, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_team(%Team{} = team, attrs) do
+    team
+    |> Team.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a team.
+
+  ## Examples
+
+      iex> delete_team(team)
+      {:ok, %Team{}}
+
+      iex> delete_team(team)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_team(%Team{} = team) do
+    Repo.delete(team)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking team changes.
+
+  ## Examples
+
+      iex> change_team(team)
+      %Ecto.Changeset{data: %Team{}}
+
+  """
+  def change_team(%Team{} = team, attrs \\ %{}) do
+    Team.changeset(team, attrs)
+  end
+
+  ## Employee functions
+
+  @doc """
+  Gets an employee by user ID.
+  """
+  def get_employee_by_user_id(user_id) do
+    Repo.get_by(Employee, user_id: user_id)
+    |> Repo.preload([:department, :team])
+  end
+
+  @doc """
+  Creates an employee.
+
+  ## Examples
+
+      iex> create_employee(%{field: value})
+      {:ok, %Employee{}}
+
+      iex> create_employee(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_employee(attrs \\ %{}) do
+    %Employee{}
+    |> Employee.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates an employee.
+
+  ## Examples
+
+      iex> update_employee(employee, %{field: new_value})
+      {:ok, %Employee{}}
+
+      iex> update_employee(employee, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_employee(%Employee{} = employee, attrs) do
+    employee
+    |> Employee.changeset(attrs)
+    |> Repo.update()
   end
 
   ## Token helper
