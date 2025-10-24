@@ -1,9 +1,12 @@
-# lib/trial_app_web/router.ex
 defmodule TrialAppWeb.Router do
   use TrialAppWeb, :router
 
   import TrialAppWeb.UserAuth
   import Plug.Conn
+
+  # -------------------
+  # Pipelines
+  # -------------------
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -20,11 +23,13 @@ defmodule TrialAppWeb.Router do
     plug :accepts, ["json"]
   end
 
-  # Admin pipeline - requires admin role
   pipeline :admin do
     plug :require_admin_user
   end
 
+  # -------------------
+  # Public routes
+  # -------------------
   scope "/", TrialAppWeb do
     pipe_through :browser
 
@@ -32,24 +37,31 @@ defmodule TrialAppWeb.Router do
     live "/", UserLive.Login
   end
 
-  # Dev-only dashboard and mailbox
-  if Application.compile_env(:trial_app, :dev_routes) do
-    import Phoenix.LiveDashboard.Router
+  # -------------------
+  # ❌ Removed Phoenix LiveDashboard (as per your choice)
+  # -------------------
+  # import Phoenix.LiveDashboard.Router
+  #
+  # if Application.compile_env(:trial_app, :dev_routes) do
+  #   scope "/dev" do
+  #     pipe_through :browser
+  #
+  #     live_dashboard "/dashboard", metrics: TrialAppWeb.Telemetry
+  #     forward "/mailbox", Plug.Swoosh.MailboxPreview
+  #   end
+  # end
 
-    scope "/dev" do
-      pipe_through :browser
-
-      live_dashboard "/dashboard", metrics: TrialAppWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
-    end
-  end
-
-  # Admin routes
+  # -------------------
+  # Admin routes (✅ Custom dashboard)
+  # -------------------
   scope "/admin", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user, :admin]
 
     live_session :admin,
-      on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}, {TrialAppWeb.UserAuth, :require_admin}] do
+      on_mount: [
+        {TrialAppWeb.UserAuth, :require_authenticated},
+        {TrialAppWeb.UserAuth, :require_admin}
+      ] do
       live "/dashboard", AdminLive.Dashboard, :index
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
@@ -61,7 +73,9 @@ defmodule TrialAppWeb.Router do
     end
   end
 
+  # -------------------
   # Authenticated routes
+  # -------------------
   scope "/", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user]
 
@@ -69,10 +83,30 @@ defmodule TrialAppWeb.Router do
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
       live "/dashboard", DashboardLive, :index
       live "/organizations", OrganizationLive.Index, :index
+      live "/organizations/new", OrganizationLive.Form, :new
+      live "/organizations/:id/edit", OrganizationLive.Form, :edit
+      live "/organizations/:id", OrganizationLive.Show, :show
+
       live "/departments", DepartmentLive.Index, :index
+      live "/departments/new", DepartmentLive.Form, :new
+      live "/departments/:id/edit", DepartmentLive.Form, :edit
+      live "/departments/:id", DepartmentLive.Show, :show
+
       live "/teams", TeamLive.Index, :index
+      live "/teams/new", TeamLive.Form, :new
+      live "/teams/:id/edit", TeamLive.Form, :edit
+      live "/teams/:id", TeamLive.Show, :show
+
       live "/employees", EmployeeLive.Index, :index
+      live "/employees/new", EmployeeLive.Form, :new
+      live "/employees/:id/edit", EmployeeLive.Form, :edit
+      live "/employees/:id", EmployeeLive.Show, :show
+
       live "/positions", PositionLive.Index, :index
+      live "/positions/new", PositionLive.Form, :new
+      live "/positions/:id/edit", PositionLive.Form, :edit
+      live "/positions/:id", PositionLive.Show, :show
+
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
@@ -80,7 +114,9 @@ defmodule TrialAppWeb.Router do
     post "/users/update-password", UserSessionController, :update_password
   end
 
+  # -------------------
   # Public auth routes
+  # -------------------
   scope "/", TrialAppWeb do
     pipe_through [:browser]
 
@@ -94,7 +130,9 @@ defmodule TrialAppWeb.Router do
     delete "/users/logout", UserSessionController, :delete
   end
 
-  # Permissions Policy header
+  # -------------------
+  # Custom Permissions Policy
+  # -------------------
   def put_custom_permissions_policy(conn, _opts) do
     permissions_policy =
       [
