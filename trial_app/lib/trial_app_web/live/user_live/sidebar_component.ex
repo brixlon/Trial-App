@@ -2,18 +2,9 @@ defmodule TrialAppWeb.SidebarComponent do
   use TrialAppWeb, :live_component
 
   def render(assigns) do
-    # Safe access to current user with fallbacks
-    current_user = if @socket && @socket.assigns[:current_scope] do
-      @socket.assigns.current_scope.user
-    else
-      nil
-    end
-
-    is_admin = current_user && current_user.role == "admin"
-
     ~H"""
     <aside
-      x-data="{ openOrganizations: false, openAdmin: false }"
+      x-data="{ openAdmin: false }"
       class="w-64 bg-gray-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-md border-r border-gray-200"
     >
       <div class="mb-8">
@@ -27,15 +18,25 @@ defmodule TrialAppWeb.SidebarComponent do
           <!-- Dashboard -->
           <li>
             <.link
-              navigate={if is_admin, do: ~p"/admin/dashboard", else: ~p"/dashboard"}
+              navigate={if @current_scope.user.role == "admin", do: ~p"/admin/dashboard", else: ~p"/dashboard"}
               class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
             >
-              <%= if is_admin, do: "Admin Dashboard", else: "Dashboard" %>
+              <%= if @current_scope.user.role == "admin", do: "Admin Dashboard", else: "Dashboard" %>
+            </.link>
+          </li>
+
+          <!-- Organizations - Direct link to show all organizations -->
+          <li>
+            <.link
+              navigate={~p"/organizations"}
+              class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+            >
+              Organizations
             </.link>
           </li>
 
           <!-- Admin Section (only for admins) -->
-          <%= if is_admin do %>
+          <%= if @current_scope.user.role == "admin" do %>
             <li>
               <button
                 @click="openAdmin = !openAdmin"
@@ -66,81 +67,15 @@ defmodule TrialAppWeb.SidebarComponent do
                 </li>
                 <li>
                   <.link
-                    navigate={~p"/admin/organizations"}
+                    navigate={~p"/admin/positions"}
                     class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
                   >
-                    Organizations
-                  </.link>
-                </li>
-                <li>
-                  <.link
-                    navigate={~p"/admin/departments"}
-                    class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
-                  >
-                    Departments
-                  </.link>
-                </li>
-                <li>
-                  <.link
-                    navigate={~p"/admin/teams"}
-                    class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
-                  >
-                    Teams
-                  </.link>
-                </li>
-                <li>
-                  <.link
-                    navigate={~p"/admin/employees"}
-                    class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
-                  >
-                    Employees
+                    Positions
                   </.link>
                 </li>
               </ul>
             </li>
           <% end %>
-
-          <!-- Organizations (collapsible) -->
-          <li>
-            <button
-              @click="openOrganizations = !openOrganizations"
-              class="w-full text-left py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium flex justify-between items-center"
-            >
-              <span>Organizations</span>
-              <span x-text="openOrganizations ? '▾' : '▸'"></span>
-            </button>
-
-            <ul
-              x-show="openOrganizations"
-              x-transition
-              class="ml-4 mt-2 space-y-2"
-            >
-              <li>
-                <.link
-                  navigate={~p"/departments"}
-                  class="block py-1 px-3 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm"
-                >
-                  Departments
-                </.link>
-              </li>
-              <li>
-                <.link
-                  navigate={~p"/teams"}
-                  class="block py-1 px-3 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm"
-                >
-                  Teams
-                </.link>
-              </li>
-              <li>
-                <.link
-                  navigate={~p"/employees"}
-                  class="block py-1 px-3 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors text-sm"
-                >
-                  Employees
-                </.link>
-              </li>
-            </ul>
-          </li>
 
           <!-- Settings -->
           <li>
@@ -155,25 +90,23 @@ defmodule TrialAppWeb.SidebarComponent do
       </nav>
 
       <!-- User info at bottom -->
-      <%= if current_user do %>
-        <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span class="text-blue-600 font-semibold text-sm">
-                <%= String.at(current_user.username, 0) |> String.upcase() %>
-              </span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">
-                <%= current_user.username %>
-              </p>
-              <p class="text-xs text-gray-500 truncate">
-                <%= if is_admin, do: "Administrator", else: "User" %>
-              </p>
-            </div>
+      <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+            <span class="text-blue-600 font-semibold text-sm">
+              <%= String.at(@current_scope.user.username, 0) |> String.upcase() %>
+            </span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+              <%= @current_scope.user.username %>
+            </p>
+            <p class="text-xs text-gray-500 truncate">
+              <%= if @current_scope.user.role == "admin", do: "Administrator", else: "User" %>
+            </p>
           </div>
         </div>
-      <% end %>
+      </div>
     </aside>
     """
   end

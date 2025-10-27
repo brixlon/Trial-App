@@ -38,7 +38,7 @@ defmodule TrialAppWeb.EmployeeLive.Index do
     ~H"""
     <div class="min-h-screen bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 p-6">
       <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" socket={@socket} />
+        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
         <main class="ml-64 p-8 w-full">
           <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
             <%= if @user_status == "pending" do %>

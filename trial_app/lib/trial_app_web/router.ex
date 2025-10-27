@@ -68,6 +68,7 @@ defmodule TrialAppWeb.Router do
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
       live "/dashboard", DashboardLive, :index
       live "/organizations", OrganizationLive.Index, :index
+      live "/organizations/:id", OrganizationLive.Index, :show
       live "/departments", DepartmentLive.Index, :index
       live "/teams", TeamLive.Index, :index
       live "/employees", EmployeeLive.Index, :index

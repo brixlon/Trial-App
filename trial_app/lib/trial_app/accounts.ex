@@ -379,11 +379,6 @@ defmodule TrialApp.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_department(attrs \\ %{}) do
-    %Department{}
-    |> Department.changeset(attrs)
-    |> Repo.insert()
-  end
 
   @doc """
   Updates a department.
@@ -397,11 +392,6 @@ defmodule TrialApp.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_department(%Department{} = department, attrs) do
-    department
-    |> Department.changeset(attrs)
-    |> Repo.update()
-  end
 
   @doc """
   Deletes a department.
@@ -415,9 +405,6 @@ defmodule TrialApp.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_department(%Department{} = department) do
-    Repo.delete(department)
-  end
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking department changes.
@@ -428,9 +415,6 @@ defmodule TrialApp.Accounts do
       %Ecto.Changeset{data: %Department{}}
 
   """
-  def change_department(%Department{} = department, attrs \\ %{}) do
-    Department.changeset(department, attrs)
-  end
 
   ## Team functions
 

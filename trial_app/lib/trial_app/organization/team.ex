@@ -8,6 +8,7 @@ defmodule TrialApp.Teams.Team do
 
   schema "teams" do
     field :name, :string
+    field :description, :string  # ADD THIS LINE
 
     belongs_to :department, Department
     belongs_to :user, User # optional creator/owner
@@ -19,7 +20,7 @@ defmodule TrialApp.Teams.Team do
 
   def changeset(team, attrs) do
     team
-    |> cast(attrs, [:name, :department_id, :user_id])
+    |> cast(attrs, [:name, :description, :department_id, :user_id])  # ADD :description HERE
     |> validate_required([:name, :department_id])
     |> unique_constraint(:name, name: :teams_name_department_id_index)
   end

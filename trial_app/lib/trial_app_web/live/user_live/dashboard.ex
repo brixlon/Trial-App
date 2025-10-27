@@ -34,7 +34,7 @@ defmodule TrialAppWeb.DashboardLive do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" socket={@socket} />
+        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
 
         <main class="ml-64 w-full p-8">
           <div class="max-w-5xl mx-auto bg-white p-8">

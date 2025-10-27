@@ -9,9 +9,15 @@ defmodule TrialApp.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
-    # ADD THESE TWO FIELDS:
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
+
+    # ADDED: Assignment fields
+    field :assigned_organization_id, :integer
+    field :assigned_department_id, :integer
+    field :assigned_team_id, :integer
+    field :assigned_role, :string
+    field :assigned_position, :string
 
     timestamps(type: :utc_datetime)
   end
@@ -45,6 +51,29 @@ defmodule TrialApp.Accounts.User do
     else
       changeset
     end
+  end
+
+  @doc """
+  A user changeset for updating assignments during approval.
+  """
+  def assignment_changeset(user, attrs) do
+    user
+    |> cast(attrs, [
+      :assigned_organization_id,
+      :assigned_department_id,
+      :assigned_team_id,
+      :assigned_role,
+      :assigned_position,
+      :status,
+      :role
+    ])
+    |> validate_required([
+      :assigned_organization_id,
+      :assigned_department_id,
+      :assigned_team_id,
+      :assigned_role,
+      :assigned_position
+    ])
   end
 
   @doc """

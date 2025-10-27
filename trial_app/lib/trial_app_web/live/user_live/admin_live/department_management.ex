@@ -18,7 +18,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
     ~H"""
     <div class="flex h-screen bg-gray-50">
       <!-- Sidebar -->
-      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" socket={@socket} />
+      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
 
       <!-- Main Content -->
       <main class="flex-1 overflow-y-auto ml-64">

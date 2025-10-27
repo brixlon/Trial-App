@@ -1,0 +1,113 @@
+<!-- lib/trial_app_web/live/admin/pending_approval_live.html.heex -->
+<div class="p-6 max-w-5xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">Pending User Approvals</h1>
+
+  <div id="pending-users" phx-update="stream">
+    <%= for {dom_id, user} <- @streams.users do %>
+      <div id={dom_id} class="bg-white p-6 rounded-lg shadow mb-6">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <p class="font-semibold text-lg"><%= user.email %></p>
+            <p class="text-sm text-gray-600">Status: <%= user.approval_status %></p>
+          </div>
+          <button
+            phx-click={JS.toggle(to: "#assign-#{user.id}")}
+            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+            Assign & Approve
+          </button>
+        </div>
+
+        <!-- Assignment Form -->
+        <div id={"assign-#{user.id}"} class="hidden mt-4 p-6 border rounded bg-gray-50">
+          <.form for={%{}} phx-submit="approve" class="space-y-4">
+            <input type="hidden" name="user_id" value={user.id} />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Organization -->
+              <div>
+                <label class="block font-medium mb-1">Organization</label>
+                <select
+                  name="org_id"
+                  phx-change="load_depts"
+                  phx-value-user_id={user.id}
+                  class="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500">
+                  <option value="">-- Select Organization --</option>
+                  <%= for org <- @organizations do %>
+                    <option value={org.id}><%= org.name %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Department -->
+              <div>
+                <label class="block font-medium mb-1">Department</label>
+                <select
+                  name="dept_id"
+                  phx-change="load_teams"
+                  phx-value-user_id={user.id}
+                  class="w-full border rounded p-2"
+                  disabled={!Map.has_key?(@dept_map, user.id)}>
+                  <option value="">-- Select Org First --</option>
+                  <%= for dept <- Map.get(@dept_map, user.id, []) do %>
+                    <option value={dept.id}><%= dept.name %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Team -->
+              <div>
+                <label class="block font-medium mb-1">Team</label>
+                <select
+                  name="team_id"
+                  class="w-full border rounded p-2"
+                  disabled={!Map.has_key?(@team_map, user.id)}>
+                  <option value="">-- Select Dept First --</option>
+                  <%= for team <- Map.get(@team_map, user.id, []) do %>
+                    <option value={team.id}><%= team.name %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Role -->
+              <div>
+                <label class="block font-medium mb-1">Role</label>
+                <select name="role_id" class="w-full border rounded p-2">
+                  <option value="">-- Select Role --</option>
+                  <%= for role <- @roles do %>
+                    <option value={role.id}><%= role.name %></option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Position -->
+              <div>
+                <label class="block font-medium mb-1">Position</label>
+                <select name="position_id" class="w-full border rounded p-2">
+                  <option value="">-- Select Position --</option>
+                  <%= for pos <- @positions do %>
+                    <option value={pos.id}><%= pos.name %></option>
+                  <% end %>
+                </select>
+              </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+              <button type="submit" class="bg-green-600 text-white px-5 py-2 rounded hover:bg-green-700 transition">
+                Approve & Assign
+              </button>
+              <button type="button"
+                      phx-click={JS.toggle(to: "#assign-#{user.id}")}
+                      class="bg-gray-500 text-white px-5 py-2 rounded hover:bg-gray-600 transition">
+                Cancel
+              </button>
+            </div>
+          </.form>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <%= if Enum.empty?(@streams.users) do %>
+    <p class="text-center text-gray-500 mt-10">No pending approvals.</p>
+  <% end %>
+</div>
