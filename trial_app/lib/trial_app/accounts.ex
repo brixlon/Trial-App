@@ -80,6 +80,24 @@ defmodule TrialApp.Accounts do
   @doc """
   Lists users by role.
   """
+  # Around line 80-90:
+def update_user(user, attrs) do
+  user
+  |> User.admin_update_changeset(attrs)
+  |> Repo.update()
+end
+
+def list_users_with_assignments do
+  User
+  |> preload(employees: [:team, :department, :organization])
+  |> Repo.all()
+end
+  # Add this function around line 80:
+def update_user(user, attrs) do
+  user
+  |> User.admin_update_changeset(attrs)
+  |> Repo.update()
+end
   def list_users_by_role(role) when is_binary(role) do
     User
     |> where([u], u.role == ^role)
@@ -119,62 +137,55 @@ defmodule TrialApp.Accounts do
   Updates a user with assignments and team assignments.
   """
   def update_user_with_assignments(user, params, team_ids) do
-    Repo.transaction(fn ->
-      # Update user basic info
-      user_changeset = User.assignment_changeset(user, params)
+  Repo.transaction(fn ->
+    # Update user basic info - USE THE CORRECT CHANGESET
+    user_changeset = User.admin_update_changeset(user, params)
 
-      case Repo.update(user_changeset) do
-        {:ok, updated_user} ->
-          # Handle employee records for teams
-          if Enum.any?(team_ids) do
-            # Delete existing employee records for this user
-            Repo.delete_all(from(e in Employee, where: e.user_id == ^user.id))
+    case Repo.update(user_changeset) do
+      {:ok, updated_user} ->
+        IO.inspect("User updated successfully")
+        IO.inspect(updated_user.updated_at, label: "NEW UPDATED_AT TIMESTAMP")
 
-            # Create new employee records for each selected team
-            Enum.each(team_ids, fn team_id ->
-              team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+        # Handle employee records for teams
+        if Enum.any?(team_ids) do
+          # Delete existing employee records for this user
+          Repo.delete_all(from(e in Employee, where: e.user_id == ^user.id))
 
-              employee_attrs = %{
-                user_id: updated_user.id,
-                name: updated_user.username || updated_user.email,
-                email: updated_user.email,
-                team_id: team_id,
-                department_id: team.department_id || params["assigned_department_id"],
-                organization_id: team.department.organization_id || params["assigned_organization_id"],
-                role: params["assigned_role"] || updated_user.role || "user",
-                position: params["assigned_position"] || "Employee"
-              }
-
-              TrialApp.Orgs.create_employee(employee_attrs)
-            end)
-          else
-            # If no teams selected, create/update single employee record
-            existing_employee = get_employee_by_user_id(updated_user.id)
+          # Create new employee records for each selected team
+          Enum.each(team_ids, fn team_id ->
+            team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
 
             employee_attrs = %{
               user_id: updated_user.id,
               name: updated_user.username || updated_user.email,
               email: updated_user.email,
-              team_id: params["assigned_team_id"],
-              department_id: params["assigned_department_id"],
-              organization_id: params["assigned_organization_id"],
-              role: params["assigned_role"] || updated_user.role || "user",
-              position: params["assigned_position"] || "Employee"
+              team_id: team_id,
+              department_id: team.department_id,
+              organization_id: team.department.organization_id,
+              role: updated_user.role || "user",
+              position: "Employee",
+              is_active: true,
+              status: "active"
             }
 
-            case existing_employee do
-              nil -> TrialApp.Orgs.create_employee(employee_attrs)
-              employee -> TrialApp.Orgs.update_employee(employee, employee_attrs)
-            end
-          end
+            %Employee{}
+            |> Employee.changeset(employee_attrs)
+            |> Repo.insert!()
+          end)
+        else
+          # If no teams selected, remove all employee records
+          Repo.delete_all(from(e in Employee, where: e.user_id == ^user.id))
+        end
 
-          updated_user
+        updated_user
 
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
-  end
+      {:error, changeset} ->
+        IO.inspect("User update failed")
+        IO.inspect(changeset.errors, label: "UPDATE ERRORS")
+        Repo.rollback(changeset)
+    end
+  end)
+end
 
   ## User registration
 
