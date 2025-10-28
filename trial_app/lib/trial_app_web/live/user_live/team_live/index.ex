@@ -44,46 +44,9 @@ defmodule TrialAppWeb.TeamLive.Index do
     end
   end
 
-<<<<<<< Updated upstream
-  def render(assigns) do
-    ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 p-6">
-      <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" socket={@socket} />
-        <main class="ml-64 p-8 w-full">
-          <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-            <%= if @user_status == "pending" do %>
-              <!-- Pending Approval View -->
-              <div class="text-center py-16">
-                <div class="max-w-md mx-auto">
-                  <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg class="w-10 h-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                  </div>
-                  <h1 class="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
-                  <p class="text-gray-600 mb-6">
-                    Your account is pending administrator approval.
-                    You'll gain access to team information once your roles are assigned.
-                  </p>
-                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-                    <h3 class="font-semibold text-blue-800 mb-2">What you'll see after approval:</h3>
-                    <ul class="text-blue-700 text-sm space-y-1">
-                      <li>• Your assigned team information</li>
-                      <li>• Team members and collaboration tools</li>
-                      <li>• Team-specific projects and resources</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            <% else %>
-              <!-- Active User Teams View -->
-              <h1 class="text-3xl font-bold text-gray-800 mb-8">Teams</h1>
-=======
   # Load available users when admin clicks "Add Member"
   def handle_event("show_add_member", %{"team_id" => team_id}, socket) do
     available_users = Organizations.list_users_not_in_team(team_id)
->>>>>>> Stashed changes
 
     {:noreply,
      socket

@@ -10,12 +10,14 @@ defmodule TrialAppWeb.SidebarComponent do
       x-data="{ openOrganizations: false, openAdmin: false }"
       class="w-64 bg-gray-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-md border-r border-gray-200"
     >
+      <!-- Logo -->
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-blue-600">
           trial<span class="text-gray-800">app</span>
         </h1>
       </div>
 
+      <!-- Navigation -->
       <nav>
         <ul class="space-y-4">
           <!-- Dashboard -->
@@ -28,7 +30,7 @@ defmodule TrialAppWeb.SidebarComponent do
             </.link>
           </li>
 
-          <!-- Organizations -->
+          <!-- Organizations (Static Link) -->
           <li>
             <.link
               navigate={~p"/organizations"}
@@ -104,7 +106,7 @@ defmodule TrialAppWeb.SidebarComponent do
             </li>
           <% end %>
 
-          <!-- Organizations (collapsible) -->
+          <!-- Organizations (Collapsible Section) -->
           <li>
             <button
               @click="openOrganizations = !openOrganizations"
@@ -158,7 +160,7 @@ defmodule TrialAppWeb.SidebarComponent do
         </ul>
       </nav>
 
-      <!-- User info at bottom -->
+      <!-- User Info -->
       <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -175,7 +177,7 @@ defmodule TrialAppWeb.SidebarComponent do
             </p>
           </div>
         </div>
-      <% end %>
+      </div>
     </aside>
     """
   end
