@@ -7,7 +7,8 @@ defmodule TrialApp.Repo.Migrations.CreateEmployees do
       add :email, :string, null: false
       add :role, :string
       add :team_id, references(:teams, on_delete: :delete_all), null: false
-      add :user_id, references(:users, on_delete: :nilify_all) # optional creator/admin
+      # optional creator/admin
+      add :user_id, references(:users, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
     end

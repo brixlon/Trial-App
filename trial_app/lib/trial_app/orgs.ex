@@ -5,7 +5,7 @@ defmodule TrialApp.Orgs do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Orgs.{Organization, Department, Team, Employee}
+  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position}
 
   # ----------------------------
   # ORGANIZATIONS - ENHANCED
@@ -172,6 +172,43 @@ defmodule TrialApp.Orgs do
     |> Repo.all()
   end
 
+  # ----------------------------
+  # POSITIONS
+  # ----------------------------
+
+  def list_positions do
+    Position
+    |> where([p], p.is_active == true)
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
+
+  def search_positions(term) when is_binary(term) do
+    like = "%" <> term <> "%"
+    Position
+    |> where([p], ilike(p.name, ^like) or ilike(p.description, ^like))
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
+
+  def get_position!(id), do: Repo.get!(Position, id)
+
+  def create_position(attrs) do
+    %Position{}
+    |> Position.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_position(%Position{} = position, attrs) do
+    position
+    |> Position.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_position(%Position{} = position) do
+    update_position(position, %{is_active: false})
+  end
+
   def list_all_employees do
     Employee
     |> preload([:user, :team, :department, :organization])
@@ -231,11 +268,12 @@ defmodule TrialApp.Orgs do
       Enum.map(team_ids, fn team_id ->
         team = get_team_with_preloads!(team_id)
 
-        employee_attrs = Map.merge(user_attrs, %{
-          team_id: team_id,
-          department_id: team.department_id,
-          organization_id: team.department.organization_id
-        })
+        employee_attrs =
+          Map.merge(user_attrs, %{
+            team_id: team_id,
+            department_id: team.department_id,
+            organization_id: team.department.organization_id
+          })
 
         %Employee{}
         |> Employee.create_changeset(employee_attrs)
@@ -282,14 +320,14 @@ defmodule TrialApp.Orgs do
   def get_organization_full_hierarchy!(id) do
     Organization
     |> where(id: ^id)
-    |> preload([
+    |> preload(
       departments: [
         teams: [
           employees: [:user]
         ]
       ],
       employees: [:user, :team, :department]
-    ])
+    )
     |> Repo.one!()
   end
 
@@ -304,7 +342,11 @@ defmodule TrialApp.Orgs do
   @doc """
   Move employee to different organization/department/team.
   """
-  def move_employee(employee_id, %{organization_id: org_id, department_id: dept_id, team_id: team_id}) do
+  def move_employee(employee_id, %{
+        organization_id: org_id,
+        department_id: dept_id,
+        team_id: team_id
+      }) do
     employee = get_employee_with_preloads!(employee_id)
 
     update_employee(employee, %{
@@ -328,7 +370,8 @@ defmodule TrialApp.Orgs do
 
     # Get all teams from those organizations
     from(t in Team,
-      join: d in Department, on: t.department_id == d.id,
+      join: d in Department,
+      on: t.department_id == d.id,
       where: d.organization_id in ^user_orgs and t.is_active == true,
       preload: [:department, :organization]
     )
@@ -378,6 +421,7 @@ defmodule TrialApp.Orgs do
         update_employee(employee, %{role: "lead"})
       else
         user = TrialApp.Accounts.get_user!(user_id)
+
         employee_attrs = %{
           user_id: user_id,
           team_id: team_id,
@@ -390,6 +434,7 @@ defmodule TrialApp.Orgs do
           is_active: true,
           status: "active"
         }
+
         create_employee(employee_attrs)
       end
 
@@ -432,9 +477,10 @@ defmodule TrialApp.Orgs do
     search_term = "%#{search_term}%"
 
     from(e in Employee,
-      where: ilike(e.name, ^search_term) or
-             ilike(e.email, ^search_term) or
-             ilike(e.position, ^search_term),
+      where:
+        ilike(e.name, ^search_term) or
+          ilike(e.email, ^search_term) or
+          ilike(e.position, ^search_term),
       where: e.is_active == true,
       preload: [:user, :team, :department, :organization]
     )
@@ -447,7 +493,8 @@ defmodule TrialApp.Orgs do
   def teams_with_employee_counts do
     from(t in Team,
       where: t.is_active == true,
-      left_join: e in Employee, on: e.team_id == t.id and e.is_active == true,
+      left_join: e in Employee,
+      on: e.team_id == t.id and e.is_active == true,
       group_by: t.id,
       preload: [:department, :organization],
       select: {t, fragment("COUNT(?)", e.id)}

@@ -4,78 +4,93 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
 
   def mount(params, _session, socket) do
     organizations = Orgs.list_organizations()
+    positions = Orgs.list_positions()
     user_id = params["user_id"]
 
     # Load the user being edited
     user = if user_id, do: Accounts.get_user!(user_id), else: nil
 
     {:ok,
-      socket
-      |> assign(:editing_user_id, user_id)
-      |> assign(:editing_user, user)
-      |> assign(:users, [])
-      |> assign(:organizations, organizations)
-      |> assign(:departments, [])
-      |> assign(:teams, [])
-      |> assign(:selected_org_id, nil)
-      |> assign(:selected_dept_id, nil)
-      |> assign(:selected_team_id, nil)
-      |> assign(:roles, ["user", "manager", "admin"])
-      |> assign(:form_data, %{})  # NEW: Track all form values
-    }
+     socket
+     |> assign(:editing_user_id, user_id)
+     |> assign(:editing_user, user)
+     |> assign(:users, [])
+     |> assign(:organizations, organizations)
+     |> assign(:positions, positions)
+     |> assign(:departments, [])
+     |> assign(:teams, [])
+     |> assign(:selected_org_id, nil)
+     |> assign(:selected_dept_id, nil)
+     |> assign(:selected_team_id, nil)
+     |> assign(:roles, ["user", "manager", "admin"])
+     # NEW: Track all form values
+     |> assign(:form_data, %{})}
   end
 
   # --- When organization changes ---
   def handle_event("select_organization", %{"user" => user_params}, socket) do
-    org_id = if user_params["assigned_organization_id"] == "", do: nil, else: String.to_integer(user_params["assigned_organization_id"])
+    org_id =
+      if user_params["assigned_organization_id"] == "",
+        do: nil,
+        else: String.to_integer(user_params["assigned_organization_id"])
+
     departments = if org_id, do: Orgs.list_departments_by_org(org_id), else: []
 
     # Merge form data but clear department and team when org changes
-    updated_form_data = Map.merge(socket.assigns.form_data, user_params)
+    updated_form_data =
+      Map.merge(socket.assigns.form_data, user_params)
       |> Map.put("assigned_department_id", "")
       |> Map.put("assigned_team_id", "")
 
     {:noreply,
-      socket
-      |> assign(:selected_org_id, org_id)
-      |> assign(:departments, departments)
-      |> assign(:teams, [])
-      |> assign(:selected_dept_id, nil)
-      |> assign(:selected_team_id, nil)
-      |> assign(:form_data, updated_form_data)  # Store form data
-    }
+     socket
+     |> assign(:selected_org_id, org_id)
+     |> assign(:departments, departments)
+     |> assign(:teams, [])
+     |> assign(:selected_dept_id, nil)
+     |> assign(:selected_team_id, nil)
+     # Store form data
+     |> assign(:form_data, updated_form_data)}
   end
 
   # --- When department changes ---
   def handle_event("select_department", %{"user" => user_params}, socket) do
-    dept_id = if user_params["assigned_department_id"] == "", do: nil, else: String.to_integer(user_params["assigned_department_id"])
+    dept_id =
+      if user_params["assigned_department_id"] == "",
+        do: nil,
+        else: String.to_integer(user_params["assigned_department_id"])
+
     teams = if dept_id, do: Orgs.list_teams_by_dept(dept_id), else: []
 
     # Merge form data but clear team when department changes
-    updated_form_data = Map.merge(socket.assigns.form_data, user_params)
+    updated_form_data =
+      Map.merge(socket.assigns.form_data, user_params)
       |> Map.put("assigned_team_id", "")
 
     {:noreply,
-      socket
-      |> assign(:selected_dept_id, dept_id)
-      |> assign(:teams, teams)
-      |> assign(:selected_team_id, nil)
-      |> assign(:form_data, updated_form_data)  # Store form data
-    }
+     socket
+     |> assign(:selected_dept_id, dept_id)
+     |> assign(:teams, teams)
+     |> assign(:selected_team_id, nil)
+     # Store form data
+     |> assign(:form_data, updated_form_data)}
   end
 
   # --- NEW: Handle team selection ---
   def handle_event("select_team", %{"user" => user_params}, socket) do
-    team_id = if user_params["assigned_team_id"] == "", do: nil, else: String.to_integer(user_params["assigned_team_id"])
+    team_id =
+      if user_params["assigned_team_id"] == "",
+        do: nil,
+        else: String.to_integer(user_params["assigned_team_id"])
 
     # Merge form data including team selection
     updated_form_data = Map.merge(socket.assigns.form_data, user_params)
 
     {:noreply,
-      socket
-      |> assign(:selected_team_id, team_id)
-      |> assign(:form_data, updated_form_data)  # Store form data
-    }
+     socket
+     |> assign(:selected_team_id, team_id)
+     # Store form data
+     |> assign(:form_data, updated_form_data)}
   end
 
   # --- NEW: Handle any other form field changes ---
@@ -100,7 +115,8 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
     # Assignment fields (organization, department, team, position) are stored in the employees table
     user_params = %{
       role: clean_params["assigned_role"] || "user",
-      status: "active"  # IMPORTANT: Set status to active when approving
+      # IMPORTANT: Set status to active when approving
+      status: "active"
     }
 
     IO.inspect(user_params, label: "USER UPDATE PARAMS")
@@ -119,18 +135,22 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
         case create_employee_safely(updated_user, clean_params) do
           {:ok, _emp} ->
             {:noreply,
-              socket
-              |> put_flash(:info, "User assigned and approved successfully!")
-              |> push_navigate(to: ~p"/admin/users")}
+             socket
+             |> put_flash(:info, "User assigned and approved successfully!")
+             |> push_navigate(to: ~p"/admin/users")}
 
           {:error, reason} ->
             IO.inspect(reason, label: "Employee creation error")
-            {:noreply, put_flash(socket, :error, "Failed to create employee record: #{inspect(reason)}")}
+
+            {:noreply,
+             put_flash(socket, :error, "Failed to create employee record: #{inspect(reason)}")}
         end
 
       {:error, changeset} ->
         IO.inspect(changeset.errors, label: "USER UPDATE FAILED")
-        {:noreply, put_flash(socket, :error, "Failed to assign user: #{inspect(changeset.errors)}")}
+
+        {:noreply,
+         put_flash(socket, :error, "Failed to assign user: #{inspect(changeset.errors)}")}
     end
   end
 
@@ -151,42 +171,52 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
     # Determine department_id - use selected department, or infer from team
     inferred_dept_id =
       cond do
-        department_id -> department_id
+        department_id ->
+          department_id
+
         team_id ->
           case Orgs.get_team!(team_id) do
             %{department_id: dept_id} -> dept_id
             _ -> nil
           end
-        true -> nil
+
+        true ->
+          nil
       end
 
     # Determine organization_id - use selected org, or infer from department
     inferred_org_id =
       cond do
-        organization_id -> organization_id
+        organization_id ->
+          organization_id
+
         inferred_dept_id ->
           case Orgs.get_department!(inferred_dept_id) do
             %{organization_id: org_id} -> org_id
             _ -> nil
           end
-        true -> nil
+
+        true ->
+          nil
       end
 
     # FIX: If no team is selected, find or create a default team to avoid NULL constraint
-    final_team_id = if team_id do
-      team_id
-    else
-      find_or_create_default_team(inferred_dept_id, inferred_org_id)
-    end
+    final_team_id =
+      if team_id do
+        team_id
+      else
+        find_or_create_default_team(inferred_dept_id, inferred_org_id)
+      end
 
     attrs = %{
       user_id: user.id,
       name: user.username || user.email,
       email: user.email,
-      team_id: final_team_id,  # Now this will never be null
+      # Now this will never be null
+      team_id: final_team_id,
       department_id: inferred_dept_id,
       organization_id: inferred_org_id,
-      role: role || "user",
+      role: role || "member",
       position: position || "Employee"
     }
 
@@ -195,6 +225,7 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
     case existing do
       nil ->
         Accounts.create_employee(attrs)
+
       emp ->
         Accounts.update_employee(emp, attrs)
     end
@@ -260,8 +291,11 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
 
   defp create_fallback_organization() do
     case Orgs.create_organization(%{name: "Default Organization"}) do
-      {:ok, org} -> org.id
-      {:error, _} -> raise "No organizations exist and cannot create one - please seed your database"
+      {:ok, org} ->
+        org.id
+
+      {:error, _} ->
+        raise "No organizations exist and cannot create one - please seed your database"
     end
   end
 
@@ -281,108 +315,154 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
   defp empty_to_nil(""), do: nil
   defp empty_to_nil(val), do: val
 
-  # --- Render Form ---
-  def render(assigns) do
-    ~H"""
-    <div class="container mx-auto px-4 py-8">
-      <h1 class="text-2xl font-bold mb-6">Assign and Approve User</h1>
+ # --- Render Form ---
+def render(assigns) do
+  ~H"""
+  <div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 text-gray-900 px-6 py-10">
+    <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-purple-100 p-10">
+
+      <h1 class="text-3xl font-extrabold text-purple-700 mb-8 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-2 2-4 4-4m-8 8a4 4 0 014-4h8" />
+        </svg>
+        Assign & Approve User
+      </h1>
 
       <%= if @editing_user do %>
-        <div class="mb-4 p-4 bg-gray-100 rounded">
-          <p><strong>User:</strong> <%= @editing_user.email %></p>
-          <p><strong>Username:</strong> <%= @editing_user.username || "Not set" %></p>
+        <div class="mb-6 p-5 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 shadow-sm">
+          <p class="text-gray-700"><strong class="text-purple-700">User:</strong> {@editing_user.email}</p>
+          <p class="text-gray-700"><strong class="text-purple-700">Username:</strong> {@editing_user.username || "Not set"}</p>
         </div>
 
-        <form phx-change="form_change" phx-submit="update_assignment" class="mt-6 p-4 border rounded">
-          <h3 class="text-lg font-semibold mb-4">Assign to Organization</h3>
+        <form
+          phx-change="form_change"
+          phx-submit="update_assignment"
+          class="space-y-8"
+        >
+          <div class="border border-purple-100 rounded-xl shadow-md p-6 bg-white">
+            <h3 class="text-xl font-semibold text-purple-700 mb-4 border-b border-purple-100 pb-2">
+              Assign to Organization
+            </h3>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-            <!-- Organization -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Organization *</label>
-              <select name="user[assigned_organization_id]"
-                      phx-change="select_organization"
-                      value={@form_data["assigned_organization_id"] || ""}
-                      class="select select-bordered w-full"
-                      required>
-                <option value="">Select Organization</option>
-                <%= for org <- @organizations do %>
-                  <option value={org.id} selected={@selected_org_id == org.id}><%= org.name %></option>
+              <!-- Organization -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Organization *</label>
+                <select
+                  name="user[assigned_organization_id]"
+                  phx-change="select_organization"
+                  value={@form_data["assigned_organization_id"] || ""}
+                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                  required
+                >
+                  <option value="">Select Organization</option>
+                  <%= for org <- @organizations do %>
+                    <option value={org.id} selected={@selected_org_id == org.id}>{org.name}</option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Role -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
+                <select
+                  name="user[assigned_role]"
+                  value={@form_data["assigned_role"] || ""}
+                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                  required
+                >
+                  <option value="">Select Role</option>
+                  <%= for role <- @roles do %>
+                    <option value={role}>{String.capitalize(role)}</option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Department -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                <select
+                  name="user[assigned_department_id]"
+                  phx-change="select_department"
+                  value={@form_data["assigned_department_id"] || ""}
+                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                  disabled={@departments == []}
+                >
+                  <option value="">Select Department</option>
+                  <%= for dept <- @departments do %>
+                    <option value={dept.id} selected={@selected_dept_id == dept.id}>{dept.name}</option>
+                  <% end %>
+                </select>
+              </div>
+
+              <!-- Team -->
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                <select
+                  name="user[assigned_team_id]"
+                  phx-change="select_team"
+                  value={@form_data["assigned_team_id"] || ""}
+                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                  disabled={@selected_dept_id == nil}
+                >
+                  <option value="">Select Team</option>
+                  <%= for team <- @teams do %>
+                    <option value={team.id} selected={@selected_team_id == team.id}>{team.name}</option>
+                  <% end %>
+                </select>
+                <%= if @teams == [] and @selected_dept_id != nil do %>
+                  <p class="text-xs text-gray-500 mt-1 italic">No teams available in this department</p>
                 <% end %>
-              </select>
-            </div>
+              </div>
 
-            <!-- Role -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Role *</label>
-              <select name="user[assigned_role]"
-                      value={@form_data["assigned_role"] || ""}
-                      class="select select-bordered w-full"
-                      required>
-                <option value="">Select Role</option>
-                <%= for role <- @roles do %>
-                  <option value={role}><%= String.capitalize(role) %></option>
-                <% end %>
-              </select>
-            </div>
-
-            <!-- Department -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Department</label>
-              <select name="user[assigned_department_id]"
-                      phx-change="select_department"
-                      value={@form_data["assigned_department_id"] || ""}
-                      class="select select-bordered w-full"
-                      disabled={@departments == []}>
-                <option value="">Select Department</option>
-                <%= for dept <- @departments do %>
-                  <option value={dept.id} selected={@selected_dept_id == dept.id}><%= dept.name %></option>
-                <% end %>
-              </select>
-            </div>
-
-            <!-- Team -->
-            <div>
-              <label class="block text-sm font-medium mb-1">Team</label>
-              <select name="user[assigned_team_id]"
-                      phx-change="select_team"
-                      value={@form_data["assigned_team_id"] || ""}
-                      class="select select-bordered w-full"
-                      disabled={@selected_dept_id == nil}>
-                <option value="">Select Team</option>
-                <%= for team <- @teams do %>
-                  <option value={team.id} selected={@selected_team_id == team.id}><%= team.name %></option>
-                <% end %>
-              </select>
-              <%= if @teams == [] and @selected_dept_id != nil do %>
-                <p class="text-xs text-gray-500 mt-1">No teams available in this department</p>
-              <% end %>
-            </div>
-
-            <!-- Position -->
-            <div class="md:col-span-2">
-              <label class="block text-sm font-medium mb-1">Position</label>
-              <input type="text"
-                     name="user[assigned_position]"
-                     value={@form_data["assigned_position"] || ""}
-                     class="input input-bordered w-full"
-                     placeholder="e.g., Software Engineer, Marketing Manager, etc." />
+              <!-- Position -->
+              <div class="md:col-span-2">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                <select
+                  name="user[assigned_position]"
+                  value={@form_data["assigned_position"] || ""}
+                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                >
+                  <option value="">Select Position</option>
+                  <%= for pos <- @positions do %>
+                    <option value={pos.name}>{pos.name}</option>
+                  <% end %>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div class="mt-6 flex space-x-2">
-            <button type="submit" class="btn btn-primary">Save & Approve User</button>
-            <button type="button" class="btn btn-secondary" phx-click="cancel_assignment">Cancel</button>
+          <div class="flex gap-3 mt-8">
+            <button
+              type="submit"
+              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
+              Save & Approve User
+            </button>
+
+            <button
+              type="button"
+              phx-click="cancel_assignment"
+              class="px-6 py-2.5 rounded-xl bg-gray-100 border border-gray-300 text-gray-700 font-semibold hover:bg-gray-200 hover:scale-105 transition-all duration-200"
+            >
+              Cancel
+            </button>
           </div>
         </form>
       <% else %>
-        <div class="alert alert-warning">
-          <p>No user selected for approval.</p>
-          <a href={~p"/admin/users"} class="btn btn-sm btn-outline mt-2">Go to User Management</a>
+        <div class="p-6 text-center border border-yellow-200 bg-yellow-50 rounded-xl shadow-sm">
+          <p class="text-yellow-700 font-semibold mb-2">⚠ No user selected for approval.</p>
+          <a
+            href={~p"/admin/users"}
+            class="inline-block mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-medium shadow hover:shadow-lg hover:scale-105 transition duration-200"
+          >
+            Go to User Management
+          </a>
         </div>
       <% end %>
     </div>
-    """
-  end
+  </div>
+  """
+end
 end

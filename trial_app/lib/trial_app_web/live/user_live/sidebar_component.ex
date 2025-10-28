@@ -5,47 +5,75 @@ defmodule TrialAppWeb.SidebarComponent do
     ~H"""
     <aside
       x-data="{ openAdmin: false }"
-      class="w-64 bg-gray-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-md border-r border-gray-200"
+      class="w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-xl border-r border-purple-200"
     >
-      <div class="mb-8">
-        <h1 class="text-2xl font-bold text-blue-600">
-          trial<span class="text-gray-800">app</span>
+      <!-- Logo -->
+      <div class="mb-10 text-center">
+        <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
+          trial<span class="text-gray-900">app</span>
         </h1>
+        <div class="h-1 w-12 mx-auto bg-purple-300 rounded-full mt-2"></div>
       </div>
 
+      <!-- Navigation -->
       <nav>
-        <ul class="space-y-4">
+        <ul class="space-y-3">
           <!-- Dashboard -->
           <li>
             <.link
-              navigate={if @current_scope.user.role == "admin", do: ~p"/admin/dashboard", else: ~p"/dashboard"}
-              class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+              navigate={
+                if @current_scope.user.role == "admin", do: ~p"/admin/dashboard", else: ~p"/dashboard"
+              }
+              class="block py-2.5 px-4 rounded-xl bg-white/50 hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium shadow-sm"
             >
-              <%= if @current_scope.user.role == "admin", do: "Admin Dashboard", else: "Dashboard" %>
+              {if @current_scope.user.role == "admin", do: "Admin Dashboard", else: "Dashboard"}
             </.link>
           </li>
 
-          <!-- Organizations - Direct link to show all organizations -->
+          <!-- Organizations -->
           <li>
             <.link
               navigate={~p"/organizations"}
-              class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+              class="block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium"
             >
               Organizations
             </.link>
           </li>
 
-          <!-- Admin Section (only for admins) -->
+          <%= if @current_scope.user.role != "admin" do %>
+            <li>
+              <.link
+                navigate={~p"/employees"}
+                class="block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium"
+              >
+                Employees
+              </.link>
+            </li>
+            <li>
+              <.link
+                navigate={~p"/positions"}
+                class="block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium"
+              >
+                Positions
+              </.link>
+            </li>
+          <% end %>
+
+          <!-- Admin Dropdown -->
           <%= if @current_scope.user.role == "admin" do %>
             <li>
               <button
                 @click="openAdmin = !openAdmin"
-                class="w-full text-left py-2 px-4 rounded hover:bg-red-50 hover:text-red-600 transition-colors font-medium flex justify-between items-center border-l-4 border-red-400"
+                class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-purple-400 shadow-sm"
               >
-                <span class="flex items-center">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 8v4l3 3"
+                    />
                   </svg>
                   Admin
                 </span>
@@ -60,15 +88,23 @@ defmodule TrialAppWeb.SidebarComponent do
                 <li>
                   <.link
                     navigate={~p"/admin/users"}
-                    class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
                   >
                     User Management
                   </.link>
                 </li>
                 <li>
                   <.link
+                    navigate={~p"/admin/employees"}
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                  >
+                    Employees
+                  </.link>
+                </li>
+                <li>
+                  <.link
                     navigate={~p"/admin/positions"}
-                    class="block py-1 px-3 rounded hover:bg-red-50 hover:text-red-600 transition-colors text-sm"
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
                   >
                     Positions
                   </.link>
@@ -81,7 +117,7 @@ defmodule TrialAppWeb.SidebarComponent do
           <li>
             <.link
               navigate={~p"/users/settings"}
-              class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+              class="block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium"
             >
               Settings
             </.link>
@@ -89,20 +125,20 @@ defmodule TrialAppWeb.SidebarComponent do
         </ul>
       </nav>
 
-      <!-- User info at bottom -->
-      <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
+      <!-- User Info -->
+      <div class="absolute bottom-6 left-6 right-6 p-4 bg-white/80 rounded-xl border border-purple-200 shadow-md backdrop-blur-sm">
         <div class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-            <span class="text-blue-600 font-semibold text-sm">
-              <%= String.at(@current_scope.user.username, 0) |> String.upcase() %>
+          <div class="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center">
+            <span class="text-purple-700 font-bold text-sm">
+              {String.at(@current_scope.user.username, 0) |> String.upcase()}
             </span>
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">
-              <%= @current_scope.user.username %>
+            <p class="text-sm font-semibold text-gray-800 truncate">
+              {@current_scope.user.username}
             </p>
-            <p class="text-xs text-gray-500 truncate">
-              <%= if @current_scope.user.role == "admin", do: "Administrator", else: "User" %>
+            <p class="text-xs text-purple-600 truncate">
+              {if @current_scope.user.role == "admin", do: "Administrator", else: "User"}
             </p>
           </div>
         </div>

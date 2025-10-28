@@ -14,6 +14,7 @@ defmodule TrialApp.Orgs.Department do
 
     has_many :teams, TrialApp.Orgs.Team
     has_many :employees, TrialApp.Orgs.Employee
+
     # has_many :positions, TrialApp.Orgs.Position  # Commented out since Position schema doesn't exist
 
     timestamps()
@@ -24,7 +25,15 @@ defmodule TrialApp.Orgs.Department do
   """
   def changeset(department, attrs) do
     department
-    |> cast(attrs, [:name, :description, :code, :is_active, :organization_id, :user_id, :manager_id])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :code,
+      :is_active,
+      :organization_id,
+      :user_id,
+      :manager_id
+    ])
     |> validate_required([:name, :organization_id])
     |> validate_length(:code, min: 2, max: 10)
     |> assoc_constraint(:organization)
@@ -38,7 +47,8 @@ defmodule TrialApp.Orgs.Department do
     department
     |> changeset(attrs)
     |> validate_format(:code, ~r/^[A-Z0-9_]+$/,
-      message: "must contain only uppercase letters, numbers, and underscores")
+      message: "must contain only uppercase letters, numbers, and underscores"
+    )
   end
 
   @doc """

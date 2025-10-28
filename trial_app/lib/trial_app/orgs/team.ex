@@ -25,7 +25,16 @@ defmodule TrialApp.Orgs.Team do
   """
   def changeset(team, attrs) do
     team
-    |> cast(attrs, [:name, :description, :code, :is_active, :team_type, :department_id, :organization_id, :team_lead_id])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :code,
+      :is_active,
+      :team_type,
+      :department_id,
+      :organization_id,
+      :team_lead_id
+    ])
     |> validate_required([:name, :department_id, :organization_id])
     |> validate_length(:code, min: 2, max: 10)
     |> validate_inclusion(:team_type, @team_types)
@@ -43,7 +52,8 @@ defmodule TrialApp.Orgs.Team do
     team
     |> changeset(attrs)
     |> validate_format(:code, ~r/^[A-Z0-9_]+$/,
-      message: "must contain only uppercase letters, numbers, and underscores")
+      message: "must contain only uppercase letters, numbers, and underscores"
+    )
   end
 
   defp validate_organization_department_consistency(changeset) do
@@ -52,6 +62,7 @@ defmodule TrialApp.Orgs.Team do
 
     if department_id && organization_id do
       department = TrialApp.Repo.get(TrialApp.Orgs.Department, department_id)
+
       if department && department.organization_id != organization_id do
         add_error(changeset, :department_id, "must belong to the selected organization")
       else

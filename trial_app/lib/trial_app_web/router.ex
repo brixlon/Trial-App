@@ -48,15 +48,17 @@ defmodule TrialAppWeb.Router do
     pipe_through [:browser, :require_authenticated_user, :admin]
 
     live_session :admin,
-      on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}, {TrialAppWeb.UserAuth, :require_admin}] do
+      on_mount: [
+        {TrialAppWeb.UserAuth, :require_authenticated},
+        {TrialAppWeb.UserAuth, :require_admin}
+      ] do
       live "/dashboard", AdminLive.Dashboard, :index
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
-      live "/organizations", AdminLive.OrganizationManagement, :index
-      live "/departments", AdminLive.DepartmentManagement, :index
-      live "/teams", AdminLive.TeamManagement, :index
-      live "/employees", AdminLive.EmployeeManagement, :index
       live "/positions", AdminLive.PositionManagement, :index
+      live "/employees", AdminLive.EmployeeManagement, :index
+      # Remove references to undefined admin management modules to silence warnings
+      # Add these routes back when corresponding modules exist
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
     end
   end

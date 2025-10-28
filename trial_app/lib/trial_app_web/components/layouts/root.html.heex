@@ -9,10 +9,12 @@
     </.live_title>
 
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}></script>
-
-    <!-- ✅ Add Alpine.js for collapsible sidebar behavior -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    
+<!-- ✅ Add Alpine.js for collapsible sidebar behavior -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js">
+    </script>
   </head>
 
   <body class="bg-gray-50 text-gray-900">
@@ -26,8 +28,8 @@
               <span class="text-xl font-bold text-gray-800">TrialApp</span>
             </.link>
           </div>
-
-          <!-- Navigation Links -->
+          
+<!-- Navigation Links -->
           <div class="flex items-center space-x-4">
             <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
               <!-- Authenticated User Menu -->
@@ -76,13 +78,13 @@
         </div>
       </div>
     </nav>
-
-    <!-- Main Content -->
+    
+<!-- Main Content -->
     <main>
       {@inner_content}
     </main>
-
-    <!-- Flash Messages -->
+    
+<!-- Flash Messages -->
     <div id="flash-group" aria-live="polite">
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />

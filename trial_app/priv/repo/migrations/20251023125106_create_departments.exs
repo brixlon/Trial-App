@@ -6,7 +6,8 @@ defmodule TrialApp.Repo.Migrations.CreateDepartments do
       add :name, :string, null: false
       add :description, :text
       add :organization_id, references(:organizations, on_delete: :delete_all), null: false
-      add :user_id, references(:users, on_delete: :nilify_all) # optional creator/owner
+      # optional creator/owner
+      add :user_id, references(:users, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
     end

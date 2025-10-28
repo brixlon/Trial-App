@@ -5,7 +5,8 @@ defmodule TrialApp.Repo.Migrations.CreateTeams do
     create table(:teams) do
       add :name, :string, null: false
       add :department_id, references(:departments, on_delete: :delete_all), null: false
-      add :user_id, references(:users, on_delete: :nilify_all) # optional owner/creator
+      # optional owner/creator
+      add :user_id, references(:users, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
     end

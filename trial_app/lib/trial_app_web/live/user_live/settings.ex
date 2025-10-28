@@ -34,11 +34,16 @@ defmodule TrialAppWeb.UserLive.Settings do
     {:ok, socket}
   end
 
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+        <.live_component
+          module={TrialAppWeb.SidebarComponent}
+          id="sidebar"
+          current_scope={@current_scope}
+        />
 
         <main class="ml-64 w-full p-8">
           <div class="max-w-4xl mx-auto">
@@ -48,13 +53,13 @@ defmodule TrialAppWeb.UserLive.Settings do
               <p class="text-gray-600 mt-2">Manage your email and password settings</p>
             </div>
 
-            <!-- Settings Grid -->
+    <!-- Settings Grid -->
             <div class="grid grid-cols-1 gap-8">
               <!-- Email Settings -->
               <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Email Settings</h2>
                 <p class="text-gray-600 mb-4 text-sm">
-                  Current email: <span class="font-semibold text-gray-800"><%= @current_email %></span>
+                  Current email: <span class="font-semibold text-gray-800">{@current_email}</span>
                 </p>
 
                 <.form
@@ -65,7 +70,9 @@ defmodule TrialAppWeb.UserLive.Settings do
                   class="space-y-4"
                 >
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">New Email Address</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      New Email Address
+                    </label>
                     <input
                       type="email"
                       name="user[email]"
@@ -77,7 +84,7 @@ defmodule TrialAppWeb.UserLive.Settings do
                     <%= if @email_form[:email].errors != [] do %>
                       <div class="mt-1 text-sm text-red-600">
                         <%= for {msg, _} <- @email_form[:email].errors do %>
-                          <p><%= msg %></p>
+                          <p>{msg}</p>
                         <% end %>
                       </div>
                     <% end %>
@@ -91,10 +98,12 @@ defmodule TrialAppWeb.UserLive.Settings do
                 </.form>
               </div>
 
-              <!-- Password Settings -->
+    <!-- Password Settings -->
               <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Password Settings</h2>
-                <p class="text-gray-600 mb-4 text-sm">Update your password to keep your account secure</p>
+                <p class="text-gray-600 mb-4 text-sm">
+                  Update your password to keep your account secure
+                </p>
 
                 <.form
                   for={@password_form}
@@ -127,14 +136,16 @@ defmodule TrialAppWeb.UserLive.Settings do
                     <%= if @password_form[:password].errors != [] do %>
                       <div class="mt-1 text-sm text-red-600">
                         <%= for {msg, _} <- @password_form[:password].errors do %>
-                          <p><%= msg %></p>
+                          <p>{msg}</p>
                         <% end %>
                       </div>
                     <% end %>
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                      Confirm New Password
+                    </label>
                     <input
                       type="password"
                       name="user[password_confirmation]"
@@ -146,7 +157,7 @@ defmodule TrialAppWeb.UserLive.Settings do
                     <%= if @password_form[:password_confirmation].errors != [] do %>
                       <div class="mt-1 text-sm text-red-600">
                         <%= for {msg, _} <- @password_form[:password_confirmation].errors do %>
-                          <p><%= msg %></p>
+                          <p>{msg}</p>
                         <% end %>
                       </div>
                     <% end %>

@@ -49,6 +49,7 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
     case Orgs.create_team(params) do
       {:ok, _team} ->
         teams = Orgs.list_teams() |> Repo.preload([:department, :organization])
+
         {:noreply,
          socket
          |> assign(:teams, teams)
@@ -64,6 +65,7 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
     case Orgs.update_team(team, params) do
       {:ok, _team} ->
         teams = Orgs.list_teams() |> Repo.preload([:department, :organization])
+
         {:noreply,
          socket
          |> assign(:teams, teams)
@@ -87,8 +89,8 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
           + New Team
         </button>
       </div>
-
-      <!-- Team Form -->
+      
+    <!-- Team Form -->
       <%= if @editing_team do %>
         <.team_form
           team={@editing_team}
@@ -97,15 +99,19 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
           changeset={@changeset}
         />
       <% end %>
-
-      <!-- Teams List -->
+      
+    <!-- Teams List -->
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Department
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Organization
+              </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
@@ -113,13 +119,13 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
             <%= for team <- @teams do %>
               <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  <%= team.name %>
+                  {team.name}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <%= team.department.name %>
+                  {team.department.name}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <%= team.organization.name %>
+                  {team.organization.name}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
@@ -151,7 +157,7 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
     ~H"""
     <div class="bg-white p-6 rounded-lg shadow mb-6">
       <h2 class="text-lg font-semibold mb-4">
-        <%= if @team == :new, do: "Create New Team", else: "Edit Team" %>
+        {if @team == :new, do: "Create New Team", else: "Edit Team"}
       </h2>
 
       <form phx-submit="save_team">
@@ -169,14 +175,17 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
 
           <div>
             <label class="block text-sm font-medium text-gray-700">Department</label>
-            <select name="team[department_id]" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+            <select
+              name="team[department_id]"
+              class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            >
               <option value="">Select Department</option>
               <%= for dept <- @departments do %>
                 <option
                   value={dept.id}
                   selected={@team != :new && @team.department_id == dept.id}
                 >
-                  <%= dept.name %>
+                  {dept.name}
                 </option>
               <% end %>
             </select>
@@ -193,9 +202,13 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
 
         <div class="mt-4 flex space-x-2">
           <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            <%= if @team == :new, do: "Create Team", else: "Update Team" %>
+            {if @team == :new, do: "Create Team", else: "Update Team"}
           </button>
-          <button type="button" phx-click="cancel_edit" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+          <button
+            type="button"
+            phx-click="cancel_edit"
+            class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+          >
             Cancel
           </button>
         </div>

@@ -35,7 +35,8 @@ defmodule TrialApp.Orgs.Organization do
     |> changeset(attrs)
     |> validate_required([:code])
     |> validate_format(:code, ~r/^[A-Z0-9_]+$/,
-      message: "must contain only uppercase letters, numbers, and underscores")
+      message: "must contain only uppercase letters, numbers, and underscores"
+    )
   end
 
   @doc """

@@ -25,14 +25,19 @@ defmodule TrialApp.OrganizationTest do
       department = department_fixture(scope)
       other_scope = user_scope_fixture()
       assert Organization.get_department!(scope, department.id) == department
-      assert_raise Ecto.NoResultsError, fn -> Organization.get_department!(other_scope, department.id) end
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Organization.get_department!(other_scope, department.id)
+      end
     end
 
     test "create_department/2 with valid data creates a department" do
       valid_attrs = %{name: "some name", description: "some description"}
       scope = user_scope_fixture()
 
-      assert {:ok, %Department{} = department} = Organization.create_department(scope, valid_attrs)
+      assert {:ok, %Department{} = department} =
+               Organization.create_department(scope, valid_attrs)
+
       assert department.name == "some name"
       assert department.description == "some description"
       assert department.user_id == scope.user.id
@@ -48,7 +53,9 @@ defmodule TrialApp.OrganizationTest do
       department = department_fixture(scope)
       update_attrs = %{name: "some updated name", description: "some updated description"}
 
-      assert {:ok, %Department{} = department} = Organization.update_department(scope, department, update_attrs)
+      assert {:ok, %Department{} = department} =
+               Organization.update_department(scope, department, update_attrs)
+
       assert department.name == "some updated name"
       assert department.description == "some updated description"
     end
@@ -66,7 +73,10 @@ defmodule TrialApp.OrganizationTest do
     test "update_department/3 with invalid data returns error changeset" do
       scope = user_scope_fixture()
       department = department_fixture(scope)
-      assert {:error, %Ecto.Changeset{}} = Organization.update_department(scope, department, @invalid_attrs)
+
+      assert {:error, %Ecto.Changeset{}} =
+               Organization.update_department(scope, department, @invalid_attrs)
+
       assert department == Organization.get_department!(scope, department.id)
     end
 
@@ -74,7 +84,10 @@ defmodule TrialApp.OrganizationTest do
       scope = user_scope_fixture()
       department = department_fixture(scope)
       assert {:ok, %Department{}} = Organization.delete_department(scope, department)
-      assert_raise Ecto.NoResultsError, fn -> Organization.get_department!(scope, department.id) end
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Organization.get_department!(scope, department.id)
+      end
     end
 
     test "delete_department/2 with invalid scope raises" do
@@ -199,7 +212,10 @@ defmodule TrialApp.OrganizationTest do
       employee = employee_fixture(scope)
       other_scope = user_scope_fixture()
       assert Organization.get_employee!(scope, employee.id) == employee
-      assert_raise Ecto.NoResultsError, fn -> Organization.get_employee!(other_scope, employee.id) end
+
+      assert_raise Ecto.NoResultsError, fn ->
+        Organization.get_employee!(other_scope, employee.id)
+      end
     end
 
     test "create_employee/2 with valid data creates a employee" do
@@ -221,9 +237,16 @@ defmodule TrialApp.OrganizationTest do
     test "update_employee/3 with valid data updates the employee" do
       scope = user_scope_fixture()
       employee = employee_fixture(scope)
-      update_attrs = %{name: "some updated name", role: "some updated role", email: "some updated email"}
 
-      assert {:ok, %Employee{} = employee} = Organization.update_employee(scope, employee, update_attrs)
+      update_attrs = %{
+        name: "some updated name",
+        role: "some updated role",
+        email: "some updated email"
+      }
+
+      assert {:ok, %Employee{} = employee} =
+               Organization.update_employee(scope, employee, update_attrs)
+
       assert employee.name == "some updated name"
       assert employee.role == "some updated role"
       assert employee.email == "some updated email"
@@ -242,7 +265,10 @@ defmodule TrialApp.OrganizationTest do
     test "update_employee/3 with invalid data returns error changeset" do
       scope = user_scope_fixture()
       employee = employee_fixture(scope)
-      assert {:error, %Ecto.Changeset{}} = Organization.update_employee(scope, employee, @invalid_attrs)
+
+      assert {:error, %Ecto.Changeset{}} =
+               Organization.update_employee(scope, employee, @invalid_attrs)
+
       assert employee == Organization.get_employee!(scope, employee.id)
     end
 

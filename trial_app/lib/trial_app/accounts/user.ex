@@ -207,12 +207,12 @@ defmodule TrialApp.Accounts.User do
   Returns a user with all relationships preloaded for admin dashboard.
   """
   def with_preloads(user) do
-    TrialApp.Repo.preload(user, [
+    TrialApp.Repo.preload(user,
       employees: [:team, :department, :organization],
       teams: [:organization, :department],
       organizations: [],
       departments: []
-    ])
+    )
   end
 
   @doc """

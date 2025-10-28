@@ -7,4 +7,3 @@ defmodule TrialApp.Repo.Migrations.AddDescriptionToTeams do
     end
   end
 end
-

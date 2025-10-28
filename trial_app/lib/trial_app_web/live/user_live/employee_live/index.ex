@@ -4,50 +4,57 @@ defmodule TrialAppWeb.EmployeeLive.Index do
   def mount(_params, _session, socket) do
     current_user = socket.assigns.current_scope.user
 
-    # Check if user is pending approval
+    alias TrialApp.Orgs
+
     if current_user.status == "pending" do
       {:ok,
-        socket
-        |> assign(:user_status, "pending")
-        |> assign(:has_assignments, false)
-      }
+       socket
+       |> assign(:page_title, "Employees")
+       |> assign(:user_status, "pending")
+       |> assign(:has_assignments, false)}
     else
-      # User is active, show employee data
-      # Mock data - in real app, this would come from database
-      # For now, we'll simulate: total employees = 50, user's info = John Doe
-      _all_employees = [
-        %{id: 1, first_name: "John", last_name: "Doe", position: "Senior Developer", department: "Engineering", position_id: 101, department_id: 1},
-        %{id: 2, first_name: "Jane", last_name: "Smith", position: "HR Manager", department: "HR", position_id: 102, department_id: 2}
-        # ... 48 more employees in real app
-      ]
+      # Load departments with employees preloaded and group in UI
+      departments = Orgs.list_departments()
+      employees = Orgs.list_employees()
 
-      # Current user's employee info (in real app, this would come from user context)
-      current_user_employee = %{id: 1, first_name: "John", last_name: "Doe", position: "Senior Developer", department: "Engineering", position_id: 101, department_id: 1}
+      current_user_employee =
+        employees
+        |> Enum.find(fn e -> e.user_id == current_user.id end)
 
       {:ok,
        socket
+       |> assign(:page_title, "Employees")
        |> assign(:user_status, "active")
-       |> assign(:has_assignments, true)
-       |> assign(:total_employees, 50) # Mock total count
+       |> assign(:has_assignments, current_user_employee != nil)
+       |> assign(:total_employees, length(employees))
        |> assign(:current_user_employee, current_user_employee)
-       |> stream(:employees, [current_user_employee])}
+       |> stream(:departments, departments)}
     end
   end
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 p-6">
-      <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
-        <main class="ml-64 p-8 w-full">
-          <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-            <%= if @user_status == "pending" do %>
+    <Layouts.app flash={@flash} current_scope={@current_scope} page_title={@page_title}>
+      <div class="max-w-7xl mx-auto">
+        <div class="bg-base-100 border border-base-300 rounded-xl shadow-sm p-6">
+              <%= if @user_status == "pending" do %>
               <!-- Pending Approval View -->
               <div class="text-center py-16">
                 <div class="max-w-md mx-auto">
                   <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg class="w-10 h-10 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <svg
+                      class="w-10 h-10 text-yellow-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      >
+                      </path>
                     </svg>
                   </div>
                   <h1 class="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
@@ -67,57 +74,74 @@ defmodule TrialAppWeb.EmployeeLive.Index do
               </div>
             <% else %>
               <!-- Active User Employees View -->
-              <h1 class="text-3xl font-bold text-gray-800 mb-8">Employees</h1>
+              <h1 class="text-3xl font-bold mb-8">Employees</h1>
 
-              <!-- Total Employees Count -->
-              <div class="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <h2 class="text-lg font-semibold text-purple-800">
-                  Total Employees: <span class="text-2xl"><%= @total_employees %></span>
+              <div class="mb-6 p-4 bg-base-200 rounded-lg border border-base-300">
+                <h2 class="text-lg font-semibold">
+                  Total Employees: <span class="text-2xl">{@total_employees}</span>
                 </h2>
-                <p class="text-purple-600 text-sm mt-1">You can only view your own employee information</p>
+                <p class="text-base-content/70 text-sm mt-1">You can only view your own employee information</p>
               </div>
 
-              <!-- Current User's Employee Information -->
-              <div class="mb-4">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Employee Information</h2>
-                <table class="w-full table-auto border-collapse">
-                  <thead>
-                    <tr class="bg-gray-100">
-                      <th class="p-4 text-left">Full Name</th>
-                      <th class="p-4 text-left">Position</th>
-                      <th class="p-4 text-left">Department</th>
-                      <th class="p-4 text-left">Position ID</th>
-                      <th class="p-4 text-left">Department ID</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for {emp_id, emp} <- @streams.employees do %>
-                      <tr id={emp_id} class="border-b hover:bg-gray-50">
-                        <td class="p-4 font-medium text-gray-800">
-                          <%= emp.first_name %> <%= emp.last_name %>
-                        </td>
-                        <td class="p-4 text-gray-600"><%= emp.position %></td>
-                        <td class="p-4 text-gray-600"><%= emp.department %></td>
-                        <td class="p-4 text-gray-600"><%= emp.position_id %></td>
-                        <td class="p-4 text-gray-600"><%= emp.department_id %></td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
+              <%= if @current_user_employee do %>
+                <div class="mb-8">
+                  <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Employee Information</h2>
+                  <div class="rounded-lg border border-base-300 bg-base-100">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+                      <div>
+                        <div class="text-sm text-gray-500">Name</div>
+                        <div class="font-medium text-gray-800">{@current_user_employee.name}</div>
+                      </div>
+                      <div>
+                        <div class="text-sm text-gray-500">Position</div>
+                        <div class="text-gray-800">{@current_user_employee.position}</div>
+                      </div>
+                      <div>
+                        <div class="text-sm text-base-content/70">Department</div>
+                        <div class="text-base-content">{@current_user_employee.department && @current_user_employee.department.name}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
 
-              <!-- Note for regular users -->
-              <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p class="text-yellow-700 text-sm">
-                  <strong>Note:</strong> As a regular user, you can only view your own employee information.
-                  Contact administrator for any corrections or updates to your employee record.
-                </p>
+              <div id="departments" phx-update="stream" class="space-y-8">
+                <%= for {section_id, dept} <- @streams.departments do %>
+                  <section id={section_id} class="border border-base-300 rounded-xl shadow-sm bg-base-100">
+                    <header class="px-6 py-4 border-b border-base-300 rounded-t-xl">
+                      <h3 class="text-lg font-semibold">{dept.name}</h3>
+                      <p class="text-sm text-base-content/70">{dept.description}</p>
+                    </header>
+                    <div class="overflow-x-auto">
+                      <table class="w-full table-auto">
+                        <thead>
+                          <tr class="bg-base-200">
+                            <th class="p-3 text-left">Employee</th>
+                            <th class="p-3 text-left">Email</th>
+                            <th class="p-3 text-left">Team</th>
+                            <th class="p-3 text-left">Position</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <%= for emp <- dept.employees do %>
+                            <tr class="border-b border-base-300 hover:bg-base-100">
+                              <td class="p-3 font-medium">{emp.name}</td>
+                              <td class="p-3 text-base-content/70">{emp.email}</td>
+                              <td class="p-3">{emp.team && emp.team.name}</td>
+                              <td class="p-3">{emp.position}</td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
+                      <div class={["p-4 text-base-content/60", (dept.employees == [] && "block") || "hidden"]}>No employees</div>
+                    </div>
+                  </section>
+                <% end %>
               </div>
             <% end %>
-          </div>
-        </main>
+        </div>
       </div>
-    </div>
+    </Layouts.app>
     """
   end
 end

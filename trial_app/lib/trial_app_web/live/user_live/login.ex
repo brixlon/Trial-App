@@ -15,7 +15,7 @@ defmodule TrialAppWeb.UserLive.Login do
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
             <p class="text-gray-600">Sign in to your account 🔐</p>
           </div>
-
+          
     <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">

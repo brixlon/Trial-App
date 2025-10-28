@@ -26,7 +26,18 @@ defmodule TrialApp.Orgs.Employee do
   """
   def changeset(employee, attrs) do
     employee
-    |> cast(attrs, [:name, :email, :role, :position, :is_active, :status, :user_id, :team_id, :department_id, :organization_id])
+    |> cast(attrs, [
+      :name,
+      :email,
+      :role,
+      :position,
+      :is_active,
+      :status,
+      :user_id,
+      :team_id,
+      :department_id,
+      :organization_id
+    ])
     |> validate_required([:name, :email, :user_id, :team_id])
     |> validate_inclusion(:role, @roles)
     |> validate_inclusion(:status, @statuses)
@@ -52,6 +63,7 @@ defmodule TrialApp.Orgs.Employee do
 
     if user_id && (!get_field(changeset, :name) || !get_field(changeset, :email)) do
       user = TrialApp.Repo.get(TrialApp.Accounts.User, user_id)
+
       if user do
         changeset
         |> put_change(:name, get_field(changeset, :name) || user.username || user.email)
