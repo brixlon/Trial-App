@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="TrialApp" suffix=" · Your App">
+      {assigns[:page_title]}
+    </.live_title>
+
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    
+<!-- ✅ Add Alpine.js for collapsible sidebar behavior -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js">
+    </script>
+  </head>
+
+  <body class="bg-gray-50 text-gray-900">
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Logo/Brand -->
+          <div class="flex items-center">
+            <.link href="/" class="flex items-center space-x-2">
+              <span class="text-xl font-bold text-gray-800">TrialApp</span>
+            </.link>
+          </div>
+          
+<!-- Navigation Links -->
+          <div class="flex items-center space-x-4">
+            <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
+              <!-- Authenticated User Menu -->
+              <div class="flex items-center space-x-4">
+                <span class="text-gray-600 text-sm">
+                  Welcome,
+                  <span class="font-semibold text-gray-800">
+                    {assigns[:current_scope].user.username}
+                  </span>
+                </span>
+
+                <.link
+                  href="/users/settings"
+                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
+                >
+                  ⚙️ Settings
+                </.link>
+
+                <.link
+                  href="/users/logout"
+                  method="delete"
+                  class="px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
+                >
+                  🚪 Logout
+                </.link>
+              </div>
+            <% else %>
+              <!-- Guest User Menu -->
+              <div class="flex items-center space-x-4">
+                <.link
+                  href="/users/register"
+                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
+                >
+                  ✨ Register
+                </.link>
+
+                <.link
+                  href="/users/login"
+                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors duration-200 font-medium"
+                >
+                  🔐 Login
+                </.link>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </nav>
+    
+<!-- Main Content -->
+    <main>
+      {@inner_content}
+    </main>
+    
+<!-- Flash Messages -->
+    <div id="flash-group" aria-live="polite">
+      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:error} flash={@flash} />
+    </div>
+  </body>
+</html>

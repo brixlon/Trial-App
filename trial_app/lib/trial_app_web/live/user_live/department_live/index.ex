@@ -83,7 +83,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
             <% else %>
               <!-- Active User Departments View -->
               <h1 class="text-3xl font-bold text-gray-800 mb-8">Departments</h1>
-              
+
     <!-- Total Departments Count -->
               <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h2 class="text-lg font-semibold text-blue-800">
@@ -91,7 +91,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
                 </h2>
                 <p class="text-blue-600 text-sm mt-1">You have access to 1 department</p>
               </div>
-              
+
     <!-- User's Department -->
               <div class="mb-4">
                 <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Department</h2>
@@ -112,7 +112,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
                   </tbody>
                 </table>
               </div>
-              
+
     <!-- Note for regular users -->
               <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <p class="text-yellow-700 text-sm">

@@ -85,7 +85,7 @@ defmodule TrialAppWeb.UserLive.Registration do
             <h1 class="text-4xl font-bold text-gray-800 mb-2">Create Account</h1>
             <p class="text-gray-600">Join us today! It's free</p>
           </div>
-          
+
     <!-- Flash Messages -->
           <%= if @flash[:info] do %>
             <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
@@ -121,7 +121,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                 3-30 characters, letters, numbers, and underscores only
               </p>
             </div>
-            
+
     <!-- Email Field -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">📧 Email</label>
@@ -134,7 +134,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                 class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>
-            
+
     <!-- Password Field -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">🔒 Password</label>
@@ -157,7 +157,7 @@ defmodule TrialAppWeb.UserLive.Registration do
               </div>
               <p class="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
             </div>
-            
+
     <!-- Confirm Password Field -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">🔒 Confirm Password</label>
@@ -184,7 +184,7 @@ defmodule TrialAppWeb.UserLive.Registration do
                 <p class="mt-1 text-xs text-gray-500">Re-enter your password</p>
               <% end %>
             </div>
-            
+
     <!-- Submit Button -->
             <button
               type="submit"
@@ -194,7 +194,7 @@ defmodule TrialAppWeb.UserLive.Registration do
               {if @loading, do: "Creating Account...", else: " Create Account"}
             </button>
           </.form>
-          
+
     <!-- Error Message -->
           <%= if @error do %>
             <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
@@ -204,7 +204,7 @@ defmodule TrialAppWeb.UserLive.Registration do
               </div>
             </div>
           <% end %>
-          
+
     <!-- Login Link -->
           <div class="mt-6 text-center">
             <p class="text-gray-600">

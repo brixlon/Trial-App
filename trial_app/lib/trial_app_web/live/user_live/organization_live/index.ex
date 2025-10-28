@@ -1668,3 +1668,4 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     """
   end
 end
+ 

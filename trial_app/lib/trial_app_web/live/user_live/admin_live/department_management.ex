@@ -23,7 +23,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
         id="sidebar"
         current_scope={@current_scope}
       />
-      
+
     <!-- Main Content -->
       <main class="flex-1 overflow-y-auto ml-64">
         <!-- Header Bar -->
@@ -53,7 +53,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
             </div>
           </div>
         </div>
-        
+
     <!-- Content Area -->
         <div class="p-8">
           <div class="max-w-7xl mx-auto">
@@ -89,7 +89,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
                 </div>
               </div>
             </div>
-            
+
     <!-- Search Bar -->
             <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
               <div class="relative">
@@ -116,7 +116,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
                 />
               </div>
             </div>
-            
+
     <!-- Departments Grid/List -->
             <%= if Enum.empty?(@departments) do %>
               <!-- Empty State -->
@@ -233,7 +233,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
           </div>
         </div>
       </main>
-      
+
     <!-- Add/Edit Department Modal -->
       <%= if @show_form do %>
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
@@ -262,7 +262,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
                 </svg>
               </button>
             </div>
-            
+
     <!-- Modal Body -->
             <form phx-submit="save_department" phx-change="update_form" class="p-6 space-y-6">
               <div>
@@ -312,7 +312,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
                   Optional: Add a description to help identify this department
                 </p>
               </div>
-              
+
     <!-- Modal Footer -->
               <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
@@ -333,7 +333,7 @@ defmodule TrialAppWeb.AdminLive.DepartmentManagement do
           </div>
         </div>
       <% end %>
-      
+
     <!-- Delete Confirmation Modal -->
       <%= if @show_delete_modal do %>
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">

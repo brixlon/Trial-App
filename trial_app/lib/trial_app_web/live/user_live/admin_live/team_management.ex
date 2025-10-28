@@ -89,7 +89,7 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
           + New Team
         </button>
       </div>
-      
+
     <!-- Team Form -->
       <%= if @editing_team do %>
         <.team_form
@@ -99,7 +99,7 @@ defmodule TrialAppWeb.AdminLive.TeamManagement do
           changeset={@changeset}
         />
       <% end %>
-      
+
     <!-- Teams List -->
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">

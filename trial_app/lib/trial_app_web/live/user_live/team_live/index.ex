@@ -82,7 +82,7 @@ defmodule TrialAppWeb.TeamLive.Index do
             <% else %>
               <!-- Active User Teams View -->
               <h1 class="text-3xl font-bold text-gray-800 mb-8">Teams</h1>
-              
+
     <!-- Total Teams Count -->
               <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
                 <h2 class="text-lg font-semibold text-green-800">
@@ -90,7 +90,7 @@ defmodule TrialAppWeb.TeamLive.Index do
                 </h2>
                 <p class="text-green-600 text-sm mt-1">You are a member of 1 team</p>
               </div>
-              
+
     <!-- User's Team -->
               <div class="mb-4">
                 <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Team</h2>
@@ -111,7 +111,7 @@ defmodule TrialAppWeb.TeamLive.Index do
                   </tbody>
                 </table>
               </div>
-              
+
     <!-- Note for regular users -->
               <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <p class="text-yellow-700 text-sm">
