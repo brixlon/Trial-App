@@ -7,6 +7,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    IO.puts("===== MOUNT CALLED - CODE IS LOADED =====")
     current_user = socket.assigns.current_scope.user
 
     if current_user.status == "pending" do
@@ -206,7 +207,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
        team_form_data: %{
          name: team.name,
          description: team.description || "",
-         department_id: team.department_id
+         department_id: to_string(team.department_id)
        },
        errors: %{}
      )}
@@ -335,11 +336,22 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   # Team CRUD Events
   def handle_event("new_team", %{"department_id" => dept_id}, socket) do
+    IO.puts("=== NEW_TEAM CALLED ===")
+    # Ensure departments list is populated
+    org_id = socket.assigns.selected_org.id
+    departments =
+      if Enum.empty?(socket.assigns.selected_org_departments) do
+        Orgs.list_departments_by_org(org_id)
+      else
+        socket.assigns.selected_org_departments
+      end
+
     {:noreply,
      assign(socket,
        show_team_form: true,
        editing_team_id: nil,
        team_form_data: %{name: "", description: "", department_id: dept_id},
+       selected_org_departments: departments,
        errors: %{}
      )}
   end
@@ -1625,7 +1637,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                   <%= for dept <- @selected_org_departments do %>
                     <option
                       value={dept.id}
-                      selected={dept.id == String.to_integer(@team_form_data.department_id)}
+                      selected={to_string(dept.id) == @team_form_data.department_id}
                     >
                       {dept.name}
                     </option>
@@ -1668,4 +1680,3 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     """
   end
 end
- 

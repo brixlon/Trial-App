@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="bg-white scroll-smooth" x-data="{ mobileMenuOpen: false, userMenuOpen: false }">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="theme-color" content="#ffffff" />
     <.live_title default="TrialApp" suffix=" · Your App">
       {assigns[:page_title]}
     </.live_title>
@@ -12,82 +13,313 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     
-    <!-- ✅ Add Alpine.js for collapsible sidebar behavior -->
+    <!-- ✅ Add Alpine.js for interactive components -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js">
     </script>
+
+    <!-- Force light theme styles inline for immediate effect -->
+    <style>
+      html, body {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+      }
+      html[data-theme="dark"],
+      html[data-theme="dark"] body,
+      html[data-theme="dark"] main {
+        background-color: #ffffff !important;
+        color: #111827 !important;
+      }
+      
+      /* Smooth scrolling */
+      * {
+        scroll-behavior: smooth;
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #6366f1, #8b5cf6);
+        border-radius: 5px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #4f46e5, #7c3aed);
+      }
+
+      /* Loading bar animation */
+      @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+      }
+      .loading-shimmer {
+        animation: shimmer 2s infinite linear;
+        background: linear-gradient(to right, #f3f4f6 4%, #e5e7eb 25%, #f3f4f6 36%);
+        background-size: 1000px 100%;
+      }
+
+      /* Fade in animation */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .fade-in {
+        animation: fadeIn 0.3s ease-out;
+      }
+    </style>
   </head>
 
-  <body class="bg-white text-gray-900">
+  <body class="bg-white text-gray-900 min-h-screen antialiased">
+    <!-- Loading Bar (appears during page transitions) -->
+    <div class="phx-loading fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 z-[100] loading-shimmer opacity-0 transition-opacity" phx-connected-class="opacity-100">
+    </div>
+
     <!-- Navigation Bar -->
-    <nav class="bg-white shadow-sm border-b border-gray-200">
+    <nav class="bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200 sticky top-0 z-50 transition-all duration-300">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <!-- Logo/Brand -->
-          <div class="flex items-center">
-            <.link href="/" class="flex items-center space-x-2">
-              <span class="text-xl font-bold text-gray-800">TrialApp</span>
-            </.link>
-          </div>
-          
-          <!-- Navigation Links -->
-          <div class="flex items-center space-x-4">
-            <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
-              <!-- Authenticated User Menu -->
-              <div class="flex items-center space-x-4">
-                <span class="text-gray-600 text-sm">
-                  Welcome,
-                  <span class="font-semibold text-gray-800">
-                    {assigns[:current_scope].user.username}
-                  </span>
-                </span>
-
-                <.link
-                  href="/users/settings"
-                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
-                >
-                  ⚙️ Settings
-                </.link>
-
-                <.link
-                  href="/users/logout"
-                  method="delete"
-                  class="px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 font-medium"
-                >
-                  🚪 Logout
-                </.link>
+          <div class="flex items-center gap-8">
+            <.link href="/" class="flex items-center space-x-3 group">
+              <div class="relative">
+                <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur-md opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                <div class="relative w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                  <span class="text-white font-bold text-lg">T</span>
+                </div>
               </div>
-            <% else %>
-              <!-- Guest User Menu -->
-              <div class="flex items-center space-x-4">
-                <.link
-                  href="/users/register"
-                  class="px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 font-medium"
-                >
-                  ✨ Register
-                </.link>
+              <div>
+                <span class="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  TrialApp
+                </span>
+                <p class="text-xs text-gray-500 hidden sm:block">Enterprise Suite</p>
+              </div>
+            </.link>
 
-                <.link
-                  href="/users/login"
-                  class="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors duration-200 font-medium"
-                >
-                  🔐 Login
+            <!-- Quick Links (Desktop) -->
+            <%= if assigns[:current_scope] && assigns[:current_scope].user && assigns[:current_scope].user.role == "admin" do %>
+              <div class="hidden lg:flex items-center space-x-2">
+                <.link href="/admin/dashboard" class="px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                  Dashboard
+                </.link>
+                <.link href="/admin/organizations" class="px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                  Organizations
+                </.link>
+                <.link href="/admin/users" class="px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                  Users
                 </.link>
               </div>
             <% end %>
           </div>
+          
+          <!-- Desktop Navigation -->
+          <div class="hidden md:flex items-center space-x-3">
+            <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
+              <!-- Authenticated User Menu -->
+              <div class="flex items-center space-x-3">
+                <!-- User Profile Card -->
+                <div class="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-100 shadow-sm">
+                  <div class="relative">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center ring-2 ring-white shadow-md">
+                      <span class="text-white font-bold text-sm">
+                        {String.first(assigns[:current_scope].user.username) |> String.upcase()}
+                      </span>
+                    </div>
+                    <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                  </div>
+                  <div class="ml-3 text-left">
+                    <p class="text-xs text-gray-500 font-medium">Welcome back</p>
+                    <p class="font-semibold text-gray-800 text-sm">
+                      {assigns[:current_scope].user.username}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Settings Button -->
+                <.link
+                  href="/users/settings"
+                  class="group relative px-4 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 font-medium border border-transparent hover:border-blue-200"
+                  title="Settings"
+                >
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Settings</span>
+                  </div>
+                </.link>
+
+                <!-- Logout Button -->
+                <.link
+                  href="/users/logout"
+                  method="delete"
+                  class="group relative px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl transition-all duration-200 font-medium shadow-md hover:shadow-lg transform hover:scale-105"
+                  title="Logout"
+                >
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Logout</span>
+                  </div>
+                </.link>
+              </div>
+            <% else %>
+              <!-- Guest User Menu -->
+              <div class="flex items-center space-x-3">
+                <.link
+                  href="/users/register"
+                  class="group px-5 py-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 font-medium border-2 border-gray-200 hover:border-blue-300"
+                >
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    <span>Register</span>
+                  </div>
+                </.link>
+
+                <.link
+                  href="/users/login"
+                  class="group px-5 py-2.5 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    <span>Login</span>
+                  </div>
+                </.link>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- Mobile Menu Button -->
+          <button 
+            @click="mobileMenuOpen = !mobileMenuOpen"
+            class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+          >
+            <svg x-show="!mobileMenuOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <svg x-show="mobileMenuOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div 
+          x-show="mobileMenuOpen" 
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95"
+          class="md:hidden py-4 border-t border-gray-200 bg-white"
+        >
+          <%= if assigns[:current_scope] && assigns[:current_scope].user do %>
+            <div class="space-y-2 px-4">
+              <!-- Mobile User Info -->
+              <div class="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl mb-4">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <span class="text-white font-bold">
+                    {String.first(assigns[:current_scope].user.username) |> String.upcase()}
+                  </span>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Logged in as</p>
+                  <p class="font-semibold text-gray-800">{assigns[:current_scope].user.username}</p>
+                </div>
+              </div>
+
+              <%= if assigns[:current_scope].user.role == "admin" do %>
+                <.link href="/admin/dashboard" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                  Dashboard
+                </.link>
+                <.link href="/admin/organizations" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                  Organizations
+                </.link>
+                <.link href="/admin/users" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                  Users
+                </.link>
+              <% end %>
+
+              <.link href="/users/settings" class="block px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                ⚙️ Settings
+              </.link>
+              <.link href="/users/logout" method="delete" class="block px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium">
+                🚪 Logout
+              </.link>
+            </div>
+          <% else %>
+            <div class="space-y-2 px-4">
+              <.link href="/users/register" class="block px-4 py-3 text-center text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium border border-gray-200">
+                ✨ Register
+              </.link>
+              <.link href="/users/login" class="block px-4 py-3 text-center bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium">
+                🔐 Login
+              </.link>
+            </div>
+          <% end %>
         </div>
       </div>
     </nav>
     
-    <!-- Main Content -->
-    <main class="bg-white">
-      {@inner_content}
+    <!-- Main Content with white background wrapper -->
+    <main class="bg-white min-h-screen">
+      <div class="bg-white min-h-[calc(100vh-4rem)]">
+        {@inner_content}
+      </div>
     </main>
+
+    <!-- Footer -->
+    <footer class="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 py-8">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <span class="text-white font-bold text-sm">T</span>
+            </div>
+            <div class="text-sm">
+              <p class="font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">TrialApp</p>
+              <p class="text-gray-500 text-xs">Enterprise Suite © 2024</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-6 text-sm text-gray-600">
+            <a href="#" class="hover:text-blue-600 transition-colors">Privacy</a>
+            <a href="#" class="hover:text-blue-600 transition-colors">Terms</a>
+            <a href="#" class="hover:text-blue-600 transition-colors">Support</a>
+            <a href="#" class="hover:text-blue-600 transition-colors">Docs</a>
+          </div>
+        </div>
+      </div>
+    </footer>
     
-    <!-- Flash Messages -->
-    <div id="flash-group" aria-live="polite">
+    <!-- Enhanced Flash Messages with icons and animations -->
+    <div id="flash-group" aria-live="polite" class="fixed top-20 right-4 z-50 space-y-2 max-w-md">
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
     </div>
+
+    <!-- Back to Top Button -->
+    <button
+      x-data="{ show: false }"
+      @scroll.window="show = window.pageYOffset > 300"
+      x-show="show"
+      @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
+      x-transition
+      class="fixed bottom-8 right-8 p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-300 z-40"
+      title="Back to top"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      </svg>
+    </button>
   </body>
 </html>
