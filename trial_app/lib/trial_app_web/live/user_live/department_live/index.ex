@@ -13,8 +13,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
       }
     else
       # User is active, show department data
-      # Mock data - in real app, this would come from database
-      # For now, we'll simulate: total departments = 4, user's department = Engineering
+      # (Mock data for now)
       all_departments = [
         %{id: 1, name: "Engineering", description: "Software development"},
         %{id: 2, name: "HR", description: "Human resources"},
@@ -22,7 +21,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
         %{id: 4, name: "Finance", description: "Financial operations"}
       ]
 
-      # User's assigned department (in real app, this would come from user context)
+      # User's assigned department (mock)
       user_department = %{id: 1, name: "Engineering", description: "Software development"}
 
       {:ok,
@@ -34,6 +33,7 @@ defmodule TrialAppWeb.DepartmentLive.Index do
        |> stream(:departments, [user_department])}
     end
   end
+<<<<<<< Updated upstream
 
   def render(assigns) do
     ~H"""
@@ -113,4 +113,6 @@ defmodule TrialAppWeb.DepartmentLive.Index do
     </div>
     """
   end
+=======
+>>>>>>> Stashed changes
 end

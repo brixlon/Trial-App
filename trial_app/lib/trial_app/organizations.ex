@@ -11,40 +11,231 @@ defmodule TrialApp.Organizations do
   # =======================
   # ORGANIZATIONS
   # =======================
-  def list_organizations, do: Repo.all(Organization)
+
+  # List all organizations with departments and teams preloaded
+  def list_organizations do
+    Organization
+    |> preload([departments: :teams])
+    |> Repo.all()
+  end
+
   def get_organization!(id), do: Repo.get!(Organization, id)
+<<<<<<< Updated upstream
   def create_organization(attrs), do: %Organization{} |> Organization.changeset(attrs) |> Repo.insert()
   def update_organization(org, attrs), do: org |> Organization.changeset(attrs) |> Repo.update()
+=======
+
+  # Get organization with preloaded departments
+  def get_organization_with_departments!(id) do
+    Repo.get!(Organization, id)
+    |> Repo.preload(:departments)
+  end
+
+  # Get all teams for an organization (across all departments)
+  def list_teams_by_organization(org_id) do
+    Repo.all(
+      from t in Team,
+        join: d in Department, on: t.department_id == d.id,
+        where: d.organization_id == ^org_id,
+        preload: [:department]
+    )
+  end
+
+  def create_organization(attrs),
+    do: %Organization{} |> Organization.changeset(attrs) |> Repo.insert()
+
+  def update_organization(org, attrs),
+    do: org |> Organization.changeset(attrs) |> Repo.update()
+
+>>>>>>> Stashed changes
   def delete_organization(org), do: Repo.delete(org)
 
   # =======================
   # DEPARTMENTS
   # =======================
-  def list_departments(org_id), do: Repo.all(from d in Department, where: d.organization_id == ^org_id)
+
+  def list_departments(org_id),
+    do: Repo.all(from d in Department, where: d.organization_id == ^org_id)
+
+  # List all departments with preloaded associations (for admin)
+  def list_all_departments do
+    Department
+    |> preload([:teams, :organization])
+    |> Repo.all()
+  end
+
   def get_department!(id), do: Repo.get!(Department, id)
+<<<<<<< Updated upstream
   def create_department(attrs), do: %Department{} |> Department.changeset(attrs) |> Repo.insert()
   def update_department(dept, attrs), do: dept |> Department.changeset(attrs) |> Repo.update()
+=======
+
+  # Get department with teams
+  def get_department_with_teams!(id) do
+    Repo.get!(Department, id)
+    |> Repo.preload(:teams)
+  end
+
+  def create_department(attrs),
+    do: %Department{} |> Department.changeset(attrs) |> Repo.insert()
+
+  def update_department(dept, attrs),
+    do: dept |> Department.changeset(attrs) |> Repo.update()
+
+>>>>>>> Stashed changes
   def delete_department(dept), do: Repo.delete(dept)
 
   # =======================
   # TEAMS
   # =======================
-  def list_teams(dept_id), do: Repo.all(from t in Team, where: t.department_id == ^dept_id)
+
+  # List teams for a specific department
+  def list_teams(dept_id),
+    do: Repo.all(from t in Team, where: t.department_id == ^dept_id)
+
   def get_team!(id), do: Repo.get!(Team, id)
+<<<<<<< Updated upstream
   def create_team(attrs), do: %Team{} |> Team.changeset(attrs) |> Repo.insert()
   def update_team(team, attrs), do: team |> Team.changeset(attrs) |> Repo.update()
+=======
+
+  # Get team with employees (with user info preloaded)
+  def get_team_with_employees!(id) do
+    Repo.get!(Team, id)
+    |> Repo.preload([:department, employees: :user])
+  end
+
+  # ✅ New function: list all teams across all organizations (for admin dashboard)
+  def list_all_teams do
+  Team
+  |> Repo.all()
+  |> Repo.preload([
+    :department,
+    department: :organization,
+    employees: [:user]
+  ])
+end
+
+  def create_team(attrs),
+    do: %Team{} |> Team.changeset(attrs) |> Repo.insert()
+
+  def update_team(team, attrs),
+    do: team |> Team.changeset(attrs) |> Repo.update()
+
+>>>>>>> Stashed changes
   def delete_team(team), do: Repo.delete(team)
 
   # =======================
   # EMPLOYEES
   # =======================
-  def list_employees(team_id), do: Repo.all(from e in Employee, where: e.team_id == ^team_id)
+
+  def list_employees(team_id),
+    do: Repo.all(from e in Employee, where: e.team_id == ^team_id)
+
   def get_employee!(id), do: Repo.get!(Employee, id)
-  def create_employee(attrs), do: %Employee{} |> Employee.changeset(attrs) |> Repo.insert()
-  def update_employee(emp, attrs), do: emp |> Employee.changeset(attrs) |> Repo.update()
+
+  def create_employee(attrs),
+    do: %Employee{} |> Employee.changeset(attrs) |> Repo.insert()
+
+  def update_employee(emp, attrs),
+    do: emp |> Employee.changeset(attrs) |> Repo.update()
+
   def delete_employee(emp), do: Repo.delete(emp)
 
+  # Get employee with user info
+  def get_employee_with_user!(id) do
+    Repo.get!(Employee, id)
+    |> Repo.preload(:user)
+  end
+
   # =======================
+  # TEAM MEMBER MANAGEMENT
+  # =======================
+
+  # List all active users
+  def list_available_users do
+    Repo.all(
+      from u in User,
+        where: u.status == "active",
+        order_by: [asc: u.username],
+        select: %{id: u.id, username: u.username, email: u.email}
+    )
+  end
+
+  # Get users not in a specific team
+  def list_users_not_in_team(team_id) do
+    Repo.all(
+      from u in User,
+        left_join: e in Employee,
+        on: e.user_id == u.id and e.team_id == ^team_id,
+        where: is_nil(e.id) and u.status == "active",
+        order_by: [asc: u.username],
+        select: u
+    )
+  end
+
+  # Add a user to a team (creates an employee record)
+  def add_user_to_team(user_id, team_id) do
+    # First get the team to get department info
+    team = get_team!(team_id) |> Repo.preload(:department)
+
+    # Check if user is already in this team
+    existing =
+      Repo.one(
+        from e in Employee,
+          where: e.user_id == ^user_id and e.team_id == ^team_id
+      )
+
+    if existing do
+      {:error, :already_exists}
+    else
+      %Employee{}
+      |> Employee.changeset(%{
+        user_id: user_id,
+        team_id: team_id,
+        department_id: team.department_id,
+        is_active: true
+      })
+      |> Repo.insert()
+    end
+  end
+
+  # Remove a user from a team (deletes employee record)
+  def remove_user_from_team(employee_id) do
+    employee = get_employee!(employee_id)
+    Repo.delete(employee)
+  end
+
+  # =======================
+<<<<<<< Updated upstream
+=======
+  # COUNTING FUNCTIONS
+  # =======================
+
+  # Count departments for organization
+  def count_departments_for_organization(org_id) do
+    Repo.one(
+      from d in Department,
+        where: d.organization_id == ^org_id,
+        select: count(d.id)
+    )
+  end
+
+  # Count teams for organization
+  def count_teams_for_organization(org_id) do
+    Repo.one(
+      from t in Team,
+        join: d in Department, on: t.department_id == d.id,
+        where: d.organization_id == ^org_id,
+        select: count(t.id)
+    )
+  end
+
+  # Count all employees
+  def count_all_employees, do: Repo.aggregate(Employee, :count, :id)
+
+  # =======================
+>>>>>>> Stashed changes
   # HELPER FUNCTIONS (For current user)
   # =======================
 

@@ -1,13 +1,26 @@
 defmodule TrialAppWeb.AdminLive.Dashboard do
   use TrialAppWeb, :live_view
   alias TrialApp.Accounts
+  alias TrialApp.Organizations
 
+  # Optional JS hook for auto-dismiss
+  @impl true
   def mount(_params, _session, socket) do
-    # Get real user statistics
+    # Get user statistics
     total_users = Accounts.list_users() |> length()
     pending_users = Accounts.list_users_by_status("pending") |> length()
     active_users = Accounts.list_users_by_status("active") |> length()
     admin_users = Accounts.list_users_by_role("admin") |> length()
+
+    # Get organization statistics
+    organizations = Organizations.list_organizations()
+    total_organizations = length(organizations)
+    total_departments = Organizations.list_all_departments() |> length()
+
+    total_teams =
+      organizations
+      |> Enum.map(fn org -> Organizations.count_teams_for_organization(org.id) end)
+      |> Enum.sum()
 
     {:ok,
      socket
@@ -15,9 +28,18 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
      |> assign(:pending_users, pending_users)
      |> assign(:active_users, active_users)
      |> assign(:admin_users, admin_users)
+     |> assign(:total_organizations, total_organizations)
+     |> assign(:total_departments, total_departments)
+     |> assign(:total_teams, total_teams)
     }
   end
 
+  # Flash color helper
+  defp flash_color("info"), do: "bg-blue-100 text-blue-800"
+  defp flash_color("success"), do: "bg-green-100 text-green-800"
+  defp flash_color("error"), do: "bg-red-100 text-red-800"
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
@@ -26,41 +48,78 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
 
         <main class="ml-64 w-full p-8">
           <div class="max-w-6xl mx-auto">
+
+            <!-- Flash Notifications -->
+            <div class="mb-4">
+              <%= for {type, msg} <- @flash do %>
+                <div class={"px-4 py-3 rounded mb-2 shadow #{flash_color(type)}"}>
+                  <%= msg %>
+                </div>
+              <% end %>
+            </div>
+
             <!-- Header -->
             <div class="mb-8">
               <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p class="text-gray-600 mt-2">Manage your organization and users</p>
             </div>
 
-            <!-- Quick Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                <h3 class="text-lg font-semibold text-yellow-800 mb-2">Pending Users</h3>
-                <p class="text-3xl font-bold text-yellow-600"><%= @pending_users %></p>
-                <p class="text-yellow-600 text-sm">Waiting for approval</p>
-                <div class="mt-2">
-                  <.link navigate={~p"/admin/users?filter=pending"} class="text-yellow-700 hover:text-yellow-800 text-sm font-medium">
-                    Review now →
-                  </.link>
+            <!-- Quick Stats - Users -->
+            <div class="mb-6">
+              <h2 class="text-lg font-semibold text-gray-700 mb-3">User Statistics</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-yellow-800 mb-2">Pending Users</h3>
+                  <p class="text-3xl font-bold text-yellow-600"><%= @pending_users %></p>
+                  <p class="text-yellow-600 text-sm">Waiting for approval</p>
+                  <div class="mt-2">
+                    <.link navigate={~p"/admin/users?filter=pending"} class="text-yellow-700 hover:text-yellow-800 text-sm font-medium">
+                      Review now →
+                    </.link>
+                  </div>
+                </div>
+
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-green-800 mb-2">Active Users</h3>
+                  <p class="text-3xl font-bold text-green-600"><%= @active_users %></p>
+                  <p class="text-green-600 text-sm">Currently active</p>
+                </div>
+
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-purple-800 mb-2">Total Users</h3>
+                  <p class="text-3xl font-bold text-purple-600"><%= @total_users %></p>
+                  <p class="text-purple-600 text-sm">All system users</p>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-blue-800 mb-2">Admins</h3>
+                  <p class="text-3xl font-bold text-blue-600"><%= @admin_users %></p>
+                  <p class="text-blue-600 text-sm">Administrators</p>
                 </div>
               </div>
+            </div>
 
-              <div class="bg-green-50 border border-green-200 rounded-lg p-6">
-                <h3 class="text-lg font-semibold text-green-800 mb-2">Active Users</h3>
-                <p class="text-3xl font-bold text-green-600"><%= @active_users %></p>
-                <p class="text-green-600 text-sm">Currently active</p>
-              </div>
+            <!-- Quick Stats - Organization -->
+            <div class="mb-8">
+              <h2 class="text-lg font-semibold text-gray-700 mb-3">Organization Statistics</h2>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-indigo-800 mb-2">Organizations</h3>
+                  <p class="text-3xl font-bold text-indigo-600"><%= @total_organizations %></p>
+                  <p class="text-indigo-600 text-sm">Total organizations</p>
+                </div>
 
-              <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                <h3 class="text-lg font-semibold text-purple-800 mb-2">Total Users</h3>
-                <p class="text-3xl font-bold text-purple-600"><%= @total_users %></p>
-                <p class="text-purple-600 text-sm">All system users</p>
-              </div>
+                <div class="bg-pink-50 border border-pink-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-pink-800 mb-2">Departments</h3>
+                  <p class="text-3xl font-bold text-pink-600"><%= @total_departments %></p>
+                  <p class="text-pink-600 text-sm">Total departments</p>
+                </div>
 
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h3 class="text-lg font-semibold text-blue-800 mb-2">Admins</h3>
-                <p class="text-3xl font-bold text-blue-600"><%= @admin_users %></p>
-                <p class="text-blue-600 text-sm">Administrators</p>
+                <div class="bg-teal-50 border border-teal-200 rounded-lg p-6">
+                  <h3 class="text-lg font-semibold text-teal-800 mb-2">Teams</h3>
+                  <p class="text-3xl font-bold text-teal-600"><%= @total_teams %></p>
+                  <p class="text-teal-600 text-sm">Total teams</p>
+                </div>
               </div>
             </div>
 
@@ -106,6 +165,7 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
                 <p class="text-sm mt-2">User approvals and system changes will appear here</p>
               </div>
             </div>
+
           </div>
         </main>
       </div>

@@ -1,39 +1,50 @@
 defmodule TrialAppWeb.TeamLive.Index do
   use TrialAppWeb, :live_view
 
+  alias TrialApp.Organizations
+  alias TrialApp.Accounts.User
+
   def mount(_params, _session, socket) do
     current_user = socket.assigns.current_scope.user
 
-    # Check if user is pending approval
-    if current_user.status == "pending" do
-      {:ok,
-        socket
-        |> assign(:user_status, "pending")
-        |> assign(:has_assignments, false)
-      }
-    else
-      # User is active, show team data
-      # Mock data - in real app, this would come from database
-      # For now, we'll simulate: total teams = 3, user's team = Frontend Team
-      all_teams = [
-        %{id: 1, name: "Frontend Team", description: "UI/UX development"},
-        %{id: 2, name: "Backend Team", description: "Server-side logic"},
-        %{id: 3, name: "DevOps Team", description: "Infrastructure and deployment"}
-      ]
+    cond do
+      current_user.status == "pending" ->
+        {:ok,
+         socket
+         |> assign(:user_status, "pending")
+         |> assign(:has_assignments, false)}
 
-      # User's assigned team (in real app, this would come from user context)
-      user_team = %{id: 1, name: "Frontend Team", description: "UI/UX development"}
+      current_user.role in ["admin", "manager"] ->
+        teams = Organizations.list_all_teams()
 
-      {:ok,
-       socket
-       |> assign(:user_status, "active")
-       |> assign(:has_assignments, true)
-       |> assign(:total_teams, length(all_teams))
-       |> assign(:user_team, user_team)
-       |> stream(:teams, [user_team])}
+        {:ok,
+         socket
+         |> assign(:user_status, "active")
+         |> assign(:is_admin, true)
+         |> assign(:teams, teams)
+         |> assign(:available_users, [])
+         |> assign(:selected_team_id, nil)
+         |> assign(:total_teams, length(teams))
+         |> stream(:teams, teams)}
+
+      true ->
+        # Regular user — only see their assigned team
+        user_team = Organizations.get_user_team(current_user)
+
+        teams = if user_team, do: [user_team], else: []
+        total_teams = if user_team, do: 1, else: 0
+
+        {:ok,
+         socket
+         |> assign(:user_status, "active")
+         |> assign(:is_admin, false)
+         |> assign(:teams, teams)
+         |> assign(:total_teams, total_teams)
+         |> stream(:teams, teams)}
     end
   end
 
+<<<<<<< Updated upstream
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gradient-to-br from-green-100 via-blue-100 to-purple-100 p-6">
@@ -68,48 +79,54 @@ defmodule TrialAppWeb.TeamLive.Index do
             <% else %>
               <!-- Active User Teams View -->
               <h1 class="text-3xl font-bold text-gray-800 mb-8">Teams</h1>
+=======
+  # Load available users when admin clicks "Add Member"
+  def handle_event("show_add_member", %{"team_id" => team_id}, socket) do
+    available_users = Organizations.list_users_not_in_team(team_id)
+>>>>>>> Stashed changes
 
-              <!-- Total Teams Count -->
-              <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                <h2 class="text-lg font-semibold text-green-800">
-                  Total Teams: <span class="text-2xl"><%= @total_teams %></span>
-                </h2>
-                <p class="text-green-600 text-sm mt-1">You are a member of 1 team</p>
-              </div>
+    {:noreply,
+     socket
+     |> assign(:available_users, available_users)
+     |> assign(:selected_team_id, String.to_integer(team_id))}
+  end
 
-              <!-- User's Team -->
-              <div class="mb-4">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">Your Team</h2>
-                <table class="w-full table-auto border-collapse">
-                  <thead>
-                    <tr class="bg-gray-100">
-                      <th class="p-4 text-left">Name</th>
-                      <th class="p-4 text-left">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for {team_id, team} <- @streams.teams do %>
-                      <tr id={team_id} class="border-b hover:bg-gray-50">
-                        <td class="p-4 font-medium text-gray-800"><%= team.name %></td>
-                        <td class="p-4 text-gray-600"><%= team.description %></td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              </div>
+  # Add user to team
+  def handle_event("add_member", %{"user_id" => user_id}, socket) do
+    team_id = socket.assigns.selected_team_id
 
-              <!-- Note for regular users -->
-              <div class="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p class="text-yellow-700 text-sm">
-                  <strong>Note:</strong> As a regular user, you can only view the team you're assigned to.
-                  Contact administrator for team changes.
-                </p>
-              </div>
-            <% end %>
-          </div>
-        </main>
-      </div>
-    </div>
-    """
+    case Organizations.add_user_to_team(String.to_integer(user_id), team_id) do
+      {:ok, _employee} ->
+        teams = Organizations.list_all_teams()
+        {:noreply,
+         socket
+         |> assign(:teams, teams)
+         |> assign(:available_users, [])
+         |> assign(:selected_team_id, nil)
+         |> stream(:teams, teams)
+         |> put_flash(:info, "Member added successfully!")}
+
+      {:error, :already_exists} ->
+        {:noreply, put_flash(socket, :error, "User is already in the team.")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to add member.")}
+    end
+  end
+
+  # Remove a user from team
+  def handle_event("remove_member", %{"employee_id" => employee_id}, socket) do
+    case Organizations.remove_user_from_team(String.to_integer(employee_id)) do
+      {:ok, _} ->
+        teams = Organizations.list_all_teams()
+        {:noreply,
+         socket
+         |> assign(:teams, teams)
+         |> stream(:teams, teams)
+         |> put_flash(:info, "Member removed successfully.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to remove member.")}
+    end
   end
 end
