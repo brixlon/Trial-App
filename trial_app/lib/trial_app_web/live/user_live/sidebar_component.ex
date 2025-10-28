@@ -2,19 +2,8 @@ defmodule TrialAppWeb.SidebarComponent do
   use TrialAppWeb, :live_component
 
   def render(assigns) do
-<<<<<<< Updated upstream
-    # Safe access to current user with fallbacks
-    current_user = if @socket && @socket.assigns[:current_scope] do
-      @socket.assigns.current_scope.user
-    else
-      nil
-    end
-
-    is_admin = current_user && current_user.role == "admin"
-=======
     # Safe default for current_scope
     current_scope = assigns[:current_scope] || %{user: %{role: "guest", username: "Guest"}}
->>>>>>> Stashed changes
 
     ~H"""
     <aside
@@ -32,12 +21,6 @@ defmodule TrialAppWeb.SidebarComponent do
           <!-- Dashboard -->
           <li>
             <.link
-<<<<<<< Updated upstream
-              navigate={if is_admin, do: ~p"/admin/dashboard", else: ~p"/dashboard"}
-              class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
-            >
-              <%= if is_admin, do: "Admin Dashboard", else: "Dashboard" %>
-=======
               navigate={if current_scope.user.role == "admin", do: ~p"/admin/dashboard", else: ~p"/dashboard"}
               class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
             >
@@ -52,16 +35,11 @@ defmodule TrialAppWeb.SidebarComponent do
               class="block py-2 px-4 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
             >
               Organizations
->>>>>>> Stashed changes
             </.link>
           </li>
 
           <!-- Admin Section (only for admins) -->
-<<<<<<< Updated upstream
-          <%= if is_admin do %>
-=======
           <%= if current_scope.user.role == "admin" do %>
->>>>>>> Stashed changes
             <li>
               <button
                 @click="openAdmin = !openAdmin"
@@ -181,24 +159,6 @@ defmodule TrialAppWeb.SidebarComponent do
       </nav>
 
       <!-- User info at bottom -->
-<<<<<<< Updated upstream
-      <%= if current_user do %>
-        <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span class="text-blue-600 font-semibold text-sm">
-                <%= String.at(current_user.username, 0) |> String.upcase() %>
-              </span>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">
-                <%= current_user.username %>
-              </p>
-              <p class="text-xs text-gray-500 truncate">
-                <%= if is_admin, do: "Administrator", else: "User" %>
-              </p>
-            </div>
-=======
       <div class="absolute bottom-6 left-6 right-6 p-4 bg-white rounded-lg border border-gray-200">
         <div class="flex items-center space-x-3">
           <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -213,7 +173,6 @@ defmodule TrialAppWeb.SidebarComponent do
             <p class="text-xs text-gray-500 truncate">
               <%= if current_scope.user.role == "admin", do: "Administrator", else: "User" %>
             </p>
->>>>>>> Stashed changes
           </div>
         </div>
       <% end %>
