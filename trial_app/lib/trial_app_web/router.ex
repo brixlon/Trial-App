@@ -57,6 +57,7 @@ defmodule TrialAppWeb.Router do
       live "/teams", AdminLive.TeamManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/positions", AdminLive.PositionManagement, :index
+      live "/pending-approvals", AdminLive.PendingApprovalLive, :index
     end
   end
 

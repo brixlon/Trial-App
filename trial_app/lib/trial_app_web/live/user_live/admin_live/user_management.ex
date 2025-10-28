@@ -149,13 +149,12 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <%= if user.status == "pending" do %>
-                          <button
-                            phx-click="approve_user"
-                            phx-value-user-id={user.id}
+                          <.link
+                            navigate={~p"/admin/pending-approvals?user_id=#{user.id}"}
                             class="text-green-600 hover:text-green-900 mr-3"
                           >
                             Approve
-                          </button>
+                          </.link>
                         <% end %>
 
                         <%= if user.status == "active" && user.role == "user" do %>
@@ -253,22 +252,11 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   end
 
   def handle_event("approve_user", %{"user-id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
-
-    case Accounts.update_user_status(user, "active") do
-      {:ok, _user} ->
-        # Refresh the user list
-        users = apply_filter(Accounts.list_users(), socket.assigns.filter)
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "User approved successfully!")
-         |> assign(:users, users)
-        }
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to approve user")}
-    end
+    # Instead of approving directly, redirect to pending approvals with the user_id
+    {:noreply,
+      socket
+      |> push_navigate(to: ~p"/admin/pending-approvals?user_id=#{user_id}")
+    }
   end
 
   def handle_event("make_admin", %{"user-id" => user_id}, socket) do

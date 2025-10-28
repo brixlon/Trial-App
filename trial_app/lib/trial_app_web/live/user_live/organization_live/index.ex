@@ -1,7 +1,8 @@
 defmodule TrialAppWeb.OrganizationLive.Index do
   use TrialAppWeb, :live_view
   alias TrialAppWeb.SidebarComponent
-  alias TrialApp.Organizations
+  alias TrialApp.Orgs
+
   alias TrialApp.Teams  # ADD THIS LINE
 
   def mount(_params, _session, socket) do
@@ -10,7 +11,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     if current_user.status == "pending" do
       {:ok, socket |> assign(:user_status, "pending") |> assign(:has_assignments, false)}
     else
-      organizations = Organizations.list_organizations()
+      organizations = Orgs.list_organizations()
 
       {:ok,
         socket
@@ -54,7 +55,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("edit_organization", %{"id" => id}, socket) do
-    organization = Organizations.get_organization!(String.to_integer(id))
+    organization = Orgs.get_organization!(String.to_integer(id))
     {:noreply, assign(socket,
       show_org_form: true,
       editing_org_id: organization.id,
@@ -92,8 +93,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
     if map_size(errors) == 0 do
       if socket.assigns.editing_org_id do
-        organization = Organizations.get_organization!(socket.assigns.editing_org_id)
-        case Organizations.update_organization(organization, %{name: name, description: description}) do
+        organization = Orgs.get_organization!(socket.assigns.editing_org_id)
+        case Orgs.update_organization(organization, %{name: name, description: description}) do
           {:ok, updated_org} ->
             updated_organizations = Enum.map(socket.assigns.organizations, fn org ->
               if org.id == updated_org.id, do: updated_org, else: org
@@ -109,7 +110,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
             {:noreply, assign(socket, errors: errors)}
         end
       else
-        case Organizations.create_organization(%{name: name, description: description}) do
+        case Orgs.create_organization(%{name: name, description: description}) do
           {:ok, new_organization} ->
             {:noreply,
               socket
@@ -138,7 +139,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("edit_department", %{"id" => id}, socket) do
-    department = Organizations.get_department!(String.to_integer(id))
+    department = Orgs.get_department!(String.to_integer(id))
     {:noreply, assign(socket,
       show_dept_form: true,
       editing_dept_id: department.id,
@@ -168,7 +169,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   # Team CRUD Events - REMOVED DUPLICATE HANDLERS
   def handle_event("edit_team", %{"id" => team_id}, socket) do
-    team = Organizations.get_team!(String.to_integer(team_id))
+    team = Orgs.get_team!(String.to_integer(team_id))
     {:noreply, assign(socket,
       show_team_form: true,
       editing_team_id: team.id,
@@ -178,9 +179,9 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("update_team", %{"team" => team_params}, socket) do
-    team = Organizations.get_team!(socket.assigns.editing_team_id)
+    team = Orgs.get_team!(socket.assigns.editing_team_id)
 
-    case Organizations.update_team(team, team_params) do
+    case Orgs.update_team(team, team_params) do
       {:ok, updated_team} ->
         # Refresh the teams list
         updated_teams =
@@ -207,9 +208,9 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("delete_team", %{"id" => team_id}, socket) do
-    team = Organizations.get_team!(String.to_integer(team_id))
+    team = Orgs.get_team!(String.to_integer(team_id))
 
-    case Organizations.delete_team(team) do
+    case Orgs.delete_team(team) do
       {:ok, _} ->
         # Remove from the teams list
         updated_teams =
@@ -251,8 +252,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
       department_params = %{name: name, description: description, organization_id: org_id}
 
       if socket.assigns.editing_dept_id do
-        department = Organizations.get_department!(socket.assigns.editing_dept_id)
-        case Organizations.update_department(department, department_params) do
+        department = Orgs.get_department!(socket.assigns.editing_dept_id)
+        case Orgs.update_department(department, department_params) do
           {:ok, updated_dept} ->
             updated_departments = Enum.map(socket.assigns.selected_org_departments, fn dept ->
               if dept.id == updated_dept.id, do: updated_dept, else: dept
@@ -268,7 +269,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
             {:noreply, assign(socket, errors: errors)}
         end
       else
-        case Organizations.create_department(department_params) do
+        case Orgs.create_department(department_params) do
           {:ok, new_department} ->
             {:noreply,
               socket
@@ -329,8 +330,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
       team_params = %{name: name, description: description, department_id: String.to_integer(department_id)}
 
       if socket.assigns.editing_team_id do
-        team = Organizations.get_team!(socket.assigns.editing_team_id)
-        case Organizations.update_team(team, team_params) do
+        team = Orgs.get_team!(socket.assigns.editing_team_id)
+        case Orgs.update_team(team, team_params) do
           {:ok, updated_team} ->
             updated_teams = Enum.map(socket.assigns.selected_org_teams, fn t ->
               if t.id == updated_team.id, do: updated_team, else: t
@@ -346,7 +347,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
             {:noreply, assign(socket, errors: errors)}
         end
       else
-        case Organizations.create_team(team_params) do
+        case Orgs.create_team(team_params) do
           {:ok, new_team} ->
             {:noreply,
               socket
@@ -366,7 +367,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   # Navigation Events
   def handle_event("show_org", %{"id" => id}, socket) do
-    org = Organizations.get_organization!(String.to_integer(id))
+    org = Orgs.get_organization!(String.to_integer(id))
     {:noreply,
       socket
       |> assign(:view, :show)
@@ -392,7 +393,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   def handle_event("show_departments", _params, socket) do
     org_id = socket.assigns.selected_org.id
-    departments = Organizations.list_departments(org_id)
+    departments = Orgs.list_departments_by_org(org_id)
     {:noreply,
       socket
       |> assign(:show_departments, true)
@@ -405,7 +406,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   def handle_event("show_teams", _params, socket) do
     org_id = socket.assigns.selected_org.id
-    teams = Organizations.list_teams_by_organization(org_id)
+    teams = Orgs.list_teams_by_dept(org_id)
     {:noreply,
       socket
       |> assign(:show_teams, true)
@@ -417,7 +418,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("show_department_detail", %{"id" => id}, socket) do
-    department = Organizations.get_department_with_teams!(String.to_integer(id))
+    department = Orgs.get_department_with_teams!(String.to_integer(id))
     {:noreply,
       socket
       |> assign(:show_department_detail, true)
@@ -427,7 +428,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("show_team_detail", %{"id" => id}, socket) do
-    team = Organizations.get_team_with_employees!(String.to_integer(id))
+    team = Orgs.get_team_with_employees!(String.to_integer(id))
     {:noreply,
       socket
       |> assign(:show_team_detail, true)
@@ -852,8 +853,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                       </div>
                     <% end %>
                   </div>
-
-                <% else %>
+                                              <% else %>
                   <%= if @show_team_detail do %>
                     <!-- Team Employees View -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -892,35 +892,69 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                           <p class="text-gray-500">This team doesn't have any members yet.</p>
                         </div>
                       <% else %>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          <%= for employee <- @selected_team.employees do %>
-                            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
-                              <h3 class="font-semibold text-green-800 mb-2 text-lg">
-                                <%= employee.first_name %> <%= employee.last_name %>
-                              </h3>
-                              <div class="space-y-1 text-sm">
-                                <p class="text-green-600">
-                                  <strong>Position:</strong> <%= employee.position || "Not assigned" %>
-                                </p>
-                                <p class="text-green-500">
-                                  <strong>Email:</strong> <%= employee.email %>
-                                </p>
-                                <p class="text-green-400">
-                                  <strong>Phone:</strong> <%= employee.phone || "Not provided" %>
-                                </p>
-                                <p class="text-green-300 text-xs">
-                                  <strong>Status:</strong>
-                                  <span class={if employee.is_active, do: "text-green-600", else: "text-red-500"}>
-                                    <%= if employee.is_active, do: "Active", else: "Inactive" %>
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                          <% end %>
+                        <!-- Employees Table -->
+                        <div class="overflow-x-auto">
+                          <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                              <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Name
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Position
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Email
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Role
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Status
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                              <%= for employee <- @selected_team.employees do %>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                  <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">
+                                      <%= employee.name %>
+                                    </div>
+                                  </td>
+                                  <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                      <%= employee.position || "Not assigned" %>
+                                    </div>
+                                  </td>
+                                  <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm text-gray-900">
+                                      <%= employee.email %>
+                                    </div>
+                                  </td>
+                                  <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <%= employee.role || "Not assigned" %>
+                                    </span>
+                                  </td>
+                                  <td class="px-6 py-4 whitespace-nowrap">
+                                    <%= if employee.position do %>
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                      </span>
+                                    <% else %>
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Inactive
+                                      </span>
+                                    <% end %>
+                                  </td>
+                                </tr>
+                              <% end %>
+                            </tbody>
+                          </table>
                         </div>
                       <% end %>
                     </div>
-
                   <% else %>
                     <%= if @show_departments do %>
                       <!-- Departments List View -->
@@ -966,14 +1000,10 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                                       </svg>
                                     </button>
                                   <% end %>
-                                </div>
-                                <p class="text-purple-600 text-sm mb-3">
-                                  <%= if dept.description && dept.description != "" do %>
-                                    <%= dept.description %>
-                                  <% else %>
-                                    <span class="italic text-purple-500">No description</span>
-                                  <% end %>
-                                </p>
+                               </div>
+<p class="text-purple-600 text-sm mb-3">
+  <%= dept.name %>
+</p>
                                 <div class="flex items-center justify-between text-xs text-purple-500">
                                   <span>0 teams</span>
                                   <span class="group-hover:text-purple-700">View department →</span>

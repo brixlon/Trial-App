@@ -13,15 +13,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Gets a user by email.
-
-  ## Examples
-
-      iex> get_user_by_email("foo@example.com")
-      %User{}
-
-      iex> get_user_by_email("unknown@example.com")
-      nil
-
   """
   def get_user_by_email(email) when is_binary(email) do
     Repo.get_by(User, email: email)
@@ -29,15 +20,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Gets a user by email and password.
-
-  ## Examples
-
-      iex> get_user_by_email_and_password("foo@example.com", "correct_password")
-      %User{}
-
-      iex> get_user_by_email_and_password("foo@example.com", "invalid_password")
-      nil
-
   """
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
@@ -47,17 +29,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Gets a user by username or email and password.
-
-  ## Examples
-
-      iex> get_user_by_username_or_email_and_password("username", "correct_password")
-      %User{}
-
-      iex> get_user_by_username_or_email_and_password("user@example.com", "correct_password")
-      %User{}
-
-      iex> get_user_by_username_or_email_and_password("username", "invalid_password")
-      nil
   """
   def get_user_by_username_or_email_and_password(username_or_email, password)
       when is_binary(username_or_email) and is_binary(password) do
@@ -75,23 +46,25 @@ defmodule TrialApp.Accounts do
   Gets a single user.
 
   Raises `Ecto.NoResultsError` if the User does not exist.
-
-  ## Examples
-
-      iex> get_user!(123)
-      %User{}
-
-      iex> get_user!(456)
-      ** (Ecto.NoResultsError)
-
   """
   def get_user!(id), do: Repo.get!(User, id)
+
+  @doc """
+  Gets a user with all assignments preloaded.
+  """
+  def get_user_with_assignments!(id) do
+    User
+    |> where(id: ^id)
+    |> preload([employees: [:organization, :department, :team]])
+    |> Repo.one!()
+  end
 
   @doc """
   Lists all users.
   """
   def list_users do
     Repo.all(User)
+    |> Repo.preload([employees: [:organization, :department, :team]])
   end
 
   @doc """
@@ -101,6 +74,7 @@ defmodule TrialApp.Accounts do
     User
     |> where([u], u.status == ^status)
     |> Repo.all()
+    |> Repo.preload([employees: [:organization, :department, :team]])
   end
 
   @doc """
@@ -110,6 +84,17 @@ defmodule TrialApp.Accounts do
     User
     |> where([u], u.role == ^role)
     |> Repo.all()
+    |> Repo.preload([employees: [:organization, :department, :team]])
+  end
+
+  @doc """
+  Lists users pending assignment/approval.
+  """
+  def list_pending_assignment_users do
+    User
+    |> where([u], u.status == "pending")
+    |> Repo.all()
+    |> Repo.preload([employees: [:organization, :department, :team]])
   end
 
   @doc """
@@ -130,19 +115,71 @@ defmodule TrialApp.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Updates a user with assignments and team assignments.
+  """
+  def update_user_with_assignments(user, params, team_ids) do
+    Repo.transaction(fn ->
+      # Update user basic info
+      user_changeset = User.assignment_changeset(user, params)
+
+      case Repo.update(user_changeset) do
+        {:ok, updated_user} ->
+          # Handle employee records for teams
+          if Enum.any?(team_ids) do
+            # Delete existing employee records for this user
+            Repo.delete_all(from(e in Employee, where: e.user_id == ^user.id))
+
+            # Create new employee records for each selected team
+            Enum.each(team_ids, fn team_id ->
+              team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+
+              employee_attrs = %{
+                user_id: updated_user.id,
+                name: updated_user.username || updated_user.email,
+                email: updated_user.email,
+                team_id: team_id,
+                department_id: team.department_id || params["assigned_department_id"],
+                organization_id: team.department.organization_id || params["assigned_organization_id"],
+                role: params["assigned_role"] || updated_user.role || "user",
+                position: params["assigned_position"] || "Employee"
+              }
+
+              TrialApp.Orgs.create_employee(employee_attrs)
+            end)
+          else
+            # If no teams selected, create/update single employee record
+            existing_employee = get_employee_by_user_id(updated_user.id)
+
+            employee_attrs = %{
+              user_id: updated_user.id,
+              name: updated_user.username || updated_user.email,
+              email: updated_user.email,
+              team_id: params["assigned_team_id"],
+              department_id: params["assigned_department_id"],
+              organization_id: params["assigned_organization_id"],
+              role: params["assigned_role"] || updated_user.role || "user",
+              position: params["assigned_position"] || "Employee"
+            }
+
+            case existing_employee do
+              nil -> TrialApp.Orgs.create_employee(employee_attrs)
+              employee -> TrialApp.Orgs.update_employee(employee, employee_attrs)
+            end
+          end
+
+          updated_user
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
   ## User registration
 
   @doc """
   Registers a user.
-
-  ## Examples
-
-      iex> register_user(%{field: value})
-      {:ok, %User{}}
-
-      iex> register_user(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def register_user(attrs) do
     %User{}
@@ -168,14 +205,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
-
-  See `TrialApp.Accounts.User.email_changeset/3` for a list of supported options.
-
-  ## Examples
-
-      iex> change_user_email(user)
-      %Ecto.Changeset{data: %User{}}
-
   """
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     User.email_changeset(user, attrs, opts)
@@ -204,14 +233,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
-
-  See `TrialApp.Accounts.User.password_changeset/3` for a list of supported options.
-
-  ## Examples
-
-      iex> change_user_password(user)
-      %Ecto.Changeset{data: %User{}}
-
   """
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     User.password_changeset(user, attrs, opts)
@@ -221,15 +242,6 @@ defmodule TrialApp.Accounts do
   Updates the user password.
 
   Returns a tuple with the updated user, as well as a list of expired tokens.
-
-  ## Examples
-
-      iex> update_user_password(user, %{password: ...})
-      {:ok, {%User{}, [...]}}
-
-      iex> update_user_password(user, %{password: "too short"})
-      {:error, %Ecto.Changeset{}}
-
   """
   def update_user_password(user, attrs) do
     user
@@ -272,34 +284,15 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Logs the user in by magic link.
-
-  There are three cases to consider:
-
-  1. The user has already confirmed their email. They are logged in
-     and the magic link is expired.
-
-  2. The user has not confirmed their email and no password is set.
-     In this case, the user gets confirmed, logged in, and all tokens -
-     including session ones - are expired. In theory, no other tokens
-     exist but we delete all of them for best security practices.
-
-  3. The user has not confirmed their email but a password is set.
-     This cannot happen in the default implementation but may be the
-     source of security pitfalls. See the "Mixing magic link and password registration" section of
-     `mix help phx.gen.auth`.
   """
   def login_user_by_magic_link(token) do
     {:ok, query} = UserToken.verify_magic_link_token_query(token)
 
     case Repo.one(query) do
-      # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
+      # Prevent session fixation attacks
       {%User{confirmed_at: nil, hashed_password: hash}, _token} when not is_nil(hash) ->
         raise """
         magic link log in is not allowed for unconfirmed users with a password set!
-
-        This cannot happen with the default implementation, which indicates that you
-        might have adapted the code to a different use case. Please make sure to read the
-        "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
         """
 
       {%User{confirmed_at: nil} = user, _token} ->
@@ -316,14 +309,8 @@ defmodule TrialApp.Accounts do
     end
   end
 
-  @doc ~S"""
+  @doc """
   Delivers the update email instructions to the given user.
-
-  ## Examples
-
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm-email/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
-
   """
   def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
@@ -369,52 +356,35 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Creates a department.
-
-  ## Examples
-
-      iex> create_department(%{field: value})
-      {:ok, %Department{}}
-
-      iex> create_department(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
+  def create_department(attrs \\ %{}) do
+    %Department{}
+    |> Department.changeset(attrs)
+    |> Repo.insert()
+  end
 
   @doc """
   Updates a department.
-
-  ## Examples
-
-      iex> update_department(department, %{field: new_value})
-      {:ok, %Department{}}
-
-      iex> update_department(department, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
+  def update_department(%Department{} = department, attrs) do
+    department
+    |> Department.changeset(attrs)
+    |> Repo.update()
+  end
 
   @doc """
   Deletes a department.
-
-  ## Examples
-
-      iex> delete_department(department)
-      {:ok, %Department{}}
-
-      iex> delete_department(department)
-      {:error, %Ecto.Changeset{}}
-
   """
+  def delete_department(%Department{} = department) do
+    Repo.delete(department)
+  end
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking department changes.
-
-  ## Examples
-
-      iex> change_department(department)
-      %Ecto.Changeset{data: %Department{}}
-
   """
+  def change_department(%Department{} = department, attrs \\ %{}) do
+    Department.changeset(department, attrs)
+  end
 
   ## Team functions
 
@@ -423,6 +393,7 @@ defmodule TrialApp.Accounts do
   """
   def list_teams do
     Repo.all(Team)
+    |> Repo.preload([:department])
   end
 
   @doc """
@@ -433,16 +404,17 @@ defmodule TrialApp.Accounts do
   def get_team!(id), do: Repo.get!(Team, id)
 
   @doc """
+  Gets a team with all preloads.
+  """
+  def get_team_with_preloads!(id) do
+    Team
+    |> where(id: ^id)
+    |> preload([department: [:organization], employees: [:user]])
+    |> Repo.one!()
+  end
+
+  @doc """
   Creates a team.
-
-  ## Examples
-
-      iex> create_team(%{field: value})
-      {:ok, %Team{}}
-
-      iex> create_team(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def create_team(attrs \\ %{}) do
     %Team{}
@@ -452,15 +424,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Updates a team.
-
-  ## Examples
-
-      iex> update_team(team, %{field: new_value})
-      {:ok, %Team{}}
-
-      iex> update_team(team, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def update_team(%Team{} = team, attrs) do
     team
@@ -470,15 +433,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Deletes a team.
-
-  ## Examples
-
-      iex> delete_team(team)
-      {:ok, %Team{}}
-
-      iex> delete_team(team)
-      {:error, %Ecto.Changeset{}}
-
   """
   def delete_team(%Team{} = team) do
     Repo.delete(team)
@@ -486,12 +440,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Returns an `%Ecto.Changeset{}` for tracking team changes.
-
-  ## Examples
-
-      iex> change_team(team)
-      %Ecto.Changeset{data: %Team{}}
-
   """
   def change_team(%Team{} = team, attrs \\ %{}) do
     Team.changeset(team, attrs)
@@ -504,20 +452,21 @@ defmodule TrialApp.Accounts do
   """
   def get_employee_by_user_id(user_id) do
     Repo.get_by(Employee, user_id: user_id)
-    |> Repo.preload([:department, :team])
+    |> Repo.preload([:department, :team, :organization])
+  end
+
+  @doc """
+  Gets all employees for a user (for multiple team support).
+  """
+  def get_employees_by_user_id(user_id) do
+    Employee
+    |> where(user_id: ^user_id)
+    |> Repo.all()
+    |> Repo.preload([:department, :team, :organization])
   end
 
   @doc """
   Creates an employee.
-
-  ## Examples
-
-      iex> create_employee(%{field: value})
-      {:ok, %Employee{}}
-
-      iex> create_employee(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def create_employee(attrs \\ %{}) do
     %Employee{}
@@ -527,15 +476,6 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Updates an employee.
-
-  ## Examples
-
-      iex> update_employee(employee, %{field: new_value})
-      {:ok, %Employee{}}
-
-      iex> update_employee(employee, %{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def update_employee(%Employee{} = employee, attrs) do
     employee

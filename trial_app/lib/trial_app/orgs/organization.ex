@@ -7,6 +7,7 @@ defmodule TrialApp.Orgs.Organization do
     field :description, :string
 
     has_many :departments, TrialApp.Orgs.Department
+    has_many :teams, through: [:departments, :teams]
     has_many :employees, TrialApp.Orgs.Employee
 
     timestamps()

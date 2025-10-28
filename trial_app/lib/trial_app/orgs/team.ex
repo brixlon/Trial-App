@@ -8,11 +8,8 @@ defmodule TrialApp.Orgs.Team do
 
     belongs_to :department, TrialApp.Orgs.Department
     belongs_to :team_lead, TrialApp.Accounts.User
-    has_many :employees, TrialApp.Orgs.Employee
 
-    # ADDED: Association to assigned users
-    has_many :assigned_users, TrialApp.Accounts.User,
-      foreign_key: :assigned_team_id
+    has_many :employees, TrialApp.Orgs.Employee
 
     timestamps()
   end
@@ -21,6 +18,8 @@ defmodule TrialApp.Orgs.Team do
     team
     |> cast(attrs, [:name, :description, :department_id, :team_lead_id])
     |> validate_required([:name, :department_id])
-    |> unique_constraint(:name)
+    |> assoc_constraint(:department)
+    |> assoc_constraint(:team_lead)
+    |> unique_constraint(:name, name: :teams_name_department_id_index)
   end
 end
