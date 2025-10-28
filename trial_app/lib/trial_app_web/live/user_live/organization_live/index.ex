@@ -379,79 +379,91 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     {:noreply, assign(socket, team_form_data: form_data)}
   end
 
-  def handle_event("save_team", params, socket) do
-    {name, description, department_id} =
-      case params do
-        %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id}
-        _ -> {"", "", ""}
-      end
+def handle_event("save_team", params, socket) do
+  IO.puts("=== SAVE_TEAM CALLED ===")
+  IO.inspect(params, label: "PARAMS")
 
-    errors = %{}
+  {name, description, department_id} =
+    case params do
+      %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id}
+      _ -> {"", "", ""}
+    end
 
-    errors =
-      if String.trim(name) == "",
-        do: Map.put(errors, :name, "Team name is required"),
-        else: errors
+  errors = %{}
 
-    errors =
-      if String.trim(department_id) == "",
-        do: Map.put(errors, :department_id, "Department is required"),
-        else: errors
+  errors =
+    if String.trim(name) == "",
+      do: Map.put(errors, :name, "Team name is required"),
+      else: errors
 
-    if map_size(errors) == 0 do
-      team_params = %{
-        name: name,
-        description: description,
-        department_id: String.to_integer(department_id)
-      }
+  errors =
+    if String.trim(department_id) == "",
+      do: Map.put(errors, :department_id, "Department is required"),
+      else: errors
 
-      if socket.assigns.editing_team_id do
-        team = Orgs.get_team!(socket.assigns.editing_team_id)
+  if map_size(errors) == 0 do
+    team_params = %{
+      name: name,
+      description: description,
+      department_id: String.to_integer(department_id)
+    }
 
-        case Orgs.update_team(team, team_params) do
-          {:ok, updated_team} ->
-            updated_teams =
-              Enum.map(socket.assigns.selected_org_teams, fn t ->
-                if t.id == updated_team.id, do: updated_team, else: t
-              end)
+    IO.puts("Creating team with params:")
+    IO.inspect(team_params)
 
-            {:noreply,
-             socket
-             |> assign(
-               show_team_form: false,
-               editing_team_id: nil,
-               team_form_data: %{name: "", description: "", department_id: ""},
-               errors: %{}
-             )
-             |> assign(selected_org_teams: updated_teams)
-             |> put_flash(:info, "✅ Team '#{name}' updated successfully!")}
+    if socket.assigns.editing_team_id do
+      team = Orgs.get_team!(socket.assigns.editing_team_id)
 
-          {:error, changeset} ->
-            errors = traverse_errors(changeset)
-            {:noreply, assign(socket, errors: errors)}
-        end
-      else
-        case Orgs.create_team(team_params) do
-          {:ok, new_team} ->
-            {:noreply,
-             socket
-             |> assign(
-               show_team_form: false,
-               team_form_data: %{name: "", description: "", department_id: ""},
-               errors: %{}
-             )
-             |> assign(selected_org_teams: [new_team | socket.assigns.selected_org_teams])
-             |> put_flash(:info, "✅ Team '#{name}' created successfully!")}
+      case Orgs.update_team(team, team_params) do
+        {:ok, updated_team} ->
+          updated_teams =
+            Enum.map(socket.assigns.selected_org_teams, fn t ->
+              if t.id == updated_team.id, do: updated_team, else: t
+            end)
 
-          {:error, changeset} ->
-            errors = traverse_errors(changeset)
-            {:noreply, assign(socket, errors: errors)}
-        end
+          {:noreply,
+           socket
+           |> assign(
+             show_team_form: false,
+             editing_team_id: nil,
+             team_form_data: %{name: "", description: "", department_id: ""},
+             errors: %{}
+           )
+           |> assign(selected_org_teams: updated_teams)
+           |> put_flash(:info, "✅ Team '#{name}' updated successfully!")}
+
+        {:error, changeset} ->
+          IO.puts("ERROR updating team:")
+          IO.inspect(changeset)
+          errors = traverse_errors(changeset)
+          {:noreply, assign(socket, errors: errors)}
       end
     else
-      {:noreply, assign(socket, errors: errors)}
+      case Orgs.create_team(team_params) do
+        {:ok, new_team} ->
+          IO.puts("Team created successfully!")
+          IO.inspect(new_team)
+          {:noreply,
+           socket
+           |> assign(
+             show_team_form: false,
+             team_form_data: %{name: "", description: "", department_id: ""},
+             errors: %{}
+           )
+           |> assign(selected_org_teams: [new_team | socket.assigns.selected_org_teams])
+           |> put_flash(:info, "✅ Team '#{name}' created successfully!")}
+
+        {:error, changeset} ->
+          IO.puts("ERROR creating team:")
+          IO.inspect(changeset)
+          errors = traverse_errors(changeset)
+          {:noreply, assign(socket, errors: errors)}
+      end
     end
+  else
+    {:noreply, assign(socket, errors: errors)}
   end
+end
 
   # Navigation Events
   def handle_event("show_org", %{"id" => id}, socket) do
