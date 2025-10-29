@@ -1,115 +1,263 @@
- <Layouts.app flash={@flash} current_scope={@current_scope} page_title="Employees">
-      <div class="space-y-8">
-        <!-- Header Section -->
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-[#3B3B98]">Employees</h1>
-            <p class="text-sm text-gray-500 mt-1">Manage your organization's workforce</p>
-          </div>
-          <.link navigate={~p"/admin/dashboard"} class="px-4 py-2 rounded-lg text-[#3B3B98] border border-[#3B3B98] hover:bg-[#3B3B98] hover:text-white transition">
-            <.icon name="hero-arrow-left" class="w-4 h-4 inline-block mr-1" />
-            Back to Dashboard
-          </.link>
-        </div>
+<Layouts.app flash={@flash} current_scope={@current_scope} page_title="Employees">
+  <div class="space-y-8">
+    <!-- Header Section with Stats -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-[#3B3B98]">Employee Directory</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage and view your organization's workforce</p>
+      </div>
+      <div class="flex gap-3">
+        <.link navigate={~p"/admin/dashboard"} class="px-4 py-2 rounded-lg text-[#3B3B98] border border-[#3B3B98] hover:bg-[#3B3B98] hover:text-white transition flex items-center gap-2">
+          <.icon name="hero-arrow-left" class="w-4 h-4" />
+          Dashboard
+        </.link>
+        <.link navigate={~p"/admin/employees/new"} class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2">
+          <.icon name="hero-plus" class="w-4 h-4" />
+          Add Employee
+        </.link>
+      </div>
+    </div>
 
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-user-group" class="w-6 h-6" />
+          </div>
+          <span class="text-2xl font-bold"><%= @total_employees %></span>
+        </div>
+        <p class="text-sm opacity-90">Total Employees</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-check-circle" class="w-6 h-6" />
+          </div>
+          <span class="text-2xl font-bold"><%= @active_count %></span>
+        </div>
+        <p class="text-sm opacity-90">Active</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-building-office-2" class="w-6 h-6" />
+          </div>
+          <span class="text-2xl font-bold"><%= length(@departments) %></span>
+        </div>
+        <p class="text-sm opacity-90">Departments</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-users" class="w-6 h-6" />
+          </div>
+          <span class="text-2xl font-bold"><%= @teams_count %></span>
+        </div>
+        <p class="text-sm opacity-90">Teams</p>
+      </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white shadow-md rounded-2xl p-6 border border-gray-100">
+      <div class="flex flex-col lg:flex-row gap-4">
         <!-- Search Bar -->
-        <div class="bg-white shadow-md rounded-2xl p-5 border border-gray-100">
+        <div class="flex-1">
           <.form for={%{}} as={:search} phx-change="search">
             <div class="relative">
-              <.icon name="hero-magnifying-glass" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <.icon name="hero-magnifying-glass" class="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 name="search[q]"
                 value={@search}
-                placeholder="Search by name, email, team, or role..."
-                class="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none transition"
+                placeholder="Search by name, email, team, role, or position..."
+                class="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none transition"
                 phx-debounce="300"
               />
             </div>
           </.form>
         </div>
 
-        <!-- Departments -->
-        <%= for dept <- @departments do %>
-          <div id={"dept_#{dept.id}"} class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
-            <!-- Department Header -->
-            <div class="flex items-center justify-between bg-[#F6F5FF] px-6 py-4">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-[#6C63FF] flex items-center justify-center">
-                  <.icon name="hero-building-office" class="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 class="text-lg font-semibold text-gray-800"><%= dept.name %></h2>
-                  <p class="text-sm text-gray-500">Department</p>
-                </div>
+        <!-- Filter by Department -->
+        <div class="lg:w-64">
+          <.form for={%{}} as={:filter} phx-change="filter_department">
+            <select
+              name="filter[department_id]"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none transition"
+            >
+              <option value="">All Departments</option>
+              <%= for dept <- @departments do %>
+                <option value={dept.id} selected={@selected_department == to_string(dept.id)}>
+                  <%= dept.name %>
+                </option>
+              <% end %>
+            </select>
+          </.form>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="flex gap-2 bg-gray-100 rounded-xl p-1">
+          <button
+            phx-click="toggle_view"
+            phx-value-view="department"
+            class={"px-4 py-2 rounded-lg transition " <> if(@view_mode == "department", do: "bg-white shadow-sm text-[#3B3B98] font-medium", else: "text-gray-600 hover:text-gray-800")}
+          >
+            <.icon name="hero-building-office" class="w-4 h-4 inline-block mr-1" />
+            By Department
+          </button>
+          <button
+            phx-click="toggle_view"
+            phx-value-view="list"
+            class={"px-4 py-2 rounded-lg transition " <> if(@view_mode == "list", do: "bg-white shadow-sm text-[#3B3B98] font-medium", else: "text-gray-600 hover:text-gray-800")}
+          >
+            <.icon name="hero-list-bullet" class="w-4 h-4 inline-block mr-1" />
+            List View
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Department View -->
+    <%= if @view_mode == "department" do %>
+      <%= for dept <- @departments, should_show_department?(dept, @selected_department, @search) do %>
+        <div id={"dept_#{dept.id}"} class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
+          <!-- Department Header -->
+          <div class="flex items-center justify-between bg-gradient-to-r from-[#F6F5FF] to-[#E8E7FF] px-6 py-5">
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-xl bg-[#6C63FF] flex items-center justify-center shadow-lg">
+                <.icon name="hero-building-office" class="w-7 h-7 text-white" />
               </div>
-              <div class="text-sm font-medium bg-[#E8E7FF] text-[#3B3B98] px-4 py-1 rounded-full">
+              <div>
+                <h2 class="text-xl font-bold text-gray-800"><%= dept.name %></h2>
+                <p class="text-sm text-gray-500 mt-0.5">
+                  <%= dept.description || "Department" %>
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="text-sm font-medium bg-white text-[#3B3B98] px-4 py-2 rounded-full shadow-sm">
                 <.icon name="hero-user-group" class="w-4 h-4 inline-block mr-1" />
                 <%= Enum.count(dept.employees, &matches_search?(&1, @search)) %> members
               </div>
+              <button
+                phx-click="toggle_department"
+                phx-value-id={dept.id}
+                class="p-2 hover:bg-white rounded-lg transition"
+              >
+                <.icon name={if Map.get(@expanded_departments, to_string(dept.id), true), do: "hero-chevron-up", else: "hero-chevron-down"} class="w-5 h-5 text-[#3B3B98]" />
+              </button>
             </div>
+          </div>
 
-            <!-- Table -->
+          <!-- Table (Collapsible) -->
+          <%= if Map.get(@expanded_departments, to_string(dept.id), true) do %>
             <div class="overflow-x-auto">
-              <table class="min-w-full text-left border-t border-gray-100">
+              <table class="min-w-full text-left">
                 <thead class="bg-[#6C63FF] text-white">
                   <tr>
-                    <th class="px-6 py-3 text-sm font-semibold">NAME</th>
-                    <th class="px-6 py-3 text-sm font-semibold">EMAIL</th>
-                    <th class="px-6 py-3 text-sm font-semibold">TEAM</th>
-                    <th class="px-6 py-3 text-sm font-semibold">ROLE</th>
-                    <th class="px-6 py-3 text-sm font-semibold">POSITION</th>
-                    <th class="px-6 py-3 text-sm font-semibold">STATUS</th>
+                    <th class="px-6 py-4 text-sm font-semibold">EMPLOYEE</th>
+                    <th class="px-6 py-4 text-sm font-semibold">CONTACT</th>
+                    <th class="px-6 py-4 text-sm font-semibold">TEAM</th>
+                    <th class="px-6 py-4 text-sm font-semibold">ROLE</th>
+                    <th class="px-6 py-4 text-sm font-semibold">POSITION</th>
+                    <th class="px-6 py-4 text-sm font-semibold">STATUS</th>
+                    <th class="px-6 py-4 text-sm font-semibold text-right">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                   <%= for emp <- dept.employees, matches_search?(emp, @search) do %>
-                    <tr class="hover:bg-[#F8F8FF] transition">
+                    <tr class="hover:bg-[#F8F8FF] transition group">
                       <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
-                          <div class="w-10 h-10 flex items-center justify-center rounded-full bg-[#E8E7FF] text-[#3B3B98] font-bold">
+                          <div class="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] text-white font-bold shadow-md">
                             <%= String.first(emp.name || "?") |> String.upcase() %>
                           </div>
-                          <span class="text-gray-800 font-medium"><%= emp.name %></span>
+                          <div>
+                            <span class="text-gray-800 font-semibold block"><%= emp.name %></span>
+                            <span class="text-xs text-gray-500">ID: <%= emp.id %></span>
+                          </div>
                         </div>
                       </td>
-                      <td class="px-6 py-4 text-gray-600">
-                        <.icon name="hero-envelope" class="w-4 h-4 inline-block mr-1 text-gray-400" />
-                        <%= emp.email %>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-2 text-gray-600">
+                          <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
+                          <a href={"mailto:#{emp.email}"} class="hover:text-[#6C63FF] transition">
+                            <%= emp.email %>
+                          </a>
+                        </div>
                       </td>
                       <td class="px-6 py-4">
-                        <span class="px-3 py-1 text-sm rounded-full bg-[#E8E7FF] text-[#3B3B98]">
-                          <%= (emp.team && emp.team.name) || "—" %>
-                        </span>
+                        <%= if emp.team do %>
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-[#E8E7FF] text-[#3B3B98] font-medium">
+                            <.icon name="hero-users" class="w-3.5 h-3.5" />
+                            <%= emp.team.name %>
+                          </span>
+                        <% else %>
+                          <span class="text-gray-400 text-sm">No team</span>
+                        <% end %>
                       </td>
                       <td class="px-6 py-4">
-                        <span class={"px-3 py-1 text-sm rounded-full " <>
-                          (if emp.role == "Developer", do: "bg-[#C1C1FF] text-[#3B3B98]", else: "bg-gray-100 text-gray-700")}>
+                        <span class={get_role_badge_class(emp.role)}>
                           <%= emp.role || "Member" %>
                         </span>
                       </td>
-                      <td class="px-6 py-4 text-gray-700">
-                        <%= emp.position || "—" %>
+                      <td class="px-6 py-4">
+                        <span class="text-gray-700 font-medium">
+                          <%= emp.position || "—" %>
+                        </span>
                       </td>
                       <td class="px-6 py-4">
-                        <span class={"px-3 py-1 text-sm rounded-full font-medium " <>
-                          (if emp.is_active, do: "bg-[#D6F5E5] text-green-700", else: "bg-gray-100 text-gray-500")}>
+                        <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium " <>
+                          (if emp.is_active, do: "bg-emerald-50 text-emerald-700", else: "bg-gray-100 text-gray-500")}>
+                          <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-emerald-500", else: "bg-gray-400")}></span>
                           <%= if emp.is_active, do: "Active", else: "Inactive" %>
                         </span>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            phx-click="view_employee"
+                            phx-value-id={emp.id}
+                            class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
+                            title="View Details"
+                          >
+                            <.icon name="hero-eye" class="w-4 h-4 text-[#6C63FF]" />
+                          </button>
+                          <button
+                            phx-click="edit_employee"
+                            phx-value-id={emp.id}
+                            class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
+                            title="Edit"
+                          >
+                            <.icon name="hero-pencil-square" class="w-4 h-4 text-[#6C63FF]" />
+                          </button>
+                          <button
+                            phx-click="delete_employee"
+                            phx-value-id={emp.id}
+                            data-confirm="Are you sure you want to remove this employee?"
+                            class="p-2 hover:bg-red-50 rounded-lg transition"
+                            title="Delete"
+                          >
+                            <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   <% end %>
 
                   <%= if Enum.count(Enum.filter(dept.employees, &matches_search?(&1, @search))) == 0 do %>
                     <tr>
-                      <td colspan="6" class="py-10 text-center text-gray-500">
+                      <td colspan="7" class="py-12 text-center">
                         <div class="flex flex-col items-center gap-3">
-                          <div class="w-16 h-16 rounded-full bg-[#F0EEFF] flex items-center justify-center">
-                            <.icon name="hero-magnifying-glass" class="w-8 h-8 text-[#6C63FF]/60" />
+                          <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
+                            <.icon name="hero-user-group" class="w-10 h-10 text-[#6C63FF]/60" />
                           </div>
                           <div>
-                            <p class="font-medium text-gray-700">No employees found</p>
-                            <p class="text-sm text-gray-500">Try adjusting your search criteria</p>
+                            <p class="font-semibold text-gray-700 text-lg">No employees found</p>
+                            <p class="text-sm text-gray-500 mt-1">Try adjusting your search criteria</p>
                           </div>
                         </div>
                       </td>
@@ -118,7 +266,133 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+
+    <!-- List View (All Employees) -->
+    <%= if @view_mode == "list" do %>
+      <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left">
+            <thead class="bg-[#6C63FF] text-white">
+              <tr>
+                <th class="px-6 py-4 text-sm font-semibold">EMPLOYEE</th>
+                <th class="px-6 py-4 text-sm font-semibold">CONTACT</th>
+                <th class="px-6 py-4 text-sm font-semibold">DEPARTMENT</th>
+                <th class="px-6 py-4 text-sm font-semibold">TEAM</th>
+                <th class="px-6 py-4 text-sm font-semibold">ROLE</th>
+                <th class="px-6 py-4 text-sm font-semibold">POSITION</th>
+                <th class="px-6 py-4 text-sm font-semibold">STATUS</th>
+                <th class="px-6 py-4 text-sm font-semibold text-right">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <%= for emp <- get_filtered_employees(@departments, @selected_department, @search) do %>
+                <tr class="hover:bg-[#F8F8FF] transition group">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] text-white font-bold shadow-md">
+                        <%= String.first(emp.name || "?") |> String.upcase() %>
+                      </div>
+                      <div>
+                        <span class="text-gray-800 font-semibold block"><%= emp.name %></span>
+                        <span class="text-xs text-gray-500">ID: <%= emp.id %></span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-2 text-gray-600">
+                      <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
+                      <a href={"mailto:#{emp.email}"} class="hover:text-[#6C63FF] transition">
+                        <%= emp.email %>
+                      </a>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-gray-700 font-medium">
+                      <%= emp.department_name %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <%= if emp.team do %>
+                      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-[#E8E7FF] text-[#3B3B98] font-medium">
+                        <.icon name="hero-users" class="w-3.5 h-3.5" />
+                        <%= emp.team.name %>
+                      </span>
+                    <% else %>
+                      <span class="text-gray-400 text-sm">No team</span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class={get_role_badge_class(emp.role)}>
+                      <%= emp.role || "Member" %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="text-gray-700 font-medium">
+                      <%= emp.position || "—" %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium " <>
+                      (if emp.is_active, do: "bg-emerald-50 text-emerald-700", else: "bg-gray-100 text-gray-500")}>
+                      <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-emerald-500", else: "bg-gray-400")}></span>
+                      <%= if emp.is_active, do: "Active", else: "Inactive" %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                      <button
+                        phx-click="view_employee"
+                        phx-value-id={emp.id}
+                        class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
+                        title="View Details"
+                      >
+                        <.icon name="hero-eye" class="w-4 h-4 text-[#6C63FF]" />
+                      </button>
+                      <button
+                        phx-click="edit_employee"
+                        phx-value-id={emp.id}
+                        class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
+                        title="Edit"
+                      >
+                        <.icon name="hero-pencil-square" class="w-4 h-4 text-[#6C63FF]" />
+                      </button>
+                      <button
+                        phx-click="delete_employee"
+                        phx-value-id={emp.id}
+                        data-confirm="Are you sure you want to remove this employee?"
+                        class="p-2 hover:bg-red-50 rounded-lg transition"
+                        title="Delete"
+                      >
+                        <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+
+              <%= if Enum.empty?(get_filtered_employees(@departments, @selected_department, @search)) do %>
+                <tr>
+                  <td colspan="8" class="py-12 text-center">
+                    <div class="flex flex-col items-center gap-3">
+                      <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
+                        <.icon name="hero-user-group" class="w-10 h-10 text-[#6C63FF]/60" />
+                      </div>
+                      <div>
+                        <p class="font-semibold text-gray-700 text-lg">No employees found</p>
+                        <p class="text-sm text-gray-500 mt-1">Try adjusting your filters or search criteria</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </Layouts.app>
+    <% end %>
+  </div>
+</Layouts.app>

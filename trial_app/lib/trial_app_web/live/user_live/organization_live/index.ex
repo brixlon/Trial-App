@@ -1,9 +1,6 @@
 defmodule TrialAppWeb.OrganizationLive.Index do
   use TrialAppWeb, :live_view
-  # SidebarComponent is referenced directly by module path in templates
   alias TrialApp.Orgs
-
-  # Remove unused alias that triggers warning
 
   @impl true
   def mount(_params, _session, socket) do
@@ -41,6 +38,9 @@ defmodule TrialAppWeb.OrganizationLive.Index do
        |> assign(:editing_org_id, nil)
        |> assign(:editing_dept_id, nil)
        |> assign(:editing_team_id, nil)
+       |> assign(:show_add_user_modal, false)
+       |> assign(:current_team_id, nil)
+       |> assign(:available_users, [])
        |> assign(:organizations, organizations)}
     end
   end
@@ -196,79 +196,6 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     {:noreply, assign(socket, dept_form_data: form_data)}
   end
 
-  # Team CRUD Events - REMOVED DUPLICATE HANDLERS
-  def handle_event("edit_team", %{"id" => team_id}, socket) do
-    team = Orgs.get_team!(String.to_integer(team_id))
-
-    {:noreply,
-     assign(socket,
-       show_team_form: true,
-       editing_team_id: team.id,
-       team_form_data: %{
-         name: team.name,
-         description: team.description || "",
-         department_id: to_string(team.department_id)
-       },
-       errors: %{}
-     )}
-  end
-
-  def handle_event("update_team", %{"team" => team_params}, socket) do
-    team = Orgs.get_team!(socket.assigns.editing_team_id)
-
-    case Orgs.update_team(team, team_params) do
-      {:ok, updated_team} ->
-        # Refresh the teams list
-        updated_teams =
-          socket.assigns.selected_org_teams
-          |> Enum.map(fn t ->
-            if t.id == updated_team.id, do: updated_team, else: t
-          end)
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "Team updated successfully!")
-         |> assign(:selected_org_teams, updated_teams)
-         |> assign(:editing_team_id, nil)
-         |> assign(:team_form_data, %{name: "", description: "", department_id: ""})}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Failed to update team!")
-         |> assign(:changeset, changeset)}
-    end
-  end
-
-  def handle_event("delete_team", %{"id" => team_id}, socket) do
-    team = Orgs.get_team!(String.to_integer(team_id))
-
-    case Orgs.delete_team(team) do
-      {:ok, _} ->
-        # Remove from the teams list
-        updated_teams =
-          socket.assigns.selected_org_teams
-          |> Enum.reject(fn t -> t.id == team.id end)
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "Team deleted successfully!")
-         |> assign(:selected_org_teams, updated_teams)}
-
-      {:error, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:error, "Failed to delete team!")}
-    end
-  end
-
-  def handle_event("cancel_edit_team", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:editing_team_id, nil)
-     |> assign(:team_form_data, %{name: "", description: "", department_id: ""})}
-  end
-
   def handle_event("save_department", params, socket) do
     {name, description} =
       case params do
@@ -356,6 +283,22 @@ defmodule TrialAppWeb.OrganizationLive.Index do
      )}
   end
 
+  def handle_event("edit_team", %{"id" => team_id}, socket) do
+    team = Orgs.get_team!(String.to_integer(team_id))
+
+    {:noreply,
+     assign(socket,
+       show_team_form: true,
+       editing_team_id: team.id,
+       team_form_data: %{
+         name: team.name,
+         description: team.description || "",
+         department_id: to_string(team.department_id)
+       },
+       errors: %{}
+     )}
+  end
+
   def handle_event("hide_team_modal", _params, socket) do
     {:noreply,
      assign(socket,
@@ -379,91 +322,124 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     {:noreply, assign(socket, team_form_data: form_data)}
   end
 
-def handle_event("save_team", params, socket) do
-  IO.puts("=== SAVE_TEAM CALLED ===")
-  IO.inspect(params, label: "PARAMS")
+  def handle_event("save_team", params, socket) do
+    IO.puts("=== SAVE_TEAM CALLED ===")
+    IO.inspect(params, label: "PARAMS")
 
-  {name, description, department_id} =
-    case params do
-      %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id}
-      _ -> {"", "", ""}
-    end
+    {name, description, department_id} =
+      case params do
+        %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id}
+        _ -> {"", "", ""}
+      end
 
-  errors = %{}
+    errors = %{}
 
-  errors =
-    if String.trim(name) == "",
-      do: Map.put(errors, :name, "Team name is required"),
-      else: errors
+    errors =
+      if String.trim(name) == "",
+        do: Map.put(errors, :name, "Team name is required"),
+        else: errors
 
-  errors =
-    if String.trim(department_id) == "",
-      do: Map.put(errors, :department_id, "Department is required"),
-      else: errors
+    errors =
+      if String.trim(department_id) == "",
+        do: Map.put(errors, :department_id, "Department is required"),
+        else: errors
 
-  if map_size(errors) == 0 do
-    team_params = %{
-      name: name,
-      description: description,
-      department_id: String.to_integer(department_id)
-    }
+    if map_size(errors) == 0 do
+      # Get the department to extract organization_id
+      department = Orgs.get_department!(String.to_integer(department_id))
 
-    IO.puts("Creating team with params:")
-    IO.inspect(team_params)
+      team_params = %{
+        name: name,
+        description: description,
+        department_id: String.to_integer(department_id),
+        organization_id: department.organization_id
+      }
 
-    if socket.assigns.editing_team_id do
-      team = Orgs.get_team!(socket.assigns.editing_team_id)
+      IO.puts("Creating team with params:")
+      IO.inspect(team_params)
 
-      case Orgs.update_team(team, team_params) do
-        {:ok, updated_team} ->
-          updated_teams =
-            Enum.map(socket.assigns.selected_org_teams, fn t ->
-              if t.id == updated_team.id, do: updated_team, else: t
-            end)
+      if socket.assigns.editing_team_id do
+        team = Orgs.get_team!(socket.assigns.editing_team_id)
 
-          {:noreply,
-           socket
-           |> assign(
-             show_team_form: false,
-             editing_team_id: nil,
-             team_form_data: %{name: "", description: "", department_id: ""},
-             errors: %{}
-           )
-           |> assign(selected_org_teams: updated_teams)
-           |> put_flash(:info, "✅ Team '#{name}' updated successfully!")}
+        case Orgs.update_team(team, team_params) do
+          {:ok, updated_team} ->
+            # Preload the associations
+            updated_team = Orgs.get_team_with_preloads!(updated_team.id)
 
-        {:error, changeset} ->
-          IO.puts("ERROR updating team:")
-          IO.inspect(changeset)
-          errors = traverse_errors(changeset)
-          {:noreply, assign(socket, errors: errors)}
+            updated_teams =
+              Enum.map(socket.assigns.selected_org_teams, fn t ->
+                if t.id == updated_team.id, do: updated_team, else: t
+              end)
+
+            {:noreply,
+             socket
+             |> assign(
+               show_team_form: false,
+               editing_team_id: nil,
+               team_form_data: %{name: "", description: "", department_id: ""},
+               errors: %{}
+             )
+             |> assign(selected_org_teams: updated_teams)
+             |> put_flash(:info, "✅ Team '#{name}' updated successfully!")}
+
+          {:error, changeset} ->
+            IO.puts("ERROR updating team:")
+            IO.inspect(changeset)
+            errors = traverse_errors(changeset)
+            {:noreply, assign(socket, errors: errors)}
+        end
+      else
+        case Orgs.create_team(team_params) do
+          {:ok, new_team} ->
+            IO.puts("Team created successfully!")
+            IO.inspect(new_team)
+
+            # Preload the associations so the team displays properly
+            new_team = Orgs.get_team_with_preloads!(new_team.id)
+
+            {:noreply,
+             socket
+             |> assign(
+               show_team_form: false,
+               team_form_data: %{name: "", description: "", department_id: ""},
+               errors: %{}
+             )
+             |> assign(selected_org_teams: [new_team | socket.assigns.selected_org_teams])
+             |> put_flash(:info, "✅ Team '#{name}' created successfully!")}
+
+          {:error, changeset} ->
+            IO.puts("ERROR creating team:")
+            IO.inspect(changeset)
+            errors = traverse_errors(changeset)
+            {:noreply, assign(socket, errors: errors)}
+        end
       end
     else
-      case Orgs.create_team(team_params) do
-        {:ok, new_team} ->
-          IO.puts("Team created successfully!")
-          IO.inspect(new_team)
-          {:noreply,
-           socket
-           |> assign(
-             show_team_form: false,
-             team_form_data: %{name: "", description: "", department_id: ""},
-             errors: %{}
-           )
-           |> assign(selected_org_teams: [new_team | socket.assigns.selected_org_teams])
-           |> put_flash(:info, "✅ Team '#{name}' created successfully!")}
-
-        {:error, changeset} ->
-          IO.puts("ERROR creating team:")
-          IO.inspect(changeset)
-          errors = traverse_errors(changeset)
-          {:noreply, assign(socket, errors: errors)}
-      end
+      {:noreply, assign(socket, errors: errors)}
     end
-  else
-    {:noreply, assign(socket, errors: errors)}
   end
-end
+
+  def handle_event("delete_team", %{"id" => team_id}, socket) do
+    team = Orgs.get_team!(String.to_integer(team_id))
+
+    case Orgs.delete_team(team) do
+      {:ok, _} ->
+        # Remove from the teams list
+        updated_teams =
+          socket.assigns.selected_org_teams
+          |> Enum.reject(fn t -> t.id == team.id end)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Team deleted successfully!")
+         |> assign(:selected_org_teams, updated_teams)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to delete team!")}
+    end
+  end
 
   # Navigation Events
   def handle_event("show_org", %{"id" => id}, socket) do
@@ -505,7 +481,7 @@ end
 
   def handle_event("show_teams", _params, socket) do
     org_id = socket.assigns.selected_org.id
-    teams = Orgs.list_teams_by_dept(org_id)
+    teams = Orgs.list_teams_by_organization(org_id)
 
     {:noreply,
      socket
@@ -550,6 +526,113 @@ end
      |> assign(:selected_team, nil)}
   end
 
+  # User/Employee Management Events
+  def handle_event("show_add_user_modal", %{"team_id" => team_id}, socket) do
+    team_id = String.to_integer(team_id)
+    team = Orgs.get_team_with_employees!(team_id)
+
+    # Get all users that are NOT already in this team
+    all_users = TrialApp.Accounts.list_users()
+    team_user_ids = Enum.map(team.employees, & &1.user_id)
+    available_users = Enum.reject(all_users, fn user -> user.id in team_user_ids end)
+
+    {:noreply,
+     socket
+     |> assign(:show_add_user_modal, true)
+     |> assign(:current_team_id, team_id)
+     |> assign(:available_users, available_users)}
+  end
+
+  def handle_event("hide_add_user_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_add_user_modal, false)
+     |> assign(:current_team_id, nil)
+     |> assign(:available_users, [])}
+  end
+
+  def handle_event("add_user_to_team", %{"user_id" => user_id}, socket) do
+    team_id = socket.assigns.current_team_id
+    user_id = String.to_integer(user_id)
+
+    # Get user and team info
+    user = TrialApp.Accounts.get_user!(user_id)
+    team = Orgs.get_team_with_preloads!(team_id)
+
+    employee_attrs = %{
+      user_id: user_id,
+      team_id: team_id,
+      department_id: team.department_id,
+      organization_id: team.organization_id,
+      name: user.username || user.email,
+      email: user.email,
+      role: "member",
+      position: "Team Member",
+      is_active: true,
+      status: "active"
+    }
+
+    case Orgs.create_employee(employee_attrs) do
+      {:ok, _employee} ->
+        # Refresh the team with updated employees
+        updated_team = Orgs.get_team_with_employees!(team_id)
+
+        # Update in the selected_org_teams list
+        updated_teams =
+          socket.assigns.selected_org_teams
+          |> Enum.map(fn t ->
+            if t.id == team_id, do: updated_team, else: t
+          end)
+
+        {:noreply,
+         socket
+         |> assign(:show_add_user_modal, false)
+         |> assign(:current_team_id, nil)
+         |> assign(:available_users, [])
+         |> assign(:selected_team, updated_team)
+         |> assign(:selected_org_teams, updated_teams)
+         |> put_flash(:info, "✅ User added to team successfully!")}
+
+      {:error, changeset} ->
+        errors = traverse_errors(changeset)
+        error_msg = errors |> Map.values() |> List.first() |> to_string()
+
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to add user: #{error_msg}")}
+    end
+  end
+
+  def handle_event("remove_user_from_team", %{"employee_id" => employee_id}, socket) do
+    employee_id = String.to_integer(employee_id)
+    employee = Orgs.get_employee!(employee_id)
+    team_id = socket.assigns.selected_team.id
+
+    case Orgs.delete_employee(employee) do
+      {:ok, _} ->
+        # Refresh the team with updated employees
+        updated_team = Orgs.get_team_with_employees!(team_id)
+
+        # Update in the list
+        updated_teams =
+          socket.assigns.selected_org_teams
+          |> Enum.map(fn t ->
+            if t.id == team_id, do: updated_team, else: t
+          end)
+
+        {:noreply,
+         socket
+         |> assign(:selected_team, updated_team)
+         |> assign(:selected_org_teams, updated_teams)
+         |> put_flash(:info, "✅ User removed from team successfully!")}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to remove user from team")}
+    end
+  end
+
   def handle_event("stop", _, socket), do: {:noreply, socket}
 
   defp traverse_errors(changeset) do
@@ -561,5 +644,4 @@ end
   end
 
   @impl true
-
 end
