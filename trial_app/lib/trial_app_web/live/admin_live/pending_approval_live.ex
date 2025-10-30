@@ -22,7 +22,7 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
      |> assign(:selected_org_id, nil)
      |> assign(:selected_dept_id, nil)
      |> assign(:selected_team_id, nil)
-     |> assign(:roles, ["user", "manager", "admin"])
+     |> assign(:roles, ["employee", "manager", "admin"])
      # NEW: Track all form values
      |> assign(:form_data, %{})}
   end
@@ -114,7 +114,7 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
     # The user schema only has :role and :status fields, not the assignment fields
     # Assignment fields (organization, department, team, position) are stored in the employees table
     user_params = %{
-      role: clean_params["assigned_role"] || "user",
+      role: clean_params["assigned_role"] || "employee",
       # IMPORTANT: Set status to active when approving
       status: "active"
     }

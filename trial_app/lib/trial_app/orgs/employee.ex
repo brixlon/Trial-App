@@ -2,13 +2,13 @@ defmodule TrialApp.Orgs.Employee do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @roles ["member", "lead", "manager", "admin"]
+  @roles ["employee", "member", "lead", "manager", "admin"]
   @statuses ~w(active inactive suspended)
 
   schema "employees" do
     field :name, :string
     field :email, :string
-    field :role, :string, default: "member"
+    field :role, :string, default: "employee"
     field :position, :string
     field :is_active, :boolean, default: true
     field :status, :string, default: "active"
