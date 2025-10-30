@@ -73,9 +73,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})
      |> assign(:available_teams, [])
-     |> assign(:available_departments, [])
-     |> assign(:selected_org_id, nil)
-     |> assign(:selected_dept_id, nil)}
+     |> assign(:available_departments, [])}
   end
 
   def handle_event("toggle_team_assignment", %{"team-id" => team_id}, socket) do
@@ -127,11 +125,11 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
         teams =
           Orgs.list_teams_by_organization(org_id) |> Repo.preload(department: [:organization])
 
-        depts = Orgs.list_departments_by_org(org_id) |> Repo.preload([:organization])
+        depts = Orgs.list_departments_by_org(org_id)
         {teams, depts}
       else
         teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
-        depts = Orgs.list_departments() |> Repo.preload([:organization])
+        depts = Orgs.list_departments()
         {teams, depts}
       end
 
@@ -175,13 +173,16 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       "status" => params["status"]
     }
 
-    # Extract team IDs from hidden inputs
+    # Extract team IDs from the form
     team_ids =
       case params["team_ids"] do
         nil -> []
         ids when is_list(ids) -> Enum.map(ids, &String.to_integer/1)
         id when is_binary(id) -> [String.to_integer(id)]
       end
+
+    IO.inspect(user_params, label: "USER PARAMS FOR UPDATE")
+    IO.inspect(team_ids, label: "TEAM IDs FOR ASSIGNMENT")
 
     case Accounts.update_user_with_assignments(user, user_params, team_ids) do
       {:ok, _updated_user} ->
@@ -196,11 +197,11 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
          |> assign(:user_form, %{})
          |> assign(:team_assignments, %{})
          |> assign(:available_teams, [])
-         |> assign(:available_departments, [])
-         |> assign(:selected_org_id, nil)
-         |> assign(:selected_dept_id, nil)}
+         |> assign(:available_departments, [])}
 
       {:error, changeset} ->
+        IO.inspect(changeset.errors, label: "UPDATE ERROR")
+
         {:noreply,
          socket
          |> put_flash(:error, "Failed to update user: #{inspect(changeset.errors)}")}
@@ -229,22 +230,16 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     {:noreply, put_flash(socket, :info, "Viewing user #{user_id}")}
   end
 
-  # Private helper functions
   defp apply_filter(users, "all"), do: users
   defp apply_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
   defp apply_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
 
-  # Updated to use Tailwind classes instead of DaisyUI
-  defp user_status_class("pending"), do: "bg-yellow-100 text-yellow-800"
-  defp user_status_class("active"), do: "bg-green-100 text-green-800"
-  defp user_status_class("suspended"), do: "bg-red-100 text-red-800"
-  defp user_status_class("unknown"), do: "bg-gray-100 text-gray-800"
-  defp user_status_class(_), do: "bg-gray-100 text-gray-800"
+  defp user_status_class("pending"), do: "badge-warning"
+  defp user_status_class("active"), do: "badge-success"
+  defp user_status_class(_), do: "badge-ghost"
 
   defp user_status_label("pending"), do: "Pending"
   defp user_status_label("active"), do: "Active"
-  defp user_status_label("suspended"), do: "Suspended"
-  defp user_status_label("unknown"), do: "Unknown"
   defp user_status_label(_), do: "Unknown"
 
   defp get_current_team_assignments(user) do
