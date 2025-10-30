@@ -1,4 +1,4 @@
-<div class="flex h-screen bg-base-200">
+<div class="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <!-- Sidebar -->
       <.live_component
         module={TrialAppWeb.SidebarComponent}
@@ -7,61 +7,90 @@
         socket={@socket}
       />
 
-    <!-- Main Content -->
+      <!-- Main Content -->
       <main class="flex-1 overflow-y-auto ml-64">
-        <!-- Header Bar -->
-        <div class="bg-white border-b border-purple-100 sticky top-0 z-10">
+        <!-- Enhanced Header Bar with Glassmorphism -->
+        <div class="bg-white/80 backdrop-blur-xl border-b border-indigo-100/50 sticky top-0 z-10 shadow-sm">
           <div class="px-8 py-6">
             <div class="flex items-center justify-between">
-              <div>
-                <h1 class="text-3xl font-bold text-purple-700 flex items-center gap-3">
-                  <span class="text-4xl">🏢</span>
-                  <%= cond do %>
-                    <% @show_department_detail -> %>
-                      Department: {@selected_department && @selected_department.name}
-                    <% @show_team_detail -> %>
-                      Team: {@selected_team && @selected_team.name}
-                    <% @show_departments -> %>
-                      Departments in {@selected_org && @selected_org.name}
-                    <% @show_teams -> %>
-                      Teams in {@selected_org && @selected_org.name}
-                    <% @view == :show -> %>
-                      {(@selected_org && @selected_org.name) || "Organization"}
-                    <% true -> %>
-                      Organizations
-                  <% end %>
-                </h1>
-                <p class="text-gray-600 mt-2">
-                  <%= cond do %>
-                    <% @show_department_detail -> %>
-                      Manage teams in this department
-                    <% @show_team_detail -> %>
-                      Team members and their roles
-                    <% @show_departments -> %>
-                      Manage departments and their teams
-                    <% @show_teams -> %>
-                      Manage teams across all departments
-                    <% @view == :show -> %>
-                      {(@selected_org && @selected_org.description) || ""}
-                    <% true -> %>
-                      Manage your company organizations and structure
-                  <% end %>
-                </p>
+              <div class="flex items-center gap-4">
+                <!-- Animated Icon Container -->
+                <div class="relative">
+                  <div class="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+                  <div class="relative w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
+                    <span class="text-3xl">🏢</span>
+                  </div>
+                </div>
+                
+                <div>
+                  <h1 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-3">
+                    <%= cond do %>
+                      <% @show_department_detail -> %>
+                        Department: {@selected_department && @selected_department.name}
+                      <% @show_team_detail -> %>
+                        Team: {@selected_team && @selected_team.name}
+                      <% @show_departments -> %>
+                        Departments in {@selected_org && @selected_org.name}
+                      <% @show_teams -> %>
+                        Teams in {@selected_org && @selected_org.name}
+                      <% @view == :show -> %>
+                        {(@selected_org && @selected_org.name) || "Organization"}
+                      <% true -> %>
+                        Organizations
+                    <% end %>
+                  </h1>
+                  <p class="text-gray-600 mt-1 flex items-center gap-2">
+                    <%= cond do %>
+                      <% @show_department_detail -> %>
+                        <span class="inline-flex items-center gap-1">
+                          <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                          </svg>
+                          Manage teams in this department
+                        </span>
+                      <% @show_team_detail -> %>
+                        <span class="inline-flex items-center gap-1">
+                          <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                          </svg>
+                          Team members and their roles
+                        </span>
+                      <% @show_departments -> %>
+                        <span class="inline-flex items-center gap-1">
+                          <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                          </svg>
+                          Manage departments and their teams
+                        </span>
+                      <% @show_teams -> %>
+                        <span class="inline-flex items-center gap-1">
+                          <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                          </svg>
+                          Manage teams across all departments
+                        </span>
+                      <% @view == :show -> %>
+                        {(@selected_org && @selected_org.description) || ""}
+                      <% true -> %>
+                        <span class="inline-flex items-center gap-1">
+                          <svg class="w-4 h-4 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                          </svg>
+                          Manage your company organizations and structure
+                        </span>
+                    <% end %>
+                  </p>
+                </div>
               </div>
+              
               <div class="flex gap-3">
                 <%= if @show_department_detail do %>
                   <button
                     phx-click="back_to_departments"
-                    class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                    class="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 19l-7-7 7-7"
-                      >
-                      </path>
+                    <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
                     Back to Departments
                   </button>
@@ -69,16 +98,10 @@
                   <%= if @show_team_detail do %>
                     <button
                       phx-click="back_to_teams"
-                      class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                      class="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                     >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M15 19l-7-7 7-7"
-                        >
-                        </path>
+                      <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                       </svg>
                       Back to Teams
                     </button>
@@ -86,16 +109,10 @@
                     <%= if @show_departments or @show_teams do %>
                       <button
                         phx-click="back_to_list"
-                        class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                        class="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                       >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M15 19l-7-7 7-7"
-                          >
-                          </path>
+                        <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                         </svg>
                         Back to Organization
                       </button>
@@ -103,16 +120,10 @@
                       <%= if @view == :show do %>
                         <button
                           phx-click="back_to_list"
-                          class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all font-medium"
+                          class="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M15 19l-7-7 7-7"
-                            >
-                            </path>
+                          <svg class="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                           </svg>
                           Back to Organizations
                         </button>
@@ -121,19 +132,14 @@
                   <% end %>
                 <% end %>
 
-    <!-- Add buttons for current context -->
+                <!-- Enhanced Add Buttons -->
                 <%= if @show_departments and @current_scope.user.role == "admin" do %>
                   <button
                     phx-click="new_department"
-                    class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl font-semibold"
+                    class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 via-green-600 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:via-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
                   >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 4v16m8-8H4"
-                      />
+                    <svg class="w-5 h-5 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                     Add Department
                   </button>
@@ -142,15 +148,10 @@
                     <button
                       phx-click="new_team"
                       phx-value-department_id={@selected_department.id}
-                      class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl font-semibold"
+                      class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-600 hover:via-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
                     >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 4v16m8-8H4"
-                        />
+                      <svg class="w-5 h-5 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                       </svg>
                       Add Team
                     </button>
@@ -158,15 +159,10 @@
                     <%= if @view == :list and @current_scope.user.role == "admin" do %>
                       <button
                         phx-click="new_organization"
-                        class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+                        class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white rounded-xl hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
                       >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 4v16m8-8H4"
-                          />
+                        <svg class="w-5 h-5 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
                         Add Organization
                       </button>
@@ -178,89 +174,121 @@
           </div>
         </div>
 
-    <!-- Content Area -->
+        <!-- Content Area -->
         <div class="p-8">
           <div class="max-w-7xl mx-auto">
             <%= if @user_status == "pending" do %>
-              <!-- Pending Approval View -->
-              <div class="bg-white rounded-2xl shadow-sm p-16 text-center">
-                <div class="max-w-md mx-auto">
-                  <div class="text-7xl mb-6">⏳</div>
-                  <h3 class="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h3>
-                  <p class="text-gray-600 mb-8">
+              <!-- Enhanced Pending Approval View -->
+              <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl p-16 text-center border border-gray-100">
+                <div class="absolute inset-0 bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 opacity-50"></div>
+                <div class="relative max-w-md mx-auto">
+                  <div class="text-8xl mb-6 animate-pulse">⏳</div>
+                  <h3 class="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">Access Restricted</h3>
+                  <p class="text-gray-600 mb-8 text-lg leading-relaxed">
                     Your account is pending administrator approval.
                     You'll gain access to organization information once your account is activated.
                   </p>
+                  <div class="inline-flex items-center gap-2 px-6 py-3 bg-yellow-100 text-yellow-800 rounded-full font-medium">
+                    <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Awaiting Approval
+                  </div>
                 </div>
               </div>
             <% else %>
               <!-- Organizations List View -->
               <%= if @view == :list do %>
-                <!-- Stats Cards -->
+                <!-- Enhanced Stats Cards with Animations -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                  <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between">
+                  <div class="group relative overflow-hidden bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative flex items-center justify-between">
                       <div>
-                        <p class="text-blue-100 text-sm font-semibold">Total Organizations</p>
-                        <p class="text-4xl font-bold mt-2">{Enum.count(@organizations)}</p>
+                        <p class="text-blue-100 text-sm font-semibold mb-1 flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                          </svg>
+                          Total Organizations
+                        </p>
+                        <p class="text-5xl font-bold mt-2">{Enum.count(@organizations)}</p>
                       </div>
-                      <div class="text-5xl opacity-50">🏢</div>
+                      <div class="text-6xl opacity-20 group-hover:opacity-30 transition-opacity group-hover:scale-110 transform duration-300">🏢</div>
                     </div>
                   </div>
 
-                  <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between">
+                  <div class="group relative overflow-hidden bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative flex items-center justify-between">
                       <div>
-                        <p class="text-green-100 text-sm font-semibold">Active</p>
-                        <p class="text-4xl font-bold mt-2">{Enum.count(@organizations)}</p>
+                        <p class="text-green-100 text-sm font-semibold mb-1 flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                          </svg>
+                          Active
+                        </p>
+                        <p class="text-5xl font-bold mt-2">{Enum.count(@organizations)}</p>
                       </div>
-                      <div class="text-5xl opacity-50">✅</div>
+                      <div class="text-6xl opacity-20 group-hover:opacity-30 transition-opacity group-hover:scale-110 transform duration-300">✅</div>
                     </div>
                   </div>
 
-                  <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between">
+                  <div class="group relative overflow-hidden bg-gradient-to-br from-purple-500 via-violet-600 to-fuchsia-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative flex items-center justify-between">
                       <div>
-                        <p class="text-purple-100 text-sm font-semibold">Departments</p>
-                        <p class="text-4xl font-bold mt-2">0</p>
+                        <p class="text-purple-100 text-sm font-semibold mb-1 flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                          </svg>
+                          Departments
+                        </p>
+                        <p class="text-5xl font-bold mt-2">0</p>
                       </div>
-                      <div class="text-5xl opacity-50">🏛️</div>
+                      <div class="text-6xl opacity-20 group-hover:opacity-30 transition-opacity group-hover:scale-110 transform duration-300">🏛️</div>
                     </div>
                   </div>
 
-                  <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
-                    <div class="flex items-center justify-between">
+                  <div class="group relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-600 to-yellow-600 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative flex items-center justify-between">
                       <div>
-                        <p class="text-orange-100 text-sm font-semibold">Teams</p>
-                        <p class="text-4xl font-bold mt-2">0</p>
+                        <p class="text-orange-100 text-sm font-semibold mb-1 flex items-center gap-2">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                          </svg>
+                          Teams
+                        </p>
+                        <p class="text-5xl font-bold mt-2">0</p>
                       </div>
-                      <div class="text-5xl opacity-50">👥</div>
+                      <div class="text-6xl opacity-20 group-hover:opacity-30 transition-opacity group-hover:scale-110 transform duration-300">👥</div>
                     </div>
                   </div>
                 </div>
 
-    <!-- Organizations Grid/List -->
+                <!-- Organizations Grid/List -->
                 <%= if Enum.empty?(@organizations) do %>
-                  <!-- Empty State -->
-                  <div class="bg-white rounded-2xl shadow-sm p-16 text-center">
-                    <div class="max-w-md mx-auto">
-                      <div class="text-7xl mb-6">🏢</div>
-                      <h3 class="text-2xl font-bold text-gray-900 mb-2">No Organizations Yet</h3>
-                      <p class="text-gray-600 mb-8">
+                  <!-- Enhanced Empty State -->
+                  <div class="relative overflow-hidden bg-white rounded-3xl shadow-xl p-20 text-center border border-gray-100">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 opacity-50"></div>
+                    <div class="relative max-w-md mx-auto">
+                      <div class="mb-8">
+                        <div class="inline-block relative">
+                          <div class="absolute inset-0 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+                          <div class="relative text-8xl">🏢</div>
+                        </div>
+                      </div>
+                      <h3 class="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">No Organizations Yet</h3>
+                      <p class="text-gray-600 mb-10 text-lg leading-relaxed">
                         Get started by creating your first organization to structure your company.
                       </p>
                       <%= if @current_scope.user.role == "admin" do %>
                         <button
                           phx-click="new_organization"
-                          class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold"
+                          class="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white rounded-2xl hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 transition-all shadow-xl hover:shadow-2xl font-semibold text-lg transform hover:-translate-y-1 hover:scale-105"
                         >
-                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M12 4v16m8-8H4"
-                            />
+                          <svg class="w-6 h-6 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                           </svg>
                           Create First Organization
                         </button>
@@ -268,115 +296,109 @@
                     </div>
                   </div>
                 <% else %>
-                  <!-- Organizations Grid -->
+                  <!-- Enhanced Organizations Grid -->
                   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <%= for org <- @organizations do %>
-                      <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all border-2 border-gray-100 hover:border-indigo-200 p-6 group">
-                        <div class="flex items-start justify-between mb-4">
-                          <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-2xl">
-                              🏢
+                      <div class="group relative bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 border-2 border-gray-100 hover:border-indigo-200 p-6 transform hover:-translate-y-2">
+                        <!-- Gradient overlay on hover -->
+                        <div class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl"></div>
+                        
+                        <div class="relative">
+                          <div class="flex items-start justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                              <div class="relative">
+                                <div class="absolute inset-0 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-xl blur-md opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                                <div class="relative w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-2xl shadow-lg transform group-hover:scale-110 transition-transform">
+                                  🏢
+                                </div>
+                              </div>
+                              <div>
+                                <h3 class="font-bold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                  {org.name}
+                                </h3>
+                                <span class="inline-flex items-center gap-1 text-sm text-emerald-600 font-medium">
+                                  <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                  Active
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <h3 class="font-bold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors">
-                                {org.name}
-                              </h3>
-                              <span class="text-sm text-gray-500">Active</span>
-                            </div>
-                          </div>
-                          <div class="flex gap-1">
                             <%= if @current_scope.user.role == "admin" do %>
                               <button
                                 phx-click="edit_organization"
                                 phx-value-id={org.id}
-                                class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                class="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 transform scale-90 group-hover:scale-100"
                                 title="Edit Organization"
                               >
-                                <svg
-                                  class="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                  />
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
                               </button>
                             <% end %>
                           </div>
-                        </div>
 
-                        <p class="text-gray-600 text-sm mb-4 line-clamp-2">
-                          <%= if org.description && org.description != "" do %>
-                            {org.description}
-                          <% else %>
-                            <span class="text-gray-400 italic">No description provided</span>
-                          <% end %>
-                        </p>
+                          <p class="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+                            <%= if org.description && org.description != "" do %>
+                              {org.description}
+                            <% else %>
+                              <span class="text-gray-400 italic">No description provided</span>
+                            <% end %>
+                          </p>
 
-                        <div class="flex items-center gap-4 text-sm text-gray-500 pt-4 border-t border-gray-100">
-                          <div class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                              />
-                            </svg>
-                            <span>0 Departments</span>
+                                                      <div class="flex items-center gap-6 text-sm text-gray-500 pt-4 border-t border-gray-100">
+                            <div class="flex items-center gap-2">
+                              <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                                </svg>
+                              </div>
+                              <span class="font-medium">0 Departments</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                                </svg>
+                              </div>
+                              <span class="font-medium">0 Teams</span>
+                            </div>
                           </div>
-                          <div class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                              />
-                            </svg>
-                            <span>0 Teams</span>
-                          </div>
-                        </div>
 
-                        <button
-                          phx-click="show_org"
-                          phx-value-id={org.id}
-                          class="w-full mt-4 py-2 bg-gray-100 hover:bg-indigo-600 hover:text-white text-gray-700 rounded-lg transition-all font-medium"
-                        >
-                          View Details
-                        </button>
+                          <button
+                            phx-click="show_org"
+                            phx-value-id={org.id}
+                            class="w-full mt-4 py-3 bg-gradient-to-r from-gray-100 to-gray-50 hover:from-indigo-600 hover:to-purple-600 hover:text-white text-gray-700 rounded-xl transition-all font-semibold shadow-sm hover:shadow-md transform hover:scale-[1.02] flex items-center justify-center gap-2 group/btn"
+                          >
+                            View Details
+                            <svg class="w-4 h-4 transform group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     <% end %>
                   </div>
                 <% end %>
 
-    <!-- Organization Detail View -->
+              <!-- Organization Detail View -->
               <% else %>
                 <%= if @show_department_detail do %>
-                  <!-- Department Teams View -->
-                  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-6">
-                      <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        <span class="text-3xl">👥</span> Teams in {@selected_department.name}
+                  <!-- Enhanced Department Teams View -->
+                  <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-indigo-100/50 p-8">
+                    <div class="flex items-center justify-between mb-8">
+                      <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-3">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <span class="text-2xl">👥</span>
+                        </div>
+                        Teams in {@selected_department.name}
                       </h2>
                       <%= if @current_scope.user.role == "admin" do %>
                         <button
                           phx-click="edit_department"
                           phx-value-id={@selected_department.id}
-                          class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-medium"
+                          class="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
+                          <svg class="w-5 h-5 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                           </svg>
                           Edit Department
                         </button>
@@ -384,103 +406,102 @@
                     </div>
 
                     <%= if Enum.empty?(@selected_department.teams) do %>
-                      <!-- Empty Teams State -->
-                      <div class="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl">
-                        <div class="text-6xl mb-4">👥</div>
-                        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Teams Yet</h3>
-                        <p class="text-gray-500 mb-6">Create your first team in this department.</p>
-                        <%= if @current_scope.user.role == "admin" do %>
-                          <button
-                            phx-click="new_team"
-                            phx-value-department_id={@selected_department.id}
-                            class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                          >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M12 4v16m8-8H4"
-                              />
-                            </svg>
-                            Create First Team
-                          </button>
-                        <% end %>
+                      <!-- Enhanced Empty Teams State -->
+                      <div class="relative overflow-hidden text-center py-16 border-2 border-dashed border-blue-200 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50">
+                        <div class="relative max-w-md mx-auto">
+                          <div class="mb-6">
+                            <div class="inline-block relative">
+                              <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                              <div class="relative text-7xl">👥</div>
+                            </div>
+                          </div>
+                          <h3 class="text-2xl font-bold text-gray-800 mb-2">No Teams Yet</h3>
+                          <p class="text-gray-600 mb-8 text-lg">Create your first team in this department.</p>
+                          <%= if @current_scope.user.role == "admin" do %>
+                            <button
+                              phx-click="new_team"
+                              phx-value-department_id={@selected_department.id}
+                              class="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 hover:scale-105"
+                            >
+                              <svg class="w-5 h-5 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                              </svg>
+                              Create First Team
+                            </button>
+                          <% end %>
+                        </div>
                       </div>
                     <% else %>
-                      <!-- Teams Grid -->
-                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <!-- Enhanced Teams Grid -->
+                      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         <%= for team <- @selected_department.teams do %>
                           <div
-                            class="bg-blue-50 rounded-lg p-4 border border-blue-200 hover:shadow-md transition-all cursor-pointer group relative"
+                            class="group relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-5 border-2 border-blue-100 hover:border-blue-300 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-1"
                             phx-click="show_team_detail"
                             phx-value-id={team.id}
                           >
-                            <div class="flex items-start justify-between mb-3">
-                              <h3 class="font-semibold text-blue-800 text-lg">{team.name}</h3>
-                              <%= if @current_scope.user.role == "admin" do %>
-                                <div class="flex space-x-1" phx-click="stop">
-                                  <button
-                                    phx-click="edit_team"
-                                    phx-value-id={team.id}
-                                    class="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                    title="Edit team"
-                                  >
-                                    <svg
-                                      class="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    phx-click="delete_team"
-                                    phx-value-id={team.id}
-                                    class="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
-                                    onclick="return confirm('Are you sure you want to delete #{team.name} team?')"
-                                    title="Delete team"
-                                  >
-                                    <svg
-                                      class="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-100/50 to-cyan-100/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                            
+                            <div class="relative">
+                              <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                  <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform">
+                                    <span class="text-xl">👥</span>
+                                  </div>
+                                  <h3 class="font-bold text-blue-900 text-lg group-hover:text-blue-700 transition-colors">{team.name}</h3>
                                 </div>
-                              <% end %>
-                            </div>
-                            <p class="text-blue-600 text-sm mb-3">
-                              <%= if team.description && team.description != "" do %>
-                                {team.description}
-                              <% else %>
-                                <span class="italic text-blue-500">No description</span>
-                              <% end %>
-                            </p>
-                            <div class="flex items-center justify-between text-xs text-blue-500">
-                              <span>
-                                <%= case team.employees do %>
-                                  <% %Ecto.Association.NotLoaded{} -> %>
-                                    Loading...
-                                  <% employees when is_list(employees) -> %>
-                                    {Enum.count(employees)} members
+                                <%= if @current_scope.user.role == "admin" do %>
+                                  <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity" phx-click="stop">
+                                    <button
+                                      phx-click="edit_team"
+                                      phx-value-id={team.id}
+                                      class="p-2 text-blue-400 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-all transform hover:scale-110"
+                                      title="Edit team"
+                                    >
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                      </svg>
+                                    </button>
+                                    <button
+                                      phx-click="delete_team"
+                                      phx-value-id={team.id}
+                                      class="p-2 text-red-400 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all transform hover:scale-110"
+                                      onclick="return confirm('Are you sure you want to delete #{team.name} team?')"
+                                      title="Delete team"
+                                    >
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                      </svg>
+                                    </button>
+                                  </div>
                                 <% end %>
-                              </span>
-                              <span class="group-hover:text-blue-700">View team →</span>
+                              </div>
+                              <p class="text-blue-700 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+                                <%= if team.description && team.description != "" do %>
+                                  {team.description}
+                                <% else %>
+                                  <span class="italic text-blue-400">No description</span>
+                                <% end %>
+                              </p>
+                              <div class="flex items-center justify-between pt-3 border-t border-blue-200">
+                                <span class="text-sm text-blue-600 font-medium flex items-center gap-2">
+                                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                                  </svg>
+                                  <%= case team.employees do %>
+                                    <% %Ecto.Association.NotLoaded{} -> %>
+                                      Loading...
+                                    <% employees when is_list(employees) -> %>
+                                      {Enum.count(employees)} members
+                                  <% end %>
+                                </span>
+                                <span class="text-sm text-blue-500 group-hover:text-blue-700 font-medium flex items-center gap-1">
+                                  View team
+                                  <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                  </svg>
+                                </span>
+                              </div>
                             </div>
                           </div>
                         <% end %>
@@ -489,120 +510,121 @@
                   </div>
                 <% else %>
                   <%= if @show_team_detail do %>
-                    <!-- Team Employees View -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                      <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                          <span class="text-3xl">👤</span> Team Members in {@selected_team.name}
-                        </h2>
-                        <div class="flex gap-2">
-                          <%= if @current_scope.user.role == "admin" do %>
-                            <button
-                              phx-click="edit_team"
-                              phx-value-id={@selected_team.id}
-                              class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-                            >
-                              <svg
-                                class="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                />
+                    <!-- Enhanced Team Employees View -->
+                    <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-blue-100/50 p-8">
+                      <div class="flex items-center justify-between mb-8">
+                        <div>
+                          <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent flex items-center gap-3 mb-2">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                              <span class="text-2xl">👤</span>
+                            </div>
+                            Team Members
+                          </h2>
+                          <p class="text-gray-600 text-lg flex items-center gap-2">
+                            <span class="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-lg font-medium">
+                              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
                               </svg>
-                              Edit Team
-                            </button>
+                              {@selected_team.name}
+                            </span>
+                            <span class="text-gray-400">•</span>
+                            <span class="text-gray-600">
+                              Department: <span class="font-semibold text-purple-600">{@selected_team.department.name}</span>
+                            </span>
+                          </p>
+                          <%= if @selected_team.description && @selected_team.description != "" do %>
+                            <p class="text-gray-500 mt-2 italic">{@selected_team.description}</p>
                           <% end %>
                         </div>
+                        <%= if @current_scope.user.role == "admin" do %>
+                          <button
+                            phx-click="edit_team"
+                            phx-value-id={@selected_team.id}
+                            class="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                          >
+                            <svg class="w-5 h-5 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit Team
+                          </button>
+                        <% end %>
                       </div>
 
-                      <p class="text-gray-600 mb-6">
-                        Department:
-                        <span class="font-semibold">{@selected_team.department.name}</span>
-                        <%= if @selected_team.description && @selected_team.description != "" do %>
-                          • {@selected_team.description}
-                        <% end %>
-                      </p>
-
                       <%= if Enum.empty?(@selected_team.employees) do %>
-                        <div class="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl">
-                          <div class="text-6xl mb-4">👤</div>
-                          <h3 class="text-xl font-semibold text-gray-700 mb-2">No Team Members</h3>
-                          <p class="text-gray-500">This team doesn't have any members yet.</p>
+                        <div class="relative overflow-hidden text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50">
+                          <div class="relative max-w-md mx-auto">
+                            <div class="mb-6">
+                              <div class="inline-block relative">
+                                <div class="absolute inset-0 bg-gradient-to-r from-gray-400 to-slate-400 rounded-full blur-2xl opacity-10 animate-pulse"></div>
+                                <div class="relative text-7xl">👤</div>
+                              </div>
+                            </div>
+                            <h3 class="text-2xl font-bold text-gray-700 mb-2">No Team Members</h3>
+                            <p class="text-gray-500 text-lg">This team doesn't have any members yet.</p>
+                          </div>
                         </div>
                       <% else %>
-                        <!-- Employees Table -->
-                        <div class="overflow-x-auto">
+                        <!-- Enhanced Employees Table -->
+                        <div class="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
                           <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gradient-to-r from-gray-50 to-slate-50">
                               <tr>
-                                <th
-                                  scope="col"
-                                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                   Name
                                 </th>
-                                <th
-                                  scope="col"
-                                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                   Position
                                 </th>
-                                <th
-                                  scope="col"
-                                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                   Email
                                 </th>
-                                <th
-                                  scope="col"
-                                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                   Role
                                 </th>
-                                <th
-                                  scope="col"
-                                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                >
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                                   Status
                                 </th>
                               </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
+                            <tbody class="bg-white divide-y divide-gray-100">
                               <%= for employee <- @selected_team.employees do %>
-                                <tr class="hover:bg-gray-50 transition-colors">
+                                <tr class="hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all">
                                   <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
-                                      {employee.name}
+                                    <div class="flex items-center gap-3">
+                                      <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+                                        {String.first(employee.name)}
+                                      </div>
+                                      <div class="text-sm font-semibold text-gray-900">{employee.name}</div>
                                     </div>
                                   </td>
                                   <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
+                                    <div class="text-sm text-gray-700 font-medium">
                                       {employee.position || "Not assigned"}
                                     </div>
                                   </td>
                                   <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
+                                    <div class="text-sm text-gray-600 flex items-center gap-2">
+                                      <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                                      </svg>
                                       {employee.email}
                                     </div>
                                   </td>
                                   <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800 border border-blue-200">
                                       {employee.role || "Not assigned"}
                                     </span>
                                   </td>
                                   <td class="px-6 py-4 whitespace-nowrap">
                                     <%= if employee.position do %>
-                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200">
+                                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                                         Active
                                       </span>
                                     <% else %>
-                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border border-red-200">
+                                        <span class="w-2 h-2 bg-red-500 rounded-full"></span>
                                         Inactive
                                       </span>
                                     <% end %>
@@ -616,82 +638,80 @@
                     </div>
                   <% else %>
                     <%= if @show_departments do %>
-                      <!-- Departments List View -->
-                      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                          <span class="text-3xl">🏛️</span> Departments in {@selected_org.name}
+                      <!-- Enhanced Departments List View -->
+                      <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-purple-100/50 p-8">
+                        <h2 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-8 flex items-center gap-3">
+                          <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <span class="text-2xl">🏛️</span>
+                          </div>
+                          Departments in {@selected_org.name}
                         </h2>
                         <%= if Enum.empty?(@selected_org_departments) do %>
-                          <!-- Empty Departments State -->
-                          <div class="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl">
-                            <div class="text-6xl mb-4">🏛️</div>
-                            <h3 class="text-xl font-semibold text-gray-700 mb-2">
-                              No Departments Yet
-                            </h3>
-                            <p class="text-gray-500 mb-6">
-                              Create your first department in this organization.
-                            </p>
-                            <%= if @current_scope.user.role == "admin" do %>
-                              <button
-                                phx-click="new_department"
-                                class="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium"
-                              >
-                                <svg
-                                  class="w-5 h-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
+                          <!-- Enhanced Empty Departments State -->
+                          <div class="relative overflow-hidden text-center py-16 border-2 border-dashed border-purple-200 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50">
+                            <div class="relative max-w-md mx-auto">
+                              <div class="mb-6">
+                                <div class="inline-block relative">
+                                  <div class="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                                  <div class="relative text-7xl">🏛️</div>
+                                </div>
+                              </div>
+                              <h3 class="text-2xl font-bold text-gray-800 mb-2">No Departments Yet</h3>
+                              <p class="text-gray-600 mb-8 text-lg">Create your first department in this organization.</p>
+                              <%= if @current_scope.user.role == "admin" do %>
+                                <button
+                                  phx-click="new_department"
+                                  class="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 hover:scale-105"
                                 >
-                                  <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 4v16m8-8H4"
-                                  />
-                                </svg>
-                                Create First Department
-                              </button>
-                            <% end %>
+                                  <svg class="w-5 h-5 transform group-hover:rotate-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                  </svg>
+                                  Create First Department
+                                </button>
+                              <% end %>
+                            </div>
                           </div>
                         <% else %>
-                          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                             <%= for dept <- @selected_org_departments do %>
                               <div
-                                class="bg-purple-50 rounded-lg p-4 border border-purple-200 hover:shadow-md transition-all cursor-pointer group"
+                                class="group relative bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border-2 border-purple-100 hover:border-purple-300 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-1"
                                 phx-click="show_department_detail"
                                 phx-value-id={dept.id}
                               >
-                                <div class="flex items-start justify-between mb-3">
-                                  <h3 class="font-semibold text-purple-800 text-lg">{dept.name}</h3>
-                                  <%= if @current_scope.user.role == "admin" do %>
-                                    <button
-                                      phx-click="edit_department"
-                                      phx-value-id={dept.id}
-                                      class="p-1 text-purple-400 hover:text-purple-600 hover:bg-purple-100 rounded transition-colors"
-                                      onclick="event.stopPropagation();"
-                                    >
-                                      <svg
-                                        class="w-4 h-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
+                                <div class="absolute inset-0 bg-gradient-to-br from-purple-100/50 to-pink-100/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                                
+                                <div class="relative">
+                                  <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                      <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform">
+                                        <span class="text-xl">🏛️</span>
+                                      </div>
+                                      <h3 class="font-bold text-purple-900 text-lg group-hover:text-purple-700 transition-colors">{dept.name}</h3>
+                                    </div>
+                                    <%= if @current_scope.user.role == "admin" do %>
+                                      <button
+                                        phx-click="edit_department"
+                                        phx-value-id={dept.id}
+                                        class="p-2 text-purple-400 hover:text-purple-700 hover:bg-purple-100 rounded-lg transition-all transform hover:scale-110 opacity-0 group-hover:opacity-100"
+                                        onclick="event.stopPropagation();"
                                       >
-                                        <path
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"
-                                          stroke-width="2"
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                      </button>
+                                    <% end %>
+                                  </div>
+                                  <p class="text-purple-700 text-sm mb-4">{dept.name}</p>
+                                  <div class="flex items-center justify-between pt-3 border-t border-purple-200">
+                                    <span class="text-sm text-purple-600 font-medium">0 teams</span>
+                                    <span class="text-sm text-purple-500 group-hover:text-purple-700 font-medium flex items-center gap-1">
+                                      View department
+                                      <svg class="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                       </svg>
-                                    </button>
-                                  <% end %>
-                                </div>
-                                <p class="text-purple-600 text-sm mb-3">
-                                  {dept.name}
-                                </p>
-                                <div class="flex items-center justify-between text-xs text-purple-500">
-                                  <span>0 teams</span>
-                                  <span class="group-hover:text-purple-700">View department →</span>
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             <% end %>
@@ -700,115 +720,147 @@
                       </div>
                     <% else %>
                       <%= if @show_teams do %>
-                        <!-- Teams List View -->
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                          <h2 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                            <span class="text-3xl">👥</span> Teams in {@selected_org.name}
+                        <!-- Enhanced Teams List View -->
+                        <div class="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-blue-100/50 p-8">
+                          <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-8 flex items-center gap-3">
+                            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                              <span class="text-2xl">👥</span>
+                            </div>
+                            Teams in {@selected_org.name}
                           </h2>
                           <%= if Enum.empty?(@selected_org_teams) do %>
-                            <div class="text-center py-8">
-                              <div class="text-5xl mb-4">👥</div>
-                              <p class="text-gray-600 text-lg">
-                                No teams found for this organization.
-                              </p>
+                            <div class="relative overflow-hidden text-center py-16 border-2 border-dashed border-blue-200 rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50">
+                              <div class="relative max-w-md mx-auto">
+                                <div class="mb-6">
+                                  <div class="inline-block relative">
+                                    <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                                    <div class="relative text-7xl">👥</div>
+                                  </div>
+                                </div>
+                                <h3 class="text-2xl font-bold text-gray-800 mb-2">No Teams Yet</h3>
+                                <p class="text-gray-600 text-lg">No teams found for this organization.</p>
+                              </div>
                             </div>
                           <% else %>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                               <%= for team <- @selected_org_teams do %>
                                 <div
-                                  class="bg-blue-50 rounded-lg p-4 border border-blue-200 hover:shadow-md transition-all cursor-pointer group relative"
+                                  class="group relative bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-5 border-2 border-blue-100 hover:border-blue-300 hover:shadow-xl transition-all cursor-pointer transform hover:-translate-y-1"
                                   phx-click="show_team_detail"
                                   phx-value-id={team.id}
                                 >
-
-    <!-- Action Buttons - Top Right -->
-                                  <div
-                                    class="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    phx-click="stop"
-                                  >
-                                    <!-- Edit Button -->
-                                    <button
-                                      phx-click="edit_team"
-                                      phx-value-id={team.id}
-                                      class="p-1 bg-white rounded-full shadow-sm hover:bg-blue-50 border border-blue-200"
-                                      title="Edit team"
-                                    >
-                                      <svg
-                                        class="w-3 h-3 text-blue-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
+                                  <div class="absolute inset-0 bg-gradient-to-br from-blue-100/50 to-cyan-100/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                                  
+                                  <!-- Action Buttons - Top Right -->
+                                  <%= if @current_scope.user.role == "admin" do %>
+                                    <div class="absolute top-3 right-3 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity" phx-click="stop">
+                                      <button
+                                        phx-click="edit_team"
+                                        phx-value-id={team.id}
+                                        class="p-2 bg-white rounded-lg shadow-md hover:bg-blue-50 border border-blue-200 transition-all transform hover:scale-110"
+                                        title="Edit team"
                                       >
-                                        <path
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"
-                                          stroke-width="2"
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
-                                      </svg>
-                                    </button>
-
-    <!-- Delete Button -->
-                                    <button
-                                      phx-click="delete_team"
-                                      phx-value-id={team.id}
-                                      class="p-1 bg-white rounded-full shadow-sm hover:bg-red-50 border border-red-200"
-                                      onclick="return confirm('Are you sure you want to delete #{team.name} team?')"
-                                      title="Delete team"
-                                    >
-                                      <svg
-                                        class="w-3 h-3 text-red-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
+                                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                      </button>
+                                      <button
+                                        phx-click="delete_team"
+                                        phx-value-id={team.id}
+                                        class="p-2 bg-white rounded-lg shadow-md hover:bg-red-50 border border-red-200 transition-all transform hover:scale-110"
+                                        onclick="return confirm('Are you sure you want to delete #{team.name} team?')"
+                                        title="Delete team"
                                       >
-                                        <path
-                                          stroke-linecap="round"
-                                          stroke-linejoin="round"
-                                          stroke-width="2"
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                        />
+                                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  <% end %>
+
+                                  <div class="relative">
+                                    <div class="flex items-center gap-2 mb-3 pr-16">
+                                      <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-md transform group-hover:scale-110 transition-transform">
+                                        <span class="text-xl">👥</span>
+                                      </div>
+                                      <h3 class="font-bold text-blue-900 group-hover:text-blue-700 transition-colors">{team.name}</h3>
+                                    </div>
+                                    <p class="text-blue-700 text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
+                                      <%= if team.description && team.description != "" do %>
+                                        {team.description}
+                                      <% else %>
+                                        <span class="italic text-blue-400">No description</span>
+                                      <% end %>
+                                    </p>
+                                    <div class="flex items-center gap-2 mb-1">
+                                      <svg class="w-4 h-4 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
                                       </svg>
-                                    </button>
+                                      <p class="text-blue-600 text-sm font-medium">Department: {team.department.name}</p>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-3 border-t border-blue-200 mt-3">
+                                      <span class="text-sm text-blue-600 font-medium">Click to view members</span>
+                                      <svg class="w-5 h-5 text-blue-500 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                      </svg>
+                                    </div>
                                   </div>
-
-    <!-- Team Content -->
-                                  <h3 class="font-semibold text-blue-800 mb-2 pr-8">{team.name}</h3>
-                                  <p class="text-blue-600 text-sm mb-2">
-                                    <%= if team.description && team.description != "" do %>
-                                      {team.description}
-                                    <% else %>
-                                      <span class="italic">No description</span>
-                                    <% end %>
-                                  </p>
-                                  <p class="text-blue-500 text-xs">
-                                    Department: {team.department.name}
-                                  </p>
-                                  <p class="text-blue-400 text-xs mt-1">
-                                    <strong>Click to view team members</strong>
-                                  </p>
                                 </div>
                               <% end %>
                             </div>
                           <% end %>
                         </div>
                       <% else %>
-                        <!-- Organization Actions -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <!-- Enhanced Organization Actions -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <button
                             phx-click="show_departments"
-                            class="p-8 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl border-2 border-purple-200 transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                            class="group relative overflow-hidden p-10 bg-white rounded-2xl border-2 border-purple-200 hover:border-purple-400 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-2"
                           >
-                            <div class="text-2xl font-bold mb-2">🏛️ Departments</div>
-                            <div class="text-purple-100">View and manage departments</div>
+                            <div class="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative">
+                              <div class="mb-4">
+                                <div class="inline-block relative">
+                                  <div class="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                                  <div class="relative w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-transform">
+                                    <span class="text-4xl">🏛️</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="text-3xl font-bold mb-3 text-purple-900 group-hover:text-white transition-colors">Departments</div>
+                              <div class="text-purple-600 group-hover:text-purple-100 transition-colors text-lg">View and manage departments</div>
+                              <div class="mt-4 flex items-center justify-center gap-2 text-purple-500 group-hover:text-white transition-colors">
+                                <span class="font-medium">Explore</span>
+                                <svg class="w-5 h-5 transform group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                </svg>
+                              </div>
+                            </div>
                           </button>
 
                           <button
                             phx-click="show_teams"
-                            class="p-8 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl border-2 border-blue-200 transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                            class="group relative overflow-hidden p-10 bg-white rounded-2xl border-2 border-blue-200 hover:border-blue-400 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-2"
                           >
-                            <div class="text-2xl font-bold mb-2">👥 Teams</div>
-                            <div class="text-blue-100">View all teams across departments</div>
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-500 via-cyan-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative">
+                              <div class="mb-4">
+                                <div class="inline-block relative">
+                                  <div class="absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-2xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                                  <div class="relative w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-transform">
+                                    <span class="text-4xl">👥</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="text-3xl font-bold mb-3 text-blue-900 group-hover:text-white transition-colors">Teams</div>
+                              <div class="text-blue-600 group-hover:text-blue-100 transition-colors text-lg">View all teams across departments</div>
+                              <div class="mt-4 flex items-center justify-center gap-2 text-blue-500 group-hover:text-white transition-colors">
+                                <span class="font-medium">Explore</span>
+                                <svg class="w-5 h-5 transform group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                </svg>
+                              </div>
+                            </div>
                           </button>
                         </div>
                       <% end %>
@@ -821,37 +873,40 @@
         </div>
       </main>
 
-    <!-- Organization Modal -->
+      <!-- Enhanced Modals -->
+      
+      <!-- Organization Modal -->
       <%= if @show_org_form do %>
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform transition-all">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-xl">
-                  🏢
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10"></div>
+              <div class="relative flex items-center justify-between p-8 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                  <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span class="text-2xl">🏢</span>
+                  </div>
+                  <h2 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {if @editing_org_id, do: "Edit Organization", else: "Add New Organization"}
+                  </h2>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900">
-                  {if @editing_org_id, do: "Edit Organization", else: "Add New Organization"}
-                </h2>
+                <button
+                  phx-click="hide_org_modal"
+                  class="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all transform hover:scale-110"
+                >
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
               </div>
-              <button
-                phx-click="hide_org_modal"
-                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
             </div>
 
-            <form phx-submit="save_organization" phx-change="update_org_form" class="p-6 space-y-6">
+            <form phx-submit="save_organization" phx-change="update_org_form" class="p-8 space-y-6">
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                  </svg>
                   Organization Name *
                 </label>
                 <input
@@ -860,23 +915,18 @@
                   value={@org_form_data.name}
                   placeholder="e.g., Tech Company Inc, Marketing Agency"
                   class={[
-                    "w-full px-4 py-3 border-2 rounded-xl outline-none transition-all",
+                    "w-full px-5 py-4 border-2 rounded-xl outline-none transition-all text-gray-900 placeholder-gray-400 font-medium",
                     if(@errors[:name],
-                      do: "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500",
-                      else:
-                        "border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      do: "border-red-300 bg-red-50 focus:ring-4 focus:ring-red-500/20 focus:border-red-500",
+                      else: "border-gray-200 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500"
                     )
                   ]}
                   required
                 />
                 <%= if @errors[:name] do %>
-                  <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
+                  <p class="mt-3 text-sm text-red-600 flex items-center gap-2 font-medium">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
                     {@errors[:name]}
                   </p>
@@ -884,26 +934,31 @@
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                  </svg>
+                  Description
+                </label>
                 <textarea
                   name="description"
                   rows="4"
                   placeholder="Brief description of this organization's purpose and activities..."
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none text-gray-900 placeholder-gray-400"
                 ><%= @org_form_data.description %></textarea>
               </div>
 
-              <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div class="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button
                   type="button"
                   phx-click="hide_org_modal"
-                  class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold transition-colors"
+                  class="px-8 py-4 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-all transform hover:scale-105"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg font-semibold"
+                  class="px-8 py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl font-bold transform hover:scale-105"
                 >
                   {if @editing_org_id, do: "Update Organization", else: "Create Organization"}
                 </button>
@@ -912,38 +967,38 @@
           </div>
         </div>
       <% end %>
-
-    <!-- Department Modal -->
+<!-- Department Modal -->
       <%= if @show_dept_form do %>
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform transition-all">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-xl">
-                  🏛️
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-teal-500/10"></div>
+              <div class="relative flex items-center justify-between p-8 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                  <div class="w-14 h-14 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span class="text-2xl">🏛️</span>
+                  </div>
+                  <h2 class="text-3xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    {if @editing_dept_id, do: "Edit Department", else: "Add New Department"}
+                  </h2>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900">
-                  {if @editing_dept_id, do: "Edit Department", else: "Add New Department"}
-                </h2>
+                <button
+                  phx-click="hide_dept_modal"
+                  class="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all transform hover:scale-110"
+                >
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
               </div>
-              <button
-                phx-click="hide_dept_modal"
-                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
             </div>
 
-            <form phx-submit="save_department" phx-change="update_dept_form" class="p-6 space-y-6">
+            <form phx-submit="save_department" phx-change="update_dept_form" class="p-8 space-y-6">
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                  </svg>
                   Department Name *
                 </label>
                 <input
@@ -952,22 +1007,18 @@
                   value={@dept_form_data.name}
                   placeholder="e.g., Engineering, Sales, HR"
                   class={[
-                    "w-full px-4 py-3 border-2 rounded-xl outline-none transition-all",
+                    "w-full px-5 py-4 border-2 rounded-xl outline-none transition-all text-gray-900 placeholder-gray-400 font-medium",
                     if(@errors[:name],
-                      do: "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500",
-                      else: "border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      do: "border-red-300 bg-red-50 focus:ring-4 focus:ring-red-500/20 focus:border-red-500",
+                      else: "border-gray-200 focus:ring-4 focus:ring-green-500/20 focus:border-green-500"
                     )
                   ]}
                   required
                 />
                 <%= if @errors[:name] do %>
-                  <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
+                  <p class="mt-3 text-sm text-red-600 flex items-center gap-2 font-medium">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
                     {@errors[:name]}
                   </p>
@@ -975,26 +1026,31 @@
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                  </svg>
+                  Description
+                </label>
                 <textarea
                   name="description"
                   rows="4"
                   placeholder="Brief description of this department's role and responsibilities..."
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all resize-none"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all resize-none text-gray-900 placeholder-gray-400"
                 ><%= @dept_form_data.description %></textarea>
               </div>
 
-              <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div class="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button
                   type="button"
                   phx-click="hide_dept_modal"
-                  class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold transition-colors"
+                  class="px-8 py-4 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-all transform hover:scale-105"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  class="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg font-semibold"
+                  class="px-8 py-4 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white rounded-xl hover:from-green-700 hover:via-emerald-700 hover:to-teal-700 transition-all shadow-lg hover:shadow-xl font-bold transform hover:scale-105"
                 >
                   {if @editing_dept_id, do: "Update Department", else: "Create Department"}
                 </button>
@@ -1004,59 +1060,58 @@
         </div>
       <% end %>
 
-    <!-- Team Modal -->
+      <!-- Team Modal -->
       <%= if @show_team_form do %>
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl transform transition-all">
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-xl">
-                  👥
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div class="bg-white rounded-3xl w-full max-w-lg shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+            <div class="relative overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-indigo-500/10"></div>
+              <div class="relative flex items-center justify-between p-8 border-b border-gray-100">
+                <div class="flex items-center gap-4">
+                  <div class="w-14 h-14 bg-gradient-to-br from-blue-500 via-cyan-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <span class="text-2xl">👥</span>
+                  </div>
+                  <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-600 via-cyan-600 to-indigo-600 bg-clip-text text-transparent">
+                    {if @editing_team_id, do: "Edit Team", else: "Add New Team"}
+                  </h2>
                 </div>
-                <h2 class="text-2xl font-bold text-gray-900">
-                  {if @editing_team_id, do: "Edit Team", else: "Add New Team"}
-                </h2>
+                <button
+                  phx-click="hide_team_modal"
+                  class="p-2.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-all transform hover:scale-110"
+                >
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
               </div>
-              <button
-                phx-click="hide_team_modal"
-                class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
             </div>
 
-            <form phx-submit="save_team" phx-change="update_team_form" class="p-6 space-y-6">
+            <form phx-submit="save_team" phx-change="update_team_form" class="p-8 space-y-6">
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Team Name *</label>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                  </svg>
+                  Team Name *
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={@team_form_data.name}
                   placeholder="e.g., Frontend Team, Sales Team, DevOps"
                   class={[
-                    "w-full px-4 py-3 border-2 rounded-xl outline-none transition-all",
+                    "w-full px-5 py-4 border-2 rounded-xl outline-none transition-all text-gray-900 placeholder-gray-400 font-medium",
                     if(@errors[:name],
-                      do: "border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500",
-                      else: "border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      do: "border-red-300 bg-red-50 focus:ring-4 focus:ring-red-500/20 focus:border-red-500",
+                      else: "border-gray-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500"
                     )
                   ]}
                   required
                 />
                 <%= if @errors[:name] do %>
-                  <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
+                  <p class="mt-3 text-sm text-red-600 flex items-center gap-2 font-medium">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
                     {@errors[:name]}
                   </p>
@@ -1064,20 +1119,30 @@
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                  </svg>
+                  Description
+                </label>
                 <textarea
                   name="description"
-                  rows="3"
+                  rows="4"
                   placeholder="Brief description of this team's purpose and focus..."
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none text-gray-900 placeholder-gray-400"
                 ><%= @team_form_data.description %></textarea>
               </div>
 
               <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Department *</label>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/>
+                  </svg>
+                  Department *
+                </label>
                 <select
                   name="department_id"
-                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-gray-900 font-medium bg-white"
                   required
                 >
                   <option value="">Select a department</option>
@@ -1091,30 +1156,26 @@
                   <% end %>
                 </select>
                 <%= if @errors[:department_id] do %>
-                  <p class="mt-2 text-sm text-red-600 flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fill-rule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                        clip-rule="evenodd"
-                      />
+                  <p class="mt-3 text-sm text-red-600 flex items-center gap-2 font-medium">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
                     {@errors[:department_id]}
                   </p>
                 <% end %>
               </div>
 
-              <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div class="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button
                   type="button"
                   phx-click="hide_team_modal"
-                  class="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold transition-colors"
+                  class="px-8 py-4 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-all transform hover:scale-105"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg font-semibold"
+                  class="px-8 py-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:via-cyan-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl font-bold transform hover:scale-105"
                 >
                   {if @editing_team_id, do: "Update Team", else: "Create Team"}
                 </button>
