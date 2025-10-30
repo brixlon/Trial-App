@@ -36,13 +36,13 @@ npm-debug.log
 /assets/node_modules/
 
 # Ignore environment-specific config files (contains secrets)
-/config/*.secret.exs
-/config/prod.secret.exs
-/config/dev.secret.exs
-/config/test.secret.exs
+/config/*.exs
+/config/prod.exs
+/config/dev.exs
+/config/test.exs
 
 # Ignore runtime config with secrets
-/config/runtime.secret.exs
+/config/runtime.exs
 
 # Environment variables file
 .env
