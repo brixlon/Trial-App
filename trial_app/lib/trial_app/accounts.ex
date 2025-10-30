@@ -190,7 +190,7 @@ defmodule TrialApp.Accounts do
       "admin" -> "admin"
       "manager" -> "manager"
       "lead" -> "lead"
-      # map app-level "user" to employee-level "member"
+      "employee" -> "employee"
       _ -> "member"
     end
   end

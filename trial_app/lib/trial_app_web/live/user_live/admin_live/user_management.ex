@@ -178,7 +178,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
                               Approve
                             </.link>
                           <% end %>
-                          <%= if user.status == "active" && user.role == "user" do %>
+                          <%= if user.status == "active" && user.role == "employee" do %>
                             <button
                               phx-click="make_admin"
                               phx-value-user-id={user.id}
@@ -294,7 +294,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
             name="role"
             class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm"
           >
-            <option value="user" selected={@user_form[:role] == "user"}>User</option>
+            <option value="employee" selected={@user_form[:role] == "employee"}>Employee</option>
             <option value="manager" selected={@user_form[:role] == "manager"}>Manager</option>
             <option value="admin" selected={@user_form[:role] == "admin"}>Admin</option>
           </select>

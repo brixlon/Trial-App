@@ -58,7 +58,7 @@ defmodule TrialApp.Accounts.User do
     user
     |> cast(attrs, [:email, :username, :role, :status])
     |> validate_required([:email, :username, :role])
-    |> validate_inclusion(:role, ["admin", "manager", "user"])
+    |> validate_inclusion(:role, ["admin", "manager", "employee"])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
@@ -71,7 +71,7 @@ defmodule TrialApp.Accounts.User do
     user
     |> cast(attrs, [:email, :username, :role, :status])
     |> validate_required([:email, :username, :role])
-    |> validate_inclusion(:role, ["admin", "manager", "user"])
+    |> validate_inclusion(:role, ["admin", "manager", "employee"])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
@@ -84,7 +84,7 @@ defmodule TrialApp.Accounts.User do
     user
     |> cast(attrs, [:role, :status])
     |> validate_required([:role])
-    |> validate_inclusion(:role, ["admin", "manager", "user"])
+    |> validate_inclusion(:role, ["admin", "manager", "employee"])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
   end
 
