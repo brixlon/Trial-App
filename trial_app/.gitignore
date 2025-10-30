@@ -35,3 +35,36 @@ trial_app-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Ignore environment-specific config files (contains secrets)
+/config/*.secret.exs
+/config/prod.secret.exs
+/config/dev.secret.exs
+/config/test.secret.exs
+
+# Ignore runtime config with secrets
+/config/runtime.secret.exs
+
+# Environment variables file
+.env
+.env.local
+.env.*.local
+
+# Database files (SQLite)
+*.db
+*.db-shm
+*.db-wal
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Elixir Language Server
+.elixir_ls/
+
+# Local development certificates
+priv/cert/selfsigned_key.pem
+priv/cert/selfsigned.pem
