@@ -38,6 +38,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:filter, filter)}
   end
 
+
   def handle_event("edit_user", %{"user-id" => user_id}, socket) do
     user = Accounts.get_user_with_assignments!(user_id)
     current_assignments = get_current_team_assignments(user)

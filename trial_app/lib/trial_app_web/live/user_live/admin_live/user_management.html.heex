@@ -1,3 +1,6 @@
+
+  def render(assigns) do
+    ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
         <.live_component
@@ -84,9 +87,9 @@
                     <tr class="hover">
                       <td>
                         <div class="flex items-center gap-3">
-                          <div class="avatar placeholder">
+                          <div class="flex-shrink-0">
                             <div class="bg-purple-100 text-purple-700 rounded-full w-10 h-10 flex items-center justify-center">
-                              <span class="font-semibold text-sm">
+                              <span class="font-semibold text-sm leading-none">
                                 {String.at(user.username, 0) |> String.upcase()}
                               </span>
                             </div>
@@ -385,5 +388,6 @@
           </div>
         </div>
       <% end %>
-  </div>
-    
+    </div>
+    """
+  end
