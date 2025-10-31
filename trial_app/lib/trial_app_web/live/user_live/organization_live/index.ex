@@ -1,6 +1,8 @@
 defmodule TrialAppWeb.OrganizationLive.Index do
   use TrialAppWeb, :live_view
   alias TrialApp.Orgs
+  alias TrialApp.Repo
+  import Ecto.Query
 
   @impl true
   def mount(_params, _session, socket) do
@@ -10,7 +12,12 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     if current_user.status == "pending" do
       {:ok, socket |> assign(:user_status, "pending") |> assign(:has_assignments, false)}
     else
-      organizations = Orgs.list_organizations()
+      # Load organizations with preloaded departments and teams
+      organizations = load_organizations_with_counts()
+
+      # Calculate total counts
+      total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+      total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
 
       {:ok,
        socket
@@ -41,8 +48,21 @@ defmodule TrialAppWeb.OrganizationLive.Index do
        |> assign(:show_add_user_modal, false)
        |> assign(:current_team_id, nil)
        |> assign(:available_users, [])
+       |> assign(:total_departments, total_departments)
+       |> assign(:total_teams, total_teams)
        |> assign(:organizations, organizations)}
     end
+  end
+
+  # Helper function to load organizations with all necessary counts
+  defp load_organizations_with_counts do
+    Repo.all(
+      from o in TrialApp.Orgs.Organization,
+        left_join: d in assoc(o, :departments),
+        left_join: t in assoc(d, :teams),
+        preload: [departments: {d, teams: t}],
+        order_by: [desc: o.inserted_at]
+    )
   end
 
   # Organization CRUD Events
@@ -107,10 +127,18 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
         case Orgs.update_organization(organization, %{name: name, description: description}) do
           {:ok, updated_org} ->
+            IO.puts("=== ORGANIZATION UPDATED ===")
+            # Reload with preloads
+            updated_org = load_single_organization(updated_org.id)
+
             updated_organizations =
               Enum.map(socket.assigns.organizations, fn org ->
                 if org.id == updated_org.id, do: updated_org, else: org
               end)
+
+            # Recalculate totals
+            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
 
             {:noreply,
              socket
@@ -121,26 +149,44 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                errors: %{}
              )
              |> assign(organizations: updated_organizations)
+             |> assign(total_departments: total_departments, total_teams: total_teams)
              |> put_flash(:info, "✅ Organization '#{name}' updated successfully!")}
 
           {:error, changeset} ->
+            IO.puts("=== ERROR UPDATING ORGANIZATION ===")
+            IO.inspect(changeset)
             errors = traverse_errors(changeset)
             {:noreply, assign(socket, errors: errors)}
         end
       else
         case Orgs.create_organization(%{name: name, description: description}) do
           {:ok, new_organization} ->
+            IO.puts("=== NEW ORGANIZATION CREATED ===")
+            IO.inspect(new_organization, label: "NEW ORG")
+
+            # Reload ALL organizations with proper preloads and counts
+            updated_organizations = load_organizations_with_counts()
+            IO.inspect(length(updated_organizations), label: "TOTAL ORGS COUNT")
+
+            # Recalculate totals
+            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+
             {:noreply,
              socket
              |> assign(
                show_org_form: false,
                org_form_data: %{name: "", description: ""},
-               errors: %{}
+               errors: %{},
+               editing_org_id: nil
              )
-             |> assign(organizations: [new_organization | socket.assigns.organizations])
+             |> assign(organizations: updated_organizations)
+             |> assign(total_departments: total_departments, total_teams: total_teams)
              |> put_flash(:info, "✅ Organization '#{name}' created successfully!")}
 
           {:error, changeset} ->
+            IO.puts("=== ERROR CREATING ORGANIZATION ===")
+            IO.inspect(changeset, label: "CHANGESET ERROR")
             errors = traverse_errors(changeset)
             {:noreply, assign(socket, errors: errors)}
         end
@@ -148,6 +194,17 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     else
       {:noreply, assign(socket, errors: errors)}
     end
+  end
+
+  # Helper to load a single organization with counts
+  defp load_single_organization(org_id) do
+    Repo.one!(
+      from o in TrialApp.Orgs.Organization,
+        where: o.id == ^org_id,
+        left_join: d in assoc(o, :departments),
+        left_join: t in assoc(d, :teams),
+        preload: [departments: {d, teams: t}]
+    )
   end
 
   # Department CRUD Events
@@ -214,10 +271,16 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
         case Orgs.update_department(department, department_params) do
           {:ok, updated_dept} ->
+            # Reload with teams preloaded
+            updated_dept = Repo.preload(updated_dept, :teams, force: true)
+
             updated_departments =
               Enum.map(socket.assigns.selected_org_departments, fn dept ->
                 if dept.id == updated_dept.id, do: updated_dept, else: dept
               end)
+
+            # Recalculate total departments count
+            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
 
             {:noreply,
              socket
@@ -228,6 +291,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                errors: %{}
              )
              |> assign(selected_org_departments: updated_departments)
+             |> assign(total_departments: total_departments)
              |> put_flash(:info, "✅ Department '#{name}' updated successfully!")}
 
           {:error, changeset} ->
@@ -237,6 +301,12 @@ defmodule TrialAppWeb.OrganizationLive.Index do
       else
         case Orgs.create_department(department_params) do
           {:ok, new_department} ->
+            # Preload teams (will be empty but structure is there)
+            new_department = Repo.preload(new_department, :teams)
+
+            # Recalculate total departments count
+            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+
             {:noreply,
              socket
              |> assign(
@@ -249,6 +319,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                  new_department | socket.assigns.selected_org_departments
                ]
              )
+             |> assign(total_departments: total_departments)
              |> put_flash(:info, "✅ Department '#{name}' created successfully!")}
 
           {:error, changeset} ->
@@ -261,14 +332,45 @@ defmodule TrialAppWeb.OrganizationLive.Index do
     end
   end
 
+  def handle_event("delete_department", %{"id" => dept_id}, socket) do
+    department = Orgs.get_department!(String.to_integer(dept_id))
+
+    case Orgs.delete_department(department) do
+      {:ok, _} ->
+        # Remove from the departments list
+        updated_departments =
+          socket.assigns.selected_org_departments
+          |> Enum.reject(fn d -> d.id == department.id end)
+
+        # Recalculate totals
+        total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+        total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Department deleted successfully!")
+         |> assign(:selected_org_departments, updated_departments)
+         |> assign(total_departments: total_departments, total_teams: total_teams)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to delete department!")}
+    end
+  end
+
   # Team CRUD Events
   def handle_event("new_team", %{"department_id" => dept_id}, socket) do
     IO.puts("=== NEW_TEAM CALLED ===")
-    # Ensure departments list is populated
+    # Ensure departments list is populated with teams preloaded
     org_id = socket.assigns.selected_org.id
     departments =
       if Enum.empty?(socket.assigns.selected_org_departments) do
-        Orgs.list_departments_by_org(org_id)
+        Repo.all(
+          from d in TrialApp.Orgs.Department,
+            where: d.organization_id == ^org_id,
+            preload: [:teams]
+        )
       else
         socket.assigns.selected_org_departments
       end
@@ -371,6 +473,9 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                 if t.id == updated_team.id, do: updated_team, else: t
               end)
 
+            # Recalculate total teams count
+            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+
             {:noreply,
              socket
              |> assign(
@@ -380,6 +485,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                errors: %{}
              )
              |> assign(selected_org_teams: updated_teams)
+             |> assign(total_teams: total_teams)
              |> put_flash(:info, "✅ Team '#{name}' updated successfully!")}
 
           {:error, changeset} ->
@@ -397,6 +503,9 @@ defmodule TrialAppWeb.OrganizationLive.Index do
             # Preload the associations so the team displays properly
             new_team = Orgs.get_team_with_preloads!(new_team.id)
 
+            # Recalculate total teams count
+            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+
             {:noreply,
              socket
              |> assign(
@@ -405,6 +514,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                errors: %{}
              )
              |> assign(selected_org_teams: [new_team | socket.assigns.selected_org_teams])
+             |> assign(total_teams: total_teams)
              |> put_flash(:info, "✅ Team '#{name}' created successfully!")}
 
           {:error, changeset} ->
@@ -429,10 +539,14 @@ defmodule TrialAppWeb.OrganizationLive.Index do
           socket.assigns.selected_org_teams
           |> Enum.reject(fn t -> t.id == team.id end)
 
+        # Recalculate total teams count
+        total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+
         {:noreply,
          socket
          |> put_flash(:info, "Team deleted successfully!")
-         |> assign(:selected_org_teams, updated_teams)}
+         |> assign(:selected_org_teams, updated_teams)
+         |> assign(total_teams: total_teams)}
 
       {:error, _} ->
         {:noreply,
@@ -443,7 +557,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   # Navigation Events
   def handle_event("show_org", %{"id" => id}, socket) do
-    org = Orgs.get_organization!(String.to_integer(id))
+    # Load organization with all nested data
+    org = load_single_organization(String.to_integer(id))
 
     {:noreply,
      socket
@@ -468,7 +583,13 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   def handle_event("show_departments", _params, socket) do
     org_id = socket.assigns.selected_org.id
-    departments = Orgs.list_departments_by_org(org_id)
+    # Load departments with teams preloaded
+    departments = Repo.all(
+      from d in TrialApp.Orgs.Department,
+        where: d.organization_id == ^org_id,
+        preload: [:teams],
+        order_by: [asc: d.name]
+    )
 
     {:noreply,
      socket
@@ -493,7 +614,13 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("show_department_detail", %{"id" => id}, socket) do
-    department = Orgs.get_department_with_teams!(String.to_integer(id))
+    # Load department with teams and their employees
+    department =
+      Repo.one!(
+        from d in TrialApp.Orgs.Department,
+          where: d.id == ^String.to_integer(id),
+          preload: [teams: :employees]
+      )
 
     {:noreply,
      socket
