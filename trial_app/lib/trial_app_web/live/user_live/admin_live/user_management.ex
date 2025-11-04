@@ -63,6 +63,15 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:selected_dept_id, nil)}
   end
 
+  # NEW: Handle form input changes to preserve values
+  def handle_event("update_form_field", params, socket) do
+    field = params["field"]
+    value = params["value"] || Map.get(params, field, "")
+
+    user_form = Map.put(socket.assigns.user_form, String.to_atom(field), value)
+    {:noreply, assign(socket, :user_form, user_form)}
+  end
+
   def handle_event("create_user", params, socket) do
     # Extract user params
     user_params = %{
@@ -304,6 +313,26 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to promote user to admin")}
+    end
+  end
+
+  def handle_event("delete_user", %{"user-id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+
+    case Accounts.delete_user(user) do
+      {:ok, _user} ->
+        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "User deleted successfully!")
+         |> assign(:users, users)
+         |> assign(:show_view_modal, false)
+         |> assign(:show_edit_modal, false)
+         |> assign(:selected_user, nil)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete user")}
     end
   end
 
