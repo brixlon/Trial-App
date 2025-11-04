@@ -21,6 +21,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:selected_user, nil)
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
+     |> assign(:show_view_modal, false)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})
      |> assign(:available_teams, [])
@@ -133,11 +134,23 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:selected_dept_id, nil)}
   end
 
+  def handle_event("view_user", %{"user-id" => user_id}, socket) do
+    user = Accounts.get_user_with_assignments!(user_id)
+    current_assignments = get_current_team_assignments(user)
+
+    {:noreply,
+     socket
+     |> assign(:selected_user, user)
+     |> assign(:show_view_modal, true)
+     |> assign(:team_assignments, current_assignments)}
+  end
+
   def handle_event("close_modal", _, socket) do
     {:noreply,
      socket
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
+     |> assign(:show_view_modal, false)
      |> assign(:selected_user, nil)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})
@@ -292,11 +305,6 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to promote user to admin")}
     end
-  end
-
-  def handle_event("view_user", %{"user-id" => user_id}, socket) do
-    user_id = String.to_integer(user_id)
-    {:noreply, put_flash(socket, :info, "Viewing user #{user_id}")}
   end
 
   defp apply_filter(users, "all"), do: users
