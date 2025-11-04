@@ -69,35 +69,5 @@
         </.link>
       </div>
     </div>
-
-    <!-- Recent Activity -->
-    <div class="bg-white shadow-md rounded-2xl border border-gray-100 p-6">
-      <h2 class="text-xl font-semibold text-[#3B3B98] mb-4">Recent Activity</h2>
-      <%= if Enum.empty?(@recent_activity || []) do %>
-        <div class="text-center py-12 text-gray-500">
-          <div class="flex flex-col items-center gap-3">
-            <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
-              <.icon name="hero-document-text" class="w-10 h-10 text-[#6C63FF]/60" />
-            </div>
-            <div>
-              <p class="font-semibold text-gray-700 text-lg">No recent activity</p>
-              <p class="text-sm text-gray-500 mt-1">User approvals and changes will appear here</p>
-            </div>
-          </div>
-        </div>
-      <% else %>
-        <ul class="divide-y divide-gray-100">
-          <%= for log <- @recent_activity do %>
-            <li class="py-4 flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <.icon name="hero-clock" class="w-5 h-5 text-[#6C63FF]" />
-                <span class="text-gray-700"><%= log.message %></span>
-              </div>
-              <span class="text-sm text-gray-400"><%= log.timestamp %></span>
-            </li>
-          <% end %>
-        </ul>
-      <% end %>
-    </div>
   </div>
 </Layouts.app>

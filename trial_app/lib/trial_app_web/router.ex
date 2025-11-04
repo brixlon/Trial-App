@@ -19,47 +19,29 @@ defmodule TrialAppWeb.Router do
     plug :accepts, ["json"]
   end
 
-  # Admin pipeline - requires admin role
   pipeline :admin do
     plug :require_admin_user
   end
 
+  # Public unauthenticated routes
   scope "/", TrialAppWeb do
-    pipe_through :browser
+    pipe_through [:browser]
 
     get "/home", PageController, :home
     live "/", UserLive.Login
-  end
 
-  # Dev-only dashboard and mailbox
-  if Application.compile_env(:trial_app, :dev_routes) do
-    import Phoenix.LiveDashboard.Router
+    # FIXED: Controller routes BEFORE LiveView routes to handle login with user_id
+    get "/users/login", UserSessionController, :login
+    post "/users/login", UserSessionController, :create
+    get "/users/login/direct", UserSessionController, :direct
+    post "/users/update-password", UserSessionController, :update_password
+    delete "/users/logout", UserSessionController, :delete
 
-    scope "/dev" do
-      pipe_through :browser
-
-      live_dashboard "/dashboard", metrics: TrialAppWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
-    end
-  end
-
-  # Admin routes
-  scope "/admin", TrialAppWeb do
-    pipe_through [:browser, :require_authenticated_user, :admin]
-
-    live_session :admin,
-      on_mount: [
-        {TrialAppWeb.UserAuth, :require_authenticated},
-        {TrialAppWeb.UserAuth, :require_admin}
-      ] do
-      live "/dashboard", AdminLive.Dashboard, :index
-      live "/users", AdminLive.UserManagement, :index
-      live "/users/:id/edit", AdminLive.UserManagement, :edit
-      live "/positions", AdminLive.PositionManagement, :index
-      live "/employees", AdminLive.EmployeeManagement, :index
-      # Remove references to undefined admin management modules to silence warnings
-      # Add these routes back when corresponding modules exist
-      live "/pending-approvals", AdminLive.PendingApprovalLive, :index
+    # LiveView routes (will only match if controller routes don't match)
+    live_session :current_user,
+      on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
+      live "/users/register", UserLive.Registration, :new
+      # Remove this duplicate line: live "/users/login", UserLive.Login, :new
     end
   end
 
@@ -79,22 +61,25 @@ defmodule TrialAppWeb.Router do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
-
-    post "/users/update-password", UserSessionController, :update_password
   end
 
-  # Public auth routes
-  scope "/", TrialAppWeb do
-    pipe_through [:browser]
+  # Admin routes
+  scope "/admin", TrialAppWeb do
+    pipe_through [:browser, :require_authenticated_user, :admin]
 
-    live_session :current_user,
-      on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
-      live "/users/register", UserLive.Registration, :new
-      live "/users/login", UserLive.Login, :new
+    live_session :admin,
+      on_mount: [
+        {TrialAppWeb.UserAuth, :require_authenticated},
+        {TrialAppWeb.UserAuth, :require_admin}
+      ] do
+      live "/dashboard", AdminLive.Dashboard, :index
+      live "/users", AdminLive.UserManagement, :index
+      live "/users/:id/edit", AdminLive.UserManagement, :edit
+      live "/positions", AdminLive.PositionManagement, :index
+      live "/employees", AdminLive.EmployeeManagement, :index
+      live "/employees/new", AdminLive.EmployeeForm, :new
+      live "/pending-approvals", AdminLive.PendingApprovalLive, :index
     end
-
-    post "/users/login", UserSessionController, :create
-    delete "/users/logout", UserSessionController, :delete
   end
 
   # Permissions Policy header

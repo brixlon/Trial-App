@@ -1,7 +1,7 @@
 defmodule TrialAppWeb.Layouts do
   use TrialAppWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates "../components/layouts/*"
 
   attr :flash, :map, required: true
   attr :current_scope, :map, default: nil
@@ -50,7 +50,7 @@ defmodule TrialAppWeb.Layouts do
 
       <!-- Main Content Area -->
       <div class="flex flex-col flex-1 ml-64">
-        <.topbar current_user={@current_user} />
+        <!-- <.topbar current_user={@current_user} /> -->
 
         <main class="flex-1 p-8">
           <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-purple-100">
@@ -73,7 +73,7 @@ defmodule TrialAppWeb.Layouts do
   def public_layout(assigns) do
     ~H"""
     <div class="min-h-screen flex flex-col bg-gradient-to-br from-purple-50 via-white to-purple-100">
-      <.topbar />
+      <!-- <.topbar /> -->
       <main class="flex-1 flex items-center justify-center p-8">
         <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-purple-100 w-full max-w-3xl">
           <%= render_slot(@inner_block) %>
