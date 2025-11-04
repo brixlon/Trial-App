@@ -20,6 +20,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:filter, "all")
      |> assign(:selected_user, nil)
      |> assign(:show_edit_modal, false)
+     |> assign(:show_add_modal, false)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})
      |> assign(:available_teams, [])
@@ -38,6 +39,72 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:filter, filter)}
   end
 
+  def handle_event("open_add_modal", _, socket) do
+    available_teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
+    available_departments = Orgs.list_departments() |> Repo.preload([:organization])
+
+    user_form = %{
+      email: "",
+      username: "",
+      password: "",
+      role: "employee",
+      status: "pending"
+    }
+
+    {:noreply,
+     socket
+     |> assign(:show_add_modal, true)
+     |> assign(:user_form, user_form)
+     |> assign(:team_assignments, %{})
+     |> assign(:available_teams, available_teams)
+     |> assign(:available_departments, available_departments)
+     |> assign(:selected_org_id, nil)
+     |> assign(:selected_dept_id, nil)}
+  end
+
+  def handle_event("create_user", params, socket) do
+    # Extract user params
+    user_params = %{
+      "email" => params["email"],
+      "username" => params["username"],
+      "password" => params["password"],
+      "role" => params["role"],
+      "status" => params["status"]
+    }
+
+    # Extract team IDs from the form
+    team_ids =
+      case params["team_ids"] do
+        nil -> []
+        ids when is_list(ids) -> Enum.map(ids, &String.to_integer/1)
+        id when is_binary(id) -> [String.to_integer(id)]
+      end
+
+    IO.inspect(user_params, label: "USER PARAMS FOR CREATE")
+    IO.inspect(team_ids, label: "TEAM IDs FOR ASSIGNMENT")
+
+    case Accounts.create_user_with_assignments(user_params, team_ids) do
+      {:ok, _new_user} ->
+        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "User created successfully!")
+         |> assign(:users, users)
+         |> assign(:show_add_modal, false)
+         |> assign(:user_form, %{})
+         |> assign(:team_assignments, %{})
+         |> assign(:available_teams, [])
+         |> assign(:available_departments, [])}
+
+      {:error, changeset} ->
+        IO.inspect(changeset.errors, label: "CREATE ERROR")
+
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to create user: #{inspect(changeset.errors)}")}
+    end
+  end
 
   def handle_event("edit_user", %{"user-id" => user_id}, socket) do
     user = Accounts.get_user_with_assignments!(user_id)
@@ -70,6 +137,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     {:noreply,
      socket
      |> assign(:show_edit_modal, false)
+     |> assign(:show_add_modal, false)
      |> assign(:selected_user, nil)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})

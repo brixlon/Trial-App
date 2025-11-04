@@ -515,4 +515,55 @@ defmodule TrialApp.Accounts do
       end
     end)
   end
+
+  @doc """
+  Creates a user with team assignments.
+  """
+  def create_user_with_assignments(user_params, team_ids) do
+    case Repo.transaction(fn ->
+           # Create the user
+           user_changeset = User.registration_changeset(%User{}, user_params)
+
+           case Repo.insert(user_changeset) do
+             {:ok, new_user} ->
+               IO.inspect("User created successfully")
+               IO.inspect(new_user.id, label: "NEW USER ID")
+
+               # Handle employee records for teams if any teams are selected
+               if Enum.any?(team_ids) do
+                 # Create new employee records for each selected team
+                 Enum.each(team_ids, fn team_id ->
+                   team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+
+                   employee_attrs = %{
+                     user_id: new_user.id,
+                     name: new_user.username || new_user.email,
+                     email: new_user.email,
+                     team_id: team_id,
+                     department_id: team.department_id,
+                     organization_id: team.department.organization_id,
+                     role: normalize_employee_role(new_user.role),
+                     position: "Employee",
+                     is_active: true,
+                     status: "active"
+                   }
+
+                   %Employee{}
+                   |> Employee.changeset(employee_attrs)
+                   |> Repo.insert!()
+                 end)
+               end
+
+               new_user
+
+             {:error, changeset} ->
+               IO.inspect("User creation failed")
+               IO.inspect(changeset.errors, label: "CREATE ERRORS")
+               Repo.rollback(changeset)
+           end
+         end) do
+      {:ok, new_user} -> {:ok, new_user}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end

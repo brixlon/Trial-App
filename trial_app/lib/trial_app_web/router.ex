@@ -57,6 +57,7 @@ defmodule TrialAppWeb.Router do
       live "/users/:id/edit", AdminLive.UserManagement, :edit
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
+      live "/employees/new", AdminLive.EmployeeForm, :new
       # Remove references to undefined admin management modules to silence warnings
       # Add these routes back when corresponding modules exist
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
