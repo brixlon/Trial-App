@@ -135,11 +135,16 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("save_organization", params, socket) do
+    IO.puts("=== SAVE ORGANIZATION CALLED ===")
+    IO.inspect(params, label: "PARAMS")
+
     {name, description} =
       case params do
         %{"name" => n, "description" => d} -> {n, d}
         _ -> {"", ""}
       end
+
+    IO.inspect({name, description}, label: "EXTRACTED VALUES")
 
     errors = %{}
     errors = if String.trim(name) == "", do: Map.put(errors, :name, "Organization name is required"), else: errors
@@ -150,6 +155,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
         case Orgs.update_organization(organization, %{name: name, description: description}) do
           {:ok, updated_org} ->
+            IO.puts("=== ORGANIZATION UPDATED SUCCESSFULLY ===")
             updated_org = load_single_organization(updated_org.id)
 
             updated_organizations =
@@ -162,52 +168,64 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
             {:noreply,
              socket
+             |> put_flash(:info, "✅ Organization '#{name}' updated successfully!")
              |> assign(
                show_org_form: false,
                editing_org_id: nil,
                org_form_data: %{name: "", description: ""},
-               errors: %{}
-             )
-             |> assign(organizations: updated_organizations)
-             |> assign(total_departments: total_departments, total_teams: total_teams)
-             |> put_flash(:info, "✅ Organization '#{name}' updated successfully!")}
+               errors: %{},
+               organizations: updated_organizations,
+               total_departments: total_departments,
+               total_teams: total_teams
+             )}
 
           {:error, changeset} ->
+            IO.puts("=== ERROR UPDATING ORGANIZATION ===")
+            IO.inspect(changeset.errors, label: "CHANGESET ERRORS")
             errors = traverse_errors(changeset)
             {:noreply, assign(socket, errors: errors)}
         end
       else
-        case Orgs.create_organization(%{name: name, description: description, is_active: true}) do
+        org_attrs = %{name: name, description: description, is_active: true}
+        IO.inspect(org_attrs, label: "CREATING ORG WITH ATTRS")
+
+        case Orgs.create_organization(org_attrs) do
           {:ok, new_organization} ->
             IO.puts("=== ORGANIZATION CREATED SUCCESSFULLY ===")
             IO.inspect(new_organization, label: "NEW ORG")
 
             # Reload ALL organizations with proper preloads and counts
             updated_organizations = load_organizations_with_counts()
-            IO.inspect(Enum.count(updated_organizations), label: "TOTAL ORGANIZATIONS")
+            IO.inspect(Enum.count(updated_organizations), label: "TOTAL ORGANIZATIONS AFTER CREATE")
 
             total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
             total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
 
             {:noreply,
              socket
-             |> assign(:show_org_form, false)
-             |> assign(:org_form_data, %{name: "", description: ""})
-             |> assign(:errors, %{})
-             |> assign(:editing_org_id, nil)
-             |> assign(:organizations, updated_organizations)
-             |> assign(:total_departments, total_departments)
-             |> assign(:total_teams, total_teams)
-             |> put_flash(:info, "✅ Organization '#{name}' created successfully!")}
+             |> put_flash(:info, "✅ Organization '#{name}' created successfully!")
+             |> assign(
+               show_org_form: false,
+               org_form_data: %{name: "", description: ""},
+               errors: %{},
+               editing_org_id: nil,
+               organizations: updated_organizations,
+               total_departments: total_departments,
+               total_teams: total_teams
+             )}
 
           {:error, changeset} ->
             IO.puts("=== ERROR CREATING ORGANIZATION ===")
-            IO.inspect(changeset, label: "CHANGESET ERROR")
+            IO.inspect(changeset.errors, label: "CHANGESET ERRORS")
+            IO.inspect(changeset, label: "FULL CHANGESET")
             errors = traverse_errors(changeset)
+            IO.inspect(errors, label: "TRAVERSED ERRORS")
             {:noreply, assign(socket, errors: errors)}
         end
       end
     else
+      IO.puts("=== VALIDATION ERRORS ===")
+      IO.inspect(errors, label: "VALIDATION ERRORS")
       {:noreply, assign(socket, errors: errors)}
     end
   end
