@@ -12,7 +12,11 @@ defmodule TrialApp.Accounts.User do
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
 
-    # FIXED: Corrected module name from TrialApp.Org.Employee to TrialApp.Orgs.Employee
+    # ✅ Added fields for forced password change support
+    field :must_change_password, :boolean, default: false
+    field :password_changed_at, :utc_datetime
+
+    # ✅ Relationships (kept exactly as before)
     has_many :employees, TrialApp.Orgs.Employee
     has_many :teams, through: [:employees, :team]
     has_many :organizations, through: [:employees, :team, :organization]
@@ -176,6 +180,8 @@ defmodule TrialApp.Accounts.User do
       changeset
       |> validate_length(:password, max: 72, count: :bytes)
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
+      |> put_change(:password_changed_at, DateTime.utc_now()) # ✅ track password updates
+      |> change(%{must_change_password: false}) # ✅ reset flag after password change
       |> delete_change(:password)
     else
       changeset
