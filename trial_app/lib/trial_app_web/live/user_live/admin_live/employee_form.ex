@@ -31,7 +31,8 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
 
   @impl true
   def handle_event("organization_selected", %{"org_select" => org_id}, socket) do
-    departments = if org_id != "", do: Orgs.list_departments_by_org(org_id), else: []
+    org_int = safe_int(org_id)
+    departments = if is_integer(org_int), do: Orgs.list_departments_by_org(org_int), else: []
 
     {:noreply,
      socket
@@ -43,7 +44,8 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
 
   @impl true
   def handle_event("department_selected", %{"dept_select" => dept_id}, socket) do
-    teams = if dept_id != "", do: Orgs.list_teams_by_dept(dept_id), else: []
+    dept_int = safe_int(dept_id)
+    teams = if is_integer(dept_int), do: Orgs.list_teams_by_dept(dept_int), else: []
 
     {:noreply,
      socket
@@ -79,4 +81,12 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
   end
 
   @impl true
+  defp safe_int(nil), do: nil
+  defp safe_int(""), do: nil
+  defp safe_int(val) when is_binary(val) do
+    case Integer.parse(val) do
+      {i, _} -> i
+      :error -> nil
+    end
+  end
 end

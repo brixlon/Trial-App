@@ -15,8 +15,9 @@ defmodule TrialAppWeb.UserSessionController do
       |> put_flash(:info, "You must change your password before continuing.")
       |> redirect(to: ~p"/users/force_password_change?user_id=#{user.id}")
     else
-      # UserAuth.log_in_user already handles the redirect, don't redirect twice
-      UserAuth.log_in_user(conn, user)
+      conn
+      |> put_flash(:info, "Welcome back, #{user.username}!")
+      |> UserAuth.log_in_user(user)
     end
   end
 

@@ -109,6 +109,40 @@ defmodule TrialAppWeb.SidebarComponent do
                     Positions
                   </.link>
                 </li>
+                <li class="pt-2 border-t border-purple-100"></li>
+                <li class="text-xs uppercase tracking-wide text-purple-500 px-3">EAMS</li>
+                <li>
+                  <.link
+                    navigate={~p"/admin/eams/programs"}
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                  >
+                    Programs
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/admin/eams/projects"}
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                  >
+                    Projects
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/admin/eams/attachees"}
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                  >
+                    Attachees
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/admin/eams/tasks"}
+                    class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                  >
+                    Tasks
+                  </.link>
+                </li>
               </ul>
             </li>
           <% end %>
