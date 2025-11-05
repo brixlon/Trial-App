@@ -10,6 +10,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
      |> assign(:current_scope, socket.assigns.current_scope)
      |> assign(:tasks, load_tasks())
      |> assign(:show_form, false)
+     |> assign(:show_detail, false)
      |> assign(:projects, Eams.list_projects())
      |> assign(:attachees, Eams.list_attachees())
      |> assign(:form_data, %{
@@ -174,6 +175,15 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                         >
                           Edit
                         </button>
+                        <%= if task.status == "submitted" do %>
+                          <button
+                            phx-click="review"
+                            phx-value-id={task.id}
+                            class="text-red-600 hover:text-red-900 font-medium"
+                          >
+                            Review
+                          </button>
+                        <% end %>
                       </div>
                     </td>
                   </tr>
@@ -189,7 +199,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div class="bg-white rounded-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
-              <h2 class="text-2xl font-bold text-gray-900">Create New Task</h2>
+              <h2 class="text-2xl font-bold text-gray-900"><%= if @selected_task, do: "Edit Task", else: "Create New Task" %></h2>
               <button phx-click="close" class="text-gray-400 hover:text-gray-600">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -197,14 +207,14 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
               </button>
             </div>
 
-            <.form for={to_form(@form_data, as: :task)} id="task-form" phx-submit="save" phx-change="update">
+            <form id="task-form" phx-submit="save" phx-change="update">
               <div class="space-y-5">
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Task Title *</label>
                   <input
                     name="title"
                     value={@form_data["title"]}
-                    class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
                     placeholder="Enter task title"
                     required
                   />
@@ -230,18 +240,15 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                   </div>
 
                   <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Assign to Attachee *</label>
-                    <select name="assignee_id" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500" required>
-                      <option value="">Select an attachee</option>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Assign to Attachee</label>
+                    <select name="assignee_id" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500">
+                      <option value="">(Leave unassigned)</option>
                       <%= for a <- @attachees do %>
                         <option value={a.id} selected={to_string(a.id) == @form_data["assignee_id"]}>
                           <%= get_attachee_name(a) %>
                         </option>
                       <% end %>
                     </select>
-                    <%= if @errors[:assignee_id] do %>
-                      <p class="mt-1 text-sm text-red-600"><%= elem(@errors[:assignee_id], 0) %></p>
-                    <% end %>
                   </div>
                 </div>
 
@@ -254,22 +261,33 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                       value={@form_data["due_on"]}
                       class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
                     />
-                    <%= if @errors[:due_on] do %>
-                      <p class="mt-1 text-sm text-red-600"><%= elem(@errors[:due_on], 0) %></p>
-                    <% end %>
                   </div>
 
+                  <!-- Status is READ-ONLY based on assignment -->
                   <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                    <input
+                      type="text"
+                      value={status_display(@form_data["assignee_id"], @form_data["status"])}
+                      class="w-full border border-gray-300 rounded-lg p-3 bg-gray-100"
+                      readonly
+                    />
+                  </div>
+                </div>
+
+                <!-- Only show full status options when editing existing task -->
+                <%= if @selected_task do %>
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Change Status (Admin Only)</label>
                     <select name="status" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500">
-                      <%= for s <- ["pending", "in_progress", "blocked", "completed", "cancelled"] do %>
+                      <%= for s <- ["pending", "in_progress", "blocked", "submitted", "completed", "cancelled"] do %>
                         <option value={s} selected={s == @form_data["status"]}>
                           <%= format_status(s) %>
                         </option>
                       <% end %>
                     </select>
                   </div>
-                </div>
+                <% end %>
 
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
@@ -277,7 +295,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                     name="description"
                     class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500"
                     rows="4"
-                    placeholder="Add task description, requirements, or notes..."
+                    placeholder="Add task description..."
                   ><%= @form_data["description"] %></textarea>
                 </div>
               </div>
@@ -287,16 +305,16 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                   Cancel
                 </button>
                 <button type="submit" class="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold transition">
-                  Create Task
+                  <%= if @selected_task, do: "Update Task", else: "Create Task" %>
                 </button>
               </div>
-            </.form>
+            </form>
           </div>
         </div>
       <% end %>
 
-      <!-- Task Detail Modal -->
-      <%= if @selected_task do %>
+      <!-- Task Detail Modal with Edit & Delete -->
+      <%= if @show_detail && @selected_task do %>
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div class="bg-white rounded-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-6">
@@ -356,7 +374,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                       <%= if @selected_task.assignee.user do %>
                         <div class="text-sm text-gray-600"><%= @selected_task.assignee.user.email %></div>
                       <% end %>
-                      <%= if @selected_task.assignee.position do %>
+                      <%= if Map.get(@selected_task.assignee, :position) do %>
                         <div class="text-xs text-gray-500 mt-1"><%= @selected_task.assignee.position %></div>
                       <% end %>
                     </div>
@@ -368,11 +386,23 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
             </div>
 
             <div class="flex justify-end gap-3 mt-8 pt-6 border-t">
+              <button
+                phx-click="delete"
+                phx-value-id={@selected_task.id}
+                class="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-semibold transition"
+                data-confirm="Are you sure you want to delete this task?"
+              >
+                Delete Task
+              </button>
+              <button
+                phx-click="edit"
+                phx-value-id={@selected_task.id}
+                class="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold"
+              >
+                Edit Task
+              </button>
               <button phx-click="close_detail" class="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
                 Close
-              </button>
-              <button phx-click="edit" phx-value-id={@selected_task.id} class="px-6 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-semibold">
-                Edit Task
               </button>
             </div>
           </div>
@@ -382,16 +412,31 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     """
   end
 
+  # === Event Handlers ===
+
   def handle_event("new", _params, socket) do
-    {:noreply, assign(socket, show_form: true, selected_task: nil)}
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:show_detail, false)
+     |> assign(:selected_task, nil)
+     |> assign(:form_data, %{
+       "title" => "",
+       "description" => "",
+       "status" => "pending",
+       "due_on" => "",
+       "project_id" => "",
+       "assignee_id" => ""
+     })
+     |> assign(:errors, %{})}
   end
 
   def handle_event("close", _params, socket) do
-    {:noreply, assign(socket, show_form: false, errors: %{})}
+    {:noreply, assign(socket, show_form: false, show_detail: false, errors: %{}, selected_task: nil)}
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply, assign(socket, selected_task: nil)}
+    {:noreply, assign(socket, show_detail: false, selected_task: nil)}
   end
 
   def handle_event("filter", %{"status" => status}, socket) do
@@ -400,7 +445,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
 
   def handle_event("view", %{"id" => id}, socket) do
     task = Enum.find(socket.assigns.tasks, &(&1.id == String.to_integer(id)))
-    {:noreply, assign(socket, selected_task: task)}
+    {:noreply, assign(socket, selected_task: task, show_detail: true, show_form: false)}
   end
 
   def handle_event("edit", %{"id" => id}, socket) do
@@ -415,78 +460,142 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
       "assignee_id" => if(task.assignee_id, do: to_string(task.assignee_id), else: "")
     }
 
-    {:noreply, assign(socket, show_form: true, selected_task: nil, form_data: form_data)}
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:show_detail, false)
+     |> assign(:selected_task, task)
+     |> assign(:form_data, form_data)}
   end
 
-  def handle_event("update", %{"task" => params}, socket) do
-    socket = assign(socket, form_data: Map.merge(socket.assigns.form_data, params))
+  def handle_event("delete", %{"id" => id}, socket) do
+    task = Enum.find(socket.assigns.tasks, &(&1.id == String.to_integer(id)))
 
-    socket =
-      case Map.get(params, "project_id") do
-        nil ->
-          socket
+    case Eams.delete_task(task) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:tasks, load_tasks())
+         |> assign(:show_detail, false)
+         |> assign(:selected_task, nil)
+         |> put_flash(:info, "Task deleted successfully!")}
 
-        "" ->
-          socket
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete task.")}
+    end
+  end
 
-        proj_id_str ->
-          project = Eams.get_project!(String.to_integer(proj_id_str))
-          attachees = Eams.list_attachees_by_program(project.program_id, %{preloads: [:user]})
-          assign(socket, attachees: attachees)
-      end
+  def handle_event("update", params, socket) do
+    task_params = Map.get(params, "task", %{})
+
+    updated_form_data = Map.merge(socket.assigns.form_data, task_params)
+    socket = assign(socket, :form_data, updated_form_data)
+
+    case Map.get(task_params, "project_id") do
+      nil -> :ok
+      "" -> :ok
+      proj_id_str ->
+        project = Eams.get_project!(String.to_integer(proj_id_str))
+        attachees = Eams.list_attachees_by_program(project.program_id, %{preloads: [:user]})
+        socket = assign(socket, :attachees, attachees)
+    end
 
     {:noreply, socket}
   end
 
-  def handle_event("save", %{"task" => params}, socket) do
-    attrs = %{
-      title: params["title"],
-      description: params["description"],
-      status: params["status"],
-      due_on: parse_date(params["due_on"]),
-      project_id: parse_int(params["project_id"]),
-      assignee_id: parse_int(params["assignee_id"])
+  # Fixed: Handle save with raw params (not nested under "task")
+  def handle_event("save", params, socket) when is_map(params) do
+    # Extract task params from top-level form
+    task_params = %{
+      "title" => params["title"],
+      "description" => params["description"] || "",
+      "due_on" => params["due_on"],
+      "project_id" => params["project_id"],
+      "assignee_id" => params["assignee_id"],
+      "status" => params["status"]
     }
 
-    case Eams.create_task(attrs) do
-      {:ok, _task} ->
-        {:noreply,
-         socket
-         |> assign(:show_form, false)
-         |> assign(:form_data, %{
-           "title" => "",
-           "description" => "",
-           "status" => "pending",
-           "due_on" => "",
-           "project_id" => "",
-           "assignee_id" => ""
-         })
-         |> assign(:tasks, load_tasks())
-         |> assign(:attachees, Eams.list_attachees())
-         |> assign(:errors, %{})
-         |> put_flash(:info, "Task created successfully!")}
+    attrs = %{
+      title: task_params["title"],
+      description: task_params["description"],
+      due_on: parse_date(task_params["due_on"]),
+      project_id: parse_int(task_params["project_id"]),
+      assignee_id: parse_int(task_params["assignee_id"])
+    }
 
-      {:error, changeset} ->
-        {:noreply, assign(socket, errors: changeset.errors |> Enum.into(%{}))}
+    cond do
+      socket.assigns.selected_task ->
+        task = socket.assigns.selected_task
+        update_attrs = Map.merge(attrs, %{status: task_params["status"] || task.status})
+
+        case Eams.update_task(task, update_attrs) do
+          {:ok, _task} ->
+            {:noreply,
+             socket
+             |> assign(:show_form, false)
+             |> assign(:selected_task, nil)
+             |> assign(:form_data, %{
+               "title" => "", "description" => "", "status" => "pending",
+               "due_on" => "", "project_id" => "", "assignee_id" => ""
+             })
+             |> assign(:tasks, load_tasks())
+             |> assign(:attachees, Eams.list_attachees())
+             |> assign(:errors, %{})
+             |> put_flash(:info, "Task updated successfully!")}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset.errors |> Enum.into(%{}))}
+        end
+
+      true ->
+        status =
+          cond do
+            parse_int(task_params["assignee_id"]) -> "in_progress"
+            true -> "pending"
+          end
+
+        create_attrs = Map.put(attrs, :status, status)
+
+        case Eams.create_task(create_attrs) do
+          {:ok, _task} ->
+            {:noreply,
+             socket
+             |> assign(:show_form, false)
+             |> assign(:form_data, %{
+               "title" => "", "description" => "", "status" => "pending",
+               "due_on" => "", "project_id" => "", "assignee_id" => ""
+             })
+             |> assign(:tasks, load_tasks())
+             |> assign(:attachees, Eams.list_attachees())
+             |> assign(:errors, %{})
+             |> put_flash(:info, "Task created successfully!")}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :errors, changeset.errors |> Enum.into(%{}))}
+        end
     end
   end
 
-  # Helper Functions
+  def handle_event("review", %{"id" => id}, socket) do
+    {:noreply, push_redirect(socket, to: "/admin/review-tasks/#{id}")}
+  end
+
+  # === Helper Functions ===
 
   defp filtered_tasks(tasks, "all"), do: tasks
   defp filtered_tasks(tasks, status), do: Enum.filter(tasks, &(&1.status == status))
 
+  defp status_display("", _), do: "Pending"
+  defp status_display(_, _), do: "In Progress"
+
   defp get_attachee_name(attachee) do
     cond do
-      attachee.first_name && attachee.last_name ->
+      Map.get(attachee, :first_name) && Map.get(attachee, :last_name) ->
         "#{attachee.first_name} #{attachee.last_name}"
-
       attachee.user && attachee.user.username ->
         attachee.user.username
-
       attachee.user && attachee.user.email ->
         attachee.user.email
-
       true ->
         "Attachee ##{attachee.id}"
     end
@@ -494,12 +603,10 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
 
   defp get_initials(attachee) do
     cond do
-      attachee.first_name && attachee.last_name ->
+      Map.get(attachee, :first_name) && Map.get(attachee, :last_name) ->
         "#{String.first(attachee.first_name)}#{String.first(attachee.last_name)}"
-
       attachee.user && attachee.user.username ->
         String.slice(attachee.user.username, 0..1) |> String.upcase()
-
       true ->
         "A"
     end
@@ -550,6 +657,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
         "pending" -> "bg-yellow-100 text-yellow-800"
         "in_progress" -> "bg-blue-100 text-blue-800"
         "blocked" -> "bg-red-100 text-red-800"
+        "submitted" -> "bg-indigo-100 text-indigo-800"
         "completed" -> "bg-green-100 text-green-800"
         "cancelled" -> "bg-gray-100 text-gray-800"
         _ -> "bg-gray-100 text-gray-800"
@@ -564,9 +672,15 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
 
   defp parse_date(nil), do: nil
   defp parse_date(""), do: nil
-
-  defp parse_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>) do
-    {:ok, date} = Date.new(String.to_integer(y), String.to_integer(m), String.to_integer(d))
-    date
+  defp parse_date(<<y::4-binary, "-", m::2-binary, "-", d::2-binary>>) do
+    with {year, _} <- Integer.parse(y),
+         {month, _} <- Integer.parse(m),
+         {day, _} <- Integer.parse(d),
+         {:ok, date} <- Date.new(year, month, day) do
+      date
+    else
+      _ -> nil
+    end
   end
+  defp parse_date(_), do: nil
 end
