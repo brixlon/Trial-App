@@ -52,6 +52,7 @@ defmodule TrialAppWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
       live "/dashboard", DashboardLive, :index
+      live "/attachee", AttacheeDashboardLive, :index
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
       live "/departments", DepartmentLive.Index, :index
@@ -79,6 +80,11 @@ defmodule TrialAppWeb.Router do
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
+      # EAMS
+      live "/eams/programs", AdminLive.ProgramManagement, :index
+      live "/eams/projects", AdminLive.ProjectManagement, :index
+      live "/eams/attachees", AdminLive.AttacheeManagement, :index
+      live "/eams/tasks", AdminLive.TaskManagement, :index
     end
   end
 

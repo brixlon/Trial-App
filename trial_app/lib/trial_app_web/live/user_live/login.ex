@@ -4,9 +4,10 @@ defmodule TrialAppWeb.UserLive.Login do
   alias TrialApp.Accounts
   alias TrialApp.Accounts.User
 
+  # ── REMOVE LAYOUT FOR LOGIN PAGE ──
   @impl true
   def mount(_params, _session, socket) do
-    form = to_form(%{"email" => "", "password" => ""}, as: "user")
+    form = Phoenix.Component.to_form(%{"email" => "", "password" => ""}, as: "user")
     {:ok, assign(socket, form: form, error_message: nil)}
   end
 
@@ -29,7 +30,6 @@ defmodule TrialAppWeb.UserLive.Login do
              assign(socket, :error_message, "Your account is inactive. Contact admin.")}
 
           true ->
-            # This goes to a controller that sets the session, then redirects to dashboard.
             {:noreply, redirect(socket, to: ~p"/users/login?user_id=#{user.id}")}
         end
     end
@@ -77,7 +77,7 @@ defmodule TrialAppWeb.UserLive.Login do
       <div class="flex-1 flex items-center justify-center p-8 bg-gray-50">
         <div class="w-full max-w-md">
           <div class="text-center mb-8">
-            <img src={~p"/images/logo.png"} alt="Value8 Logo" class="h-10 mx-auto mb-6" />
+            <img src={~p"/images/value8-logo.png"} alt="Value8 Logo" class="h-10 mx-auto mb-6" />
             <h3 class="text-3xl font-semibold text-gray-800 mb-2">Sign In</h3>
             <p class="text-gray-600">Welcome back. Let's get you signed in</p>
           </div>
@@ -134,7 +134,7 @@ defmodule TrialAppWeb.UserLive.Login do
           <div class="mt-8 text-center text-sm text-gray-600">
             <div class="flex items-center justify-center gap-2 mb-2">
               <span>Powered by</span>
-              <img src={~p"/images/logo.png"} alt="Value8" class="h-5" />
+              <img src={~p"/images/value8-logo.png"} alt="Value8" class="h-5" />
             </div>
             <div class="flex items-center justify-center gap-4 text-gray-500">
               <a href="mailto:info@valuechainfactory.com" class="hover:text-gray-700 flex items-center gap-1">

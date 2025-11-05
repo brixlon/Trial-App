@@ -163,8 +163,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
                 if org.id == updated_org.id, do: updated_org, else: org
               end)
 
-            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
-            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+            total_departments = Repo.aggregate(TrialApp.Orgs.Department, :count, :id)
+            total_teams = Repo.aggregate(TrialApp.Orgs.Team, :count, :id)
 
             {:noreply,
              socket
@@ -198,8 +198,8 @@ defmodule TrialAppWeb.OrganizationLive.Index do
             updated_organizations = load_organizations_with_counts()
             IO.inspect(Enum.count(updated_organizations), label: "TOTAL ORGANIZATIONS AFTER CREATE")
 
-            total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
-            total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+            total_departments = Repo.aggregate(TrialApp.Orgs.Department, :count, :id)
+            total_teams = Repo.aggregate(TrialApp.Orgs.Team, :count, :id)
 
             {:noreply,
              socket
