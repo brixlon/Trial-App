@@ -1,16 +1,19 @@
 defmodule TrialAppWeb.AdminLive.ProgramManagement do
   use TrialAppWeb, :live_view
+  require Logger
 
   alias TrialApp.{Eams, Orgs}
 
   @impl true
   def mount(_params, _session, socket) do
+    Logger.info("ProgramManagement LiveView mounted")
+
     {:ok,
      socket
-     |> assign(:current_scope, socket.assigns.current_scope)
-     |> assign(:programs, Eams.list_programs())
+     |> assign(:current_scope, socket.assigns[:current_scope] || %{})
+     |> assign(:programs, list_programs_safe())
      |> assign(:show_form, false)
-     |> assign(:orgs, Orgs.list_all_organizations())
+     |> assign(:orgs, list_orgs_safe())
      |> assign(:departments, [])
      |> assign(:filter_departments, [])
      |> assign(:filter_programs, [])
@@ -19,8 +22,14 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:filter_department_id, "")
      |> assign(:filter_program_id, "")
      |> assign(:form_data, %{
-       "name" => "", "description" => "", "organization_id" => "",
-       "department_id" => "", "code" => "", "starts_on" => "", "ends_on" => "", "status" => "active"
+       "name" => "",
+       "description" => "",
+       "organization_id" => "",
+       "department_id" => "",
+       "code" => "",
+       "starts_on" => "",
+       "ends_on" => "",
+       "status" => "active"
      })
      |> assign(:errors, %{})}
   end
@@ -31,8 +40,13 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
     <div class="ml-64 p-8">
       <h1 class="text-2xl font-bold mb-4">Programs</h1>
+
       <div class="flex justify-end mb-3">
-        <button phx-click="new" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition">
+        <button
+          type="button"
+          phx-click="new"
+          class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
+        >
           New Program
         </button>
       </div>
@@ -41,7 +55,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
       <div class="mt-8 bg-white rounded-xl border p-4">
         <h2 class="text-lg font-semibold mb-3">Attachees in Department and Program</h2>
 
-        <!-- Fixed: Use plain <form> with phx-change, no <.form> -->
         <form id="attachee-filter" phx-change="filter_update">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
@@ -49,7 +62,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
               <select name="organization_id" class="mt-1 block w-full border rounded-md p-2 text-sm">
                 <option value="">Select organization</option>
                 <%= for o <- @orgs do %>
-                  <option value={o.id} selected={to_string(o.id) == @filter_org_id}><%= o.name %></option>
+                  <option value={o.id} selected={to_string(o.id) == @filter_org_id}>
+                    <%= o.name %>
+                  </option>
                 <% end %>
               </select>
             </div>
@@ -59,7 +74,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
               <select name="department_id" class="mt-1 block w-full border rounded-md p-2 text-sm">
                 <option value="">Select department</option>
                 <%= for d <- @filter_departments do %>
-                  <option value={d.id} selected={to_string(d.id) == @filter_department_id}><%= d.name %></option>
+                  <option value={d.id} selected={to_string(d.id) == @filter_department_id}>
+                    <%= d.name %>
+                  </option>
                 <% end %>
               </select>
             </div>
@@ -69,7 +86,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
               <select name="program_id" class="mt-1 block w-full border rounded-md p-2 text-sm">
                 <option value="">Select program</option>
                 <%= for p <- @filter_programs do %>
-                  <option value={p.id} selected={to_string(p.id) == @filter_program_id}><%= p.name %></option>
+                  <option value={p.id} selected={to_string(p.id) == @filter_program_id}>
+                    <%= p.name %>
+                  </option>
                 <% end %>
               </select>
             </div>
@@ -84,9 +103,15 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Full Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Position</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Full Name
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Position
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -99,7 +124,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
                           Attachee <%= a.id %>
                         <% end %>
                       </td>
-                      <td class="px-4 py-2 text-sm text-gray-600"><%= a.user && a.user.email || "-" %></td>
+                      <td class="px-4 py-2 text-sm text-gray-600">
+                        <%= if a.user, do: a.user.email, else: "-" %>
+                      </td>
                       <td class="px-4 py-2 text-sm text-gray-600">Attachee</td>
                     </tr>
                   <% end %>
@@ -126,22 +153,23 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
         <% end %>
       </div>
 
-      <!-- Create Program Modal -->
+      <!-- Create Program Modal - SIMPLIFIED -->
       <%= if @show_form do %>
-        <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center p-4 z-50">
-          <div class="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index: 9999;" phx-click="close">
+          <div class="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl" phx-click="stop_propagation">
             <h2 class="text-xl font-bold mb-4 text-gray-900">Create Program</h2>
 
-            <!-- Keep <.form> here because we need changeset validation -->
-            <.form for={:program} id="program-form" phx-submit="save" phx-change="update_form">
+            <form id="program-form" phx-submit="save" phx-change="update_form">
               <div class="space-y-4">
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Name <span class="text-red-500">*</span></label>
+                  <label class="block text-sm font-medium text-gray-700">
+                    Name <span class="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    name="name"
+                    name="program[name]"
                     value={@form_data["name"]}
-                    class="mt-1 block w-full border rounded-md p-2 text-sm"
+                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
                     required
                   />
                   <%= if error = @errors[:name] do %>
@@ -149,40 +177,15 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
                   <% end %>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">Start date</label>
-                    <input
-                      type="date"
-                      name="starts_on"
-                      value={@form_data["starts_on"]}
-                      class="mt-1 block w-full border rounded-md p-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700">End date</label>
-                    <input
-                      type="date"
-                      name="ends_on"
-                      value={@form_data["ends_on"]}
-                      class="mt-1 block w-full border rounded-md p-2 text-sm"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Code</label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={@form_data["code"]}
-                    class="mt-1 block w-full border rounded-md p-2 text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Organization <span class="text-red-500">*</span></label>
-                  <select name="organization_id" class="mt-1 block w-full border rounded-md p-2 text-sm" required>
+                  <label class="block text-sm font-medium text-gray-700">
+                    Organization <span class="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="program[organization_id]"
+                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                    required
+                  >
                     <option value="">Select organization</option>
                     <%= for o <- @orgs do %>
                       <option value={o.id} selected={to_string(o.id) == @form_data["organization_id"]}>
@@ -190,26 +193,71 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
                       </option>
                     <% end %>
                   </select>
+                  <%= if error = @errors[:organization_id] do %>
+                    <p class="mt-1 text-xs text-red-600"><%= error %></p>
+                  <% end %>
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-gray-700">Department <span class="text-red-500">*</span></label>
-                  <select name="department_id" class="mt-1 block w-full border rounded-md p-2 text-sm" required>
-                    <option value="">Select department</option>
+                  <label class="block text-sm font-medium text-gray-700">
+                    Department <span class="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="program[department_id]"
+                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                    required
+                  >
+                    <option value="">
+                      <%= if Enum.empty?(@departments), do: "Select organization first", else: "Select department" %>
+                    </option>
                     <%= for d <- @departments do %>
                       <option value={d.id} selected={to_string(d.id) == @form_data["department_id"]}>
                         <%= d.name %>
                       </option>
                     <% end %>
                   </select>
+                  <%= if error = @errors[:department_id] do %>
+                    <p class="mt-1 text-xs text-red-600"><%= error %></p>
+                  <% end %>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700">Code</label>
+                  <input
+                    type="text"
+                    name="program[code]"
+                    value={@form_data["code"]}
+                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                  />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Start date</label>
+                    <input
+                      type="date"
+                      name="program[starts_on]"
+                      value={@form_data["starts_on"]}
+                      class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">End date</label>
+                    <input
+                      type="date"
+                      name="program[ends_on]"
+                      value={@form_data["ends_on"]}
+                      class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label class="block text-sm font-medium text-gray-700">Description</label>
                   <textarea
-                    name="description"
+                    name="program[description]"
                     rows="3"
-                    class="mt-1 block w-full border rounded-md p-2 text-sm"
+                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
                   ><%= @form_data["description"] %></textarea>
                 </div>
               </div>
@@ -229,7 +277,7 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
                   Save
                 </button>
               </div>
-            </.form>
+            </form>
           </div>
         </div>
       <% end %>
@@ -240,39 +288,59 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   # === Event Handlers ===
 
   @impl true
-  def handle_event("new", _, socket) do
+  def handle_event("new", _params, socket) do
+    Logger.info("NEW BUTTON CLICKED - Opening form")
     {:noreply, assign(socket, show_form: true)}
   end
 
   @impl true
-  def handle_event("close", _, socket) do
+  def handle_event("close", _params, socket) do
+    Logger.info("CLOSE BUTTON CLICKED - Closing form")
     {:noreply,
      socket
      |> assign(show_form: false)
      |> assign(errors: %{})
+     |> assign(departments: [])
      |> assign(form_data: %{
-       "name" => "", "description" => "", "organization_id" => "",
-       "department_id" => "", "code" => "", "starts_on" => "", "ends_on" => "", "status" => "active"
+       "name" => "",
+       "description" => "",
+       "organization_id" => "",
+       "department_id" => "",
+       "code" => "",
+       "starts_on" => "",
+       "ends_on" => "",
+       "status" => "active"
      })}
   end
 
   @impl true
+  def handle_event("stop_propagation", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("update_form", %{"program" => params}, socket) do
+    Logger.info("UPDATE FORM: #{inspect(params)}")
     org_id = params["organization_id"] || ""
     org_int = safe_int(org_id)
-    departments = if org_int, do: Orgs.list_departments_by_org(org_int), else: []
+    departments = if org_int, do: load_departments_safe(org_int), else: []
 
-  {:noreply,
-   socket
-   |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
-   |> assign(:departments, departments)
-   |> assign(:show_form, true)}  # <- keep modal open
-end
+    {:noreply,
+     socket
+     |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
+     |> assign(:departments, departments)}
+  end
 
-
+  @impl true
+  def handle_event("update_form", params, socket) do
+    Logger.warning("UPDATE FORM received unexpected params: #{inspect(params)}")
+    {:noreply, socket}
+  end
 
   @impl true
   def handle_event("save", %{"program" => params}, socket) do
+    Logger.info("SAVE PROGRAM: #{inspect(params)}")
+
     attrs = %{
       name: params["name"],
       description: params["description"] || "",
@@ -286,18 +354,32 @@ end
 
     case Eams.create_program(attrs) do
       {:ok, _program} ->
+        Logger.info("Program created successfully")
         {:noreply,
          socket
          |> assign(:show_form, false)
          |> assign(:errors, %{})
+         |> assign(:departments, [])
          |> assign(:form_data, %{
-           "name" => "", "description" => "", "organization_id" => "",
-           "department_id" => "", "code" => "", "starts_on" => "", "ends_on" => "", "status" => "active"
+           "name" => "",
+           "description" => "",
+           "organization_id" => "",
+           "department_id" => "",
+           "code" => "",
+           "starts_on" => "",
+           "ends_on" => "",
+           "status" => "active"
          })
-         |> assign(:programs, Eams.list_programs())}
+         |> assign(:programs, list_programs_safe())
+         |> put_flash(:info, "Program created successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        errors = changeset.errors |> Enum.map(fn {field, {msg, _}} -> {field, msg} end) |> Enum.into(%{})
+        Logger.error("Program creation failed: #{inspect(changeset.errors)}")
+        errors =
+          changeset.errors
+          |> Enum.map(fn {field, {msg, _}} -> {field, msg} end)
+          |> Enum.into(%{})
+
         {:noreply, assign(socket, :errors, errors)}
     end
   end
@@ -322,19 +404,67 @@ end
      |> assign(:filter_program_id, prog_id)}
   end
 
-  # === Helper Functions ===
+  # === Helper Functions with error handling ===
+
+  defp list_programs_safe do
+    try do
+      Eams.list_programs()
+    rescue
+      e ->
+        Logger.error("Error listing programs: #{inspect(e)}")
+        []
+    end
+  end
+
+  defp list_orgs_safe do
+    try do
+      Orgs.list_all_organizations()
+    rescue
+      e ->
+        Logger.error("Error listing organizations: #{inspect(e)}")
+        []
+    end
+  end
+
+  defp load_departments_safe(org_id) do
+    try do
+      Orgs.list_departments_by_org(org_id)
+    rescue
+      e ->
+        Logger.error("Error loading departments: #{inspect(e)}")
+        []
+    end
+  end
 
   defp load_departments(""), do: []
   defp load_departments(nil), do: []
-  defp load_departments(id), do: Orgs.list_departments_by_org(String.to_integer(id))
+  defp load_departments(id), do: load_departments_safe(String.to_integer(id))
 
   defp load_programs(""), do: []
   defp load_programs(nil), do: []
-  defp load_programs(id), do: Eams.list_programs_by_department(String.to_integer(id))
+
+  defp load_programs(id) do
+    try do
+      Eams.list_programs_by_department(String.to_integer(id))
+    rescue
+      e ->
+        Logger.error("Error loading programs: #{inspect(e)}")
+        []
+    end
+  end
 
   defp load_attachees(""), do: []
   defp load_attachees(nil), do: []
-  defp load_attachees(id), do: Eams.list_attachees_by_program(String.to_integer(id), %{preloads: [:user]})
+
+  defp load_attachees(id) do
+    try do
+      Eams.list_attachees_by_program(String.to_integer(id), %{preloads: [:user]})
+    rescue
+      e ->
+        Logger.error("Error loading attachees: #{inspect(e)}")
+        []
+    end
+  end
 
   defp parse_int(""), do: nil
   defp parse_int(nil), do: nil
@@ -342,6 +472,7 @@ end
 
   defp safe_int(""), do: nil
   defp safe_int(nil), do: nil
+
   defp safe_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {i, _} -> i
@@ -351,6 +482,7 @@ end
 
   defp parse_date(""), do: nil
   defp parse_date(nil), do: nil
+
   defp parse_date(<<y::4-binary, "-", m::2-binary, "-", d::2-binary>>) do
     with {year, _} <- Integer.parse(y),
          {month, _} <- Integer.parse(m),
@@ -361,5 +493,6 @@ end
       _ -> nil
     end
   end
+
   defp parse_date(_), do: nil
 end

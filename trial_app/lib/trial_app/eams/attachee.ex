@@ -15,7 +15,6 @@ defmodule TrialApp.Eams.Attachee do
 
     has_many :tasks, TrialApp.Eams.Task, foreign_key: :assignee_id
 
-    # 🔥 This is the missing piece:
     many_to_many :programs, TrialApp.Eams.Program,
       join_through: TrialApp.Eams.AttacheeProgram,
       on_replace: :delete
