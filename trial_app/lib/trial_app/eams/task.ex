@@ -2,7 +2,8 @@ defmodule TrialApp.Eams.Task do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @statuses ~w(pending in_progress blocked completed cancelled)
+  # Use strings, not atoms
+  @statuses ~w(pending in_progress blocked submitted completed cancelled)
 
   schema "tasks" do
     field :title, :string
@@ -19,12 +20,27 @@ defmodule TrialApp.Eams.Task do
   def changeset(task, attrs) do
     task
     |> cast(attrs, [:title, :description, :status, :due_on, :project_id, :assignee_id])
-    |> validate_required([:title, :project_id, :assignee_id])
+    |> validate_required([:title, :project_id])
     |> validate_inclusion(:status, @statuses)
-    |> assoc_constraint(:project)
-    |> assoc_constraint(:assignee)
+    |> foreign_key_constraint(:project_id)
+    |> foreign_key_constraint(:assignee_id)
   end
 
-  def create_changeset(task, attrs), do: changeset(task, attrs)
-  def update_changeset(task, attrs), do: changeset(task, attrs)
+  def create_changeset(task, attrs) do
+    task
+    |> changeset(attrs)
+    |> validate_required([:assignee_id])
+  end
+# lib/trial_app/eams/task.ex
+def changeset(task, attrs) do
+  task
+  |> cast(attrs, [:title, :description, :status, :due_on, :project_id, :assignee_id, :reject_reason])
+  |> validate_required([:title, :project_id])
+  |> validate_inclusion(:status, @statuses)
+  |> foreign_key_constraint(:project_id)
+  |> foreign_key_constraint(:assignee_id)
+end
+  def update_changeset(task, attrs) do
+    changeset(task, attrs)
+  end
 end
