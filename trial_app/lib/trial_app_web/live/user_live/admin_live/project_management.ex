@@ -9,8 +9,11 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     {:ok,
      socket
      |> assign(:current_scope, socket.assigns.current_scope)
-     |> assign(:projects, Eams.list_projects())
+     |> assign(:projects, list_projects_with_preloads())
      |> assign(:show_form, false)
+     |> assign(:show_view_modal, false)
+     |> assign(:editing_project, nil)
+     |> assign(:viewing_project, nil)
      |> assign(:orgs, Orgs.list_all_organizations())
      |> assign(:departments, [])
      |> assign(:programs, [])
@@ -19,13 +22,27 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:errors, %{})}
   end
 
-  # Events
+  # Events - Create
   def handle_event("new", _params, socket) do
-    {:noreply, assign(socket, show_form: true)}
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:editing_project, nil)
+     |> assign(:form_data, empty_form())
+     |> assign(:departments, [])
+     |> assign(:programs, [])}
   end
 
   def handle_event("close", _params, socket) do
-    {:noreply, assign(socket, show_form: false, form_data: empty_form())}
+    {:noreply,
+     socket
+     |> assign(:show_form, false)
+     |> assign(:show_view_modal, false)
+     |> assign(:editing_project, nil)
+     |> assign(:viewing_project, nil)
+     |> assign(:form_data, empty_form())
+     |> assign(:departments, [])
+     |> assign(:programs, [])}
   end
 
   def handle_event("update", %{"project" => params}, socket) do
@@ -58,22 +75,94 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
       supervisor_id: parse_int(params["supervisor_id"])
     }
 
-    case Eams.create_project(attrs) do
+    result = if socket.assigns.editing_project do
+      Eams.update_project(socket.assigns.editing_project, attrs)
+    else
+      Eams.create_project(attrs)
+    end
+
+    case result do
       {:ok, _project} ->
         {:noreply,
          socket
          |> assign(:show_form, false)
+         |> assign(:editing_project, nil)
          |> assign(:form_data, empty_form())
          |> assign(:departments, [])
          |> assign(:programs, [])
-         |> assign(:projects, Eams.list_projects())}
+         |> assign(:projects, list_projects_with_preloads())
+         |> put_flash(:info, "Project #{if socket.assigns.editing_project, do: "updated", else: "created"} successfully")}
 
       {:error, changeset} ->
         {:noreply, assign(socket, errors: changeset.errors |> Enum.into(%{}))}
     end
   end
 
+  # Events - View
+  def handle_event("view_project", %{"id" => id}, socket) do
+    project = Eams.get_project!(parse_int(id))
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+
+    {:noreply,
+     socket
+     |> assign(:viewing_project, project)
+     |> assign(:show_view_modal, true)}
+  end
+
+  # Events - Edit
+  def handle_event("edit_project", %{"id" => id}, socket) do
+    project = Eams.get_project!(parse_int(id))
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+
+    org_id = project.organization_id
+    dept_id = project.department_id
+
+    departments = if org_id, do: Orgs.list_departments_by_org(org_id), else: []
+    programs = if dept_id, do: Eams.list_programs_by_department(dept_id), else: []
+
+    form_data = %{
+      "name" => project.name || "",
+      "description" => project.description || "",
+      "code" => project.code || "",
+      "starts_on" => if(project.starts_on, do: Date.to_string(project.starts_on), else: ""),
+      "ends_on" => if(project.ends_on, do: Date.to_string(project.ends_on), else: ""),
+      "organization_id" => if(org_id, do: to_string(org_id), else: ""),
+      "department_id" => if(dept_id, do: to_string(dept_id), else: ""),
+      "program_id" => if(project.program_id, do: to_string(project.program_id), else: ""),
+      "supervisor_id" => if(project.supervisor_id, do: to_string(project.supervisor_id), else: "")
+    }
+
+    {:noreply,
+     socket
+     |> assign(:editing_project, project)
+     |> assign(:show_form, true)
+     |> assign(:form_data, form_data)
+     |> assign(:departments, departments)
+     |> assign(:programs, programs)}
+  end
+
+  # Events - Delete
+  def handle_event("delete_project", %{"id" => id}, socket) do
+    project = Eams.get_project!(parse_int(id))
+
+    case Eams.delete_project(project) do
+      {:ok, _project} ->
+        {:noreply,
+         socket
+         |> assign(:projects, list_projects_with_preloads())
+         |> put_flash(:info, "Project deleted successfully")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Unable to delete project")}
+    end
+  end
+
   # Helpers
+  defp list_projects_with_preloads do
+    Eams.list_projects()
+    |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+  end
+
   defp empty_form do
     %{
       "name" => "",
@@ -90,10 +179,12 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   defp parse_int(nil), do: nil
   defp parse_int(""), do: nil
+  defp parse_int(val) when is_integer(val), do: val
   defp parse_int(val) when is_binary(val), do: String.to_integer(val)
 
   defp safe_int(nil), do: nil
   defp safe_int(""), do: nil
+  defp safe_int(val) when is_integer(val), do: val
   defp safe_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {i, _} -> i
