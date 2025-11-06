@@ -31,7 +31,9 @@ defmodule TrialApp.Eams.Project do
       :ends_on,
       :organization_id,
       :department_id,
-      :program_id
+      :program_id,
+      :supervisor_id     
+
     ])
     |> validate_required([:name, :organization_id, :department_id, :program_id])
     |> validate_length(:code, min: 2, max: 16)

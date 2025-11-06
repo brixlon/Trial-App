@@ -4,6 +4,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
 
   alias TrialApp.{Eams, Orgs}
 
+  # --------------------------------------------------------------------- #
+  # MOUNT
+  # --------------------------------------------------------------------- #
   @impl true
   def mount(_params, _session, socket) do
     Logger.info("ProgramManagement LiveView mounted")
@@ -13,6 +16,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:current_scope, socket.assigns[:current_scope] || %{})
      |> assign(:programs, list_programs_safe())
      |> assign(:show_form, false)
+     |> assign(:show_view_modal, false)
+     |> assign(:editing_program, nil)
+     |> assign(:viewing_program, nil)
      |> assign(:orgs, list_orgs_safe())
      |> assign(:departments, [])
      |> assign(:filter_departments, [])
@@ -34,25 +40,42 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:errors, %{})}
   end
 
-  @impl true
-
-  # === Event Handlers ===
-
+  # --------------------------------------------------------------------- #
+  # BASIC FORM EVENTS
+  # --------------------------------------------------------------------- #
   @impl true
   def handle_event("new", _params, socket) do
-    Logger.info("NEW BUTTON CLICKED - Opening form")
-    {:noreply, assign(socket, show_form: true)}
+    Logger.info("NEW BUTTON – opening form")
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:editing_program, nil)
+     |> assign(:form_data, %{
+       "name" => "",
+       "description" => "",
+       "organization_id" => "",
+       "department_id" => "",
+       "code" => "",
+       "starts_on" => "",
+       "ends_on" => "",
+       "status" => "active"
+     })
+     |> assign(:departments, [])
+     |> assign(:errors, %{})}
   end
 
   @impl true
   def handle_event("close", _params, socket) do
-    Logger.info("CLOSE BUTTON CLICKED - Closing form")
+    Logger.info("CLOSE – resetting modals")
     {:noreply,
      socket
-     |> assign(show_form: false)
-     |> assign(errors: %{})
-     |> assign(departments: [])
-     |> assign(form_data: %{
+     |> assign(:show_form, false)
+     |> assign(:show_view_modal, false)
+     |> assign(:editing_program, nil)
+     |> assign(:viewing_program, nil)
+     |> assign(:errors, %{})
+     |> assign(:departments, [])
+     |> assign(:form_data, %{
        "name" => "",
        "description" => "",
        "organization_id" => "",
@@ -64,14 +87,71 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      })}
   end
 
+  # --------------------------------------------------------------------- #
+  # VIEW PROGRAM
+  # --------------------------------------------------------------------- #
   @impl true
-  def handle_event("stop_propagation", _params, socket) do
-    {:noreply, socket}
+  def handle_event("view_program", %{"id" => id}, socket) do
+    program = Eams.get_program!(id) |> TrialApp.Repo.preload([:organization, :department])
+    {:noreply,
+     socket
+     |> assign(:viewing_program, program)
+     |> assign(:show_view_modal, true)}
   end
 
+  # --------------------------------------------------------------------- #
+  # EDIT PROGRAM
+  # --------------------------------------------------------------------- #
+  @impl true
+  def handle_event("edit_program", %{"id" => id}, socket) do
+    program = Eams.get_program!(id) |> TrialApp.Repo.preload([:organization, :department])
+
+    form_data = %{
+      "name" => program.name || "",
+      "description" => program.description || "",
+      "organization_id" => to_string(program.organization_id || ""),
+      "department_id" => to_string(program.department_id || ""),
+      "code" => program.code || "",
+      "starts_on" => (if program.starts_on, do: Date.to_iso8601(program.starts_on), else: ""),
+      "ends_on" => (if program.ends_on, do: Date.to_iso8601(program.ends_on), else: ""),
+      "status" => program.status || "active"
+    }
+
+    departments = load_departments_safe(program.organization_id)
+
+    {:noreply,
+     socket
+     |> assign(:show_form, true)
+     |> assign(:editing_program, program)
+     |> assign(:form_data, form_data)
+     |> assign(:departments, departments)
+     |> assign(:errors, %{})}
+  end
+
+  # --------------------------------------------------------------------- #
+  # DELETE PROGRAM
+  # --------------------------------------------------------------------- #
+  @impl true
+  def handle_event("delete_program", %{"id" => id}, socket) do
+    program = Eams.get_program!(id)
+
+    case Eams.delete_program(program) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:programs, list_programs_safe())
+         |> put_flash(:info, "Program deleted successfully")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Could not delete program")}
+    end
+  end
+
+  # --------------------------------------------------------------------- #
+  # FORM UPDATE (org → dept)
+  # --------------------------------------------------------------------- #
   @impl true
   def handle_event("update_form", %{"program" => params}, socket) do
-    Logger.info("UPDATE FORM: #{inspect(params)}")
     org_id = params["organization_id"] || ""
     org_int = safe_int(org_id)
     departments = if org_int, do: load_departments_safe(org_int), else: []
@@ -82,16 +162,11 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:departments, departments)}
   end
 
-  @impl true
-  def handle_event("update_form", params, socket) do
-    Logger.warning("UPDATE FORM received unexpected params: #{inspect(params)}")
-    {:noreply, socket}
-  end
-
+  # --------------------------------------------------------------------- #
+  # SAVE / UPDATE
+  # --------------------------------------------------------------------- #
   @impl true
   def handle_event("save", %{"program" => params}, socket) do
-    Logger.info("SAVE PROGRAM: #{inspect(params)}")
-
     attrs = %{
       name: params["name"],
       description: params["description"] || "",
@@ -103,12 +178,20 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
       department_id: parse_int(params["department_id"])
     }
 
-    case Eams.create_program(attrs) do
+    result =
+      if socket.assigns.editing_program do
+        Eams.update_program(socket.assigns.editing_program, attrs)
+      else
+        Eams.create_program(attrs)
+      end
+
+    case result do
       {:ok, _program} ->
-        Logger.info("Program created successfully")
+        Logger.info("Program #{if socket.assigns.editing_program, do: "updated", else: "created"} successfully")
         {:noreply,
          socket
          |> assign(:show_form, false)
+         |> assign(:editing_program, nil)
          |> assign(:errors, %{})
          |> assign(:departments, [])
          |> assign(:form_data, %{
@@ -122,10 +205,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
            "status" => "active"
          })
          |> assign(:programs, list_programs_safe())
-         |> put_flash(:info, "Program created successfully")}
+         |> put_flash(:info, "Program #{if socket.assigns.editing_program, do: "updated", else: "created"} successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        Logger.error("Program creation failed: #{inspect(changeset.errors)}")
         errors =
           changeset.errors
           |> Enum.map(fn {field, {msg, _}} -> {field, msg} end)
@@ -135,6 +217,9 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     end
   end
 
+  # --------------------------------------------------------------------- #
+  # FILTERING
+  # --------------------------------------------------------------------- #
   @impl true
   def handle_event("filter_update", params, socket) do
     org_id = Map.get(params, "organization_id", "")
@@ -155,11 +240,12 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:filter_program_id, prog_id)}
   end
 
-  # === Helper Functions with error handling ===
-
+  # --------------------------------------------------------------------- #
+  # HELPERS
+  # --------------------------------------------------------------------- #
   defp list_programs_safe do
     try do
-      Eams.list_programs()
+      Eams.list_programs() |> TrialApp.Repo.preload([:organization, :department])
     rescue
       e ->
         Logger.error("Error listing programs: #{inspect(e)}")
@@ -177,7 +263,7 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     end
   end
 
-  defp load_departments_safe(org_id) do
+  defp load_departments_safe(org_id) when is_integer(org_id) do
     try do
       Orgs.list_departments_by_org(org_id)
     rescue
@@ -193,7 +279,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
 
   defp load_programs(""), do: []
   defp load_programs(nil), do: []
-
   defp load_programs(id) do
     try do
       Eams.list_programs_by_department(String.to_integer(id))
@@ -206,7 +291,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
 
   defp load_attachees(""), do: []
   defp load_attachees(nil), do: []
-
   defp load_attachees(id) do
     try do
       Eams.list_attachees_by_program(String.to_integer(id), %{preloads: [:user]})
@@ -223,7 +307,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
 
   defp safe_int(""), do: nil
   defp safe_int(nil), do: nil
-
   defp safe_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {i, _} -> i
@@ -233,7 +316,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
 
   defp parse_date(""), do: nil
   defp parse_date(nil), do: nil
-
   defp parse_date(<<y::4-binary, "-", m::2-binary, "-", d::2-binary>>) do
     with {year, _} <- Integer.parse(y),
          {month, _} <- Integer.parse(m),
@@ -244,6 +326,5 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
       _ -> nil
     end
   end
-
   defp parse_date(_), do: nil
 end
