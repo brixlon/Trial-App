@@ -21,7 +21,6 @@ defmodule TrialAppWeb.UserSessionController do
     end
   end
 
-  # -------------------------------------------------------------------------
   # STANDARD EMAIL/PASSWORD LOGIN (API Style)
   # -------------------------------------------------------------------------
   def create(conn, %{"user" => %{"email" => email, "password" => password}} = params) do
