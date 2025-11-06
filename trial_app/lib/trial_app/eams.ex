@@ -9,9 +9,13 @@ defmodule TrialApp.Eams do
   alias TrialApp.Eams.{Program, Project, Task, Attachee, AttacheeProgram}
   alias TrialApp.Orgs.{Department, Organization}
 
-  # Programs
+  # ──────────────────────────────────────────────────────────────────────
+  # PROGRAMS
+  # ──────────────────────────────────────────────────────────────────────
   def list_programs(opts \\ %{}) do
-    Program |> preload(^Map.get(opts, :preloads, [:department, :organization])) |> Repo.all()
+    Program
+    |> preload(^Map.get(opts, :preloads, [:department, :organization]))
+    |> Repo.all()
   end
 
   def list_programs_by_department(department_id, opts \\ %{}) do
@@ -22,22 +26,32 @@ defmodule TrialApp.Eams do
   end
 
   def get_program!(id, opts \\ %{}) do
-    Program |> Repo.get!(id) |> Repo.preload(Map.get(opts, :preloads, [:department, :organization]))
+    Program
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:department, :organization]))
   end
 
   def create_program(attrs) do
-    %Program{} |> Program.create_changeset(attrs) |> Repo.insert()
+    %Program{}
+    |> Program.create_changeset(attrs)
+    |> Repo.insert()
   end
 
   def update_program(%Program{} = program, attrs) do
-    program |> Program.update_changeset(attrs) |> Repo.update()
+    program
+    |> Program.update_changeset(attrs)
+    |> Repo.update()
   end
 
   def delete_program(%Program{} = program), do: Repo.delete(program)
 
-  # Projects
+  # ──────────────────────────────────────────────────────────────────────
+  # PROJECTS
+  # ──────────────────────────────────────────────────────────────────────
   def list_projects(opts \\ %{}) do
-    Project |> preload(^Map.get(opts, :preloads, [:program, :department, :organization])) |> Repo.all()
+    Project
+    |> preload(^Map.get(opts, :preloads, [:program, :department, :organization]))
+    |> Repo.all()
   end
 
   def list_projects_by_program(program_id, opts \\ %{}) do
@@ -48,22 +62,32 @@ defmodule TrialApp.Eams do
   end
 
   def get_project!(id, opts \\ %{}) do
-    Project |> Repo.get!(id) |> Repo.preload(Map.get(opts, :preloads, [:program, :department, :organization]))
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:program, :department, :organization]))
   end
 
   def create_project(attrs) do
-    %Project{} |> Project.create_changeset(attrs) |> Repo.insert()
+    %Project{}
+    |> Project.create_changeset(attrs)
+    |> Repo.insert()
   end
 
   def update_project(%Project{} = project, attrs) do
-    project |> Project.update_changeset(attrs) |> Repo.update()
+    project
+    |> Project.update_changeset(attrs)
+    |> Repo.update()
   end
 
   def delete_project(%Project{} = project), do: Repo.delete(project)
 
-  # Attachees
+  # ──────────────────────────────────────────────────────────────────────
+  # ATTACHEES
+  # ──────────────────────────────────────────────────────────────────────
   def list_attachees(opts \\ %{}) do
-    Attachee |> preload(^Map.get(opts, :preloads, [:user, :department, :organization])) |> Repo.all()
+    Attachee
+    |> preload(^Map.get(opts, :preloads, [:user, :department, :organization]))
+    |> Repo.all()
   end
 
   def list_attachees_by_department(department_id, opts \\ %{}) do
@@ -89,14 +113,14 @@ defmodule TrialApp.Eams do
     |> Repo.insert()
   end
 
-  # ————————————————————————————
-  # Current user helpers
-  # ————————————————————————————
-  def get_attachee_by_user!(user_id) do
+  # ──────────────────────────────────────────────────────────────────────
+  # CURRENT USER HELPERS (used by dashboard)
+  # ──────────────────────────────────────────────────────────────────────
+  def get_attachee_by_user(user_id) do
     Attachee
     |> where([a], a.user_id == ^user_id)
     |> preload([:user, :department, :organization])
-    |> Repo.one!()
+    |> Repo.one()
   end
 
   def list_programs_for_attachee(attachee_id) do
@@ -113,6 +137,7 @@ defmodule TrialApp.Eams do
     Task
     |> where([t], t.assignee_id == ^attachee_id)
     |> preload([:project])
+    |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
   end
 
@@ -123,39 +148,94 @@ defmodule TrialApp.Eams do
       where: t.assignee_id == ^attachee_id,
       distinct: true
     )
+    |> preload([:program, :department, :organization])
     |> Repo.all()
   end
 
   def get_attachee!(id, opts \\ %{}) do
-    Attachee |> Repo.get!(id) |> Repo.preload(Map.get(opts, :preloads, [:user, :department, :organization]))
+    Attachee
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:user, :department, :organization]))
   end
 
   def create_attachee(attrs) do
-    %Attachee{} |> Attachee.create_changeset(attrs) |> Repo.insert()
+    %Attachee{}
+    |> Attachee.create_changeset(attrs)
+    |> Repo.insert()
   end
 
   def update_attachee(%Attachee{} = attachee, attrs) do
-    attachee |> Attachee.update_changeset(attrs) |> Repo.update()
+    attachee
+    |> Attachee.update_changeset(attrs)
+    |> Repo.update()
   end
 
   def delete_attachee(%Attachee{} = attachee), do: Repo.delete(attachee)
 
-  # Tasks
+  # ──────────────────────────────────────────────────────────────────────
+  # TASKS
+  # ──────────────────────────────────────────────────────────────────────
   def list_tasks(opts \\ %{}) do
-    Task |> preload(^Map.get(opts, :preloads, [:project, :assignee])) |> Repo.all()
+    Task
+    |> preload(^Map.get(opts, :preloads, [:project, :assignee]))
+    |> Repo.all()
   end
 
   def get_task!(id, opts \\ %{}) do
-    Task |> Repo.get!(id) |> Repo.preload(Map.get(opts, :preloads, [:project, :assignee]))
+    Task
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:project, :assignee]))
   end
 
   def create_task(attrs) do
-    %Task{} |> Task.create_changeset(attrs) |> Repo.insert()
+    %Task{}
+    |> Task.create_changeset(attrs)
+    |> Repo.insert()
   end
 
   def update_task(%Task{} = task, attrs) do
-    task |> Task.update_changeset(attrs) |> Repo.update()
+    task
+    |> Task.update_changeset(attrs)
+    |> Repo.update()
   end
 
   def delete_task(%Task{} = task), do: Repo.delete(task)
+
+  # ──────────────────────────────────────────────────────────────────────
+  # TASK SUBMISSION & REJECTION (dashboard)
+  # ──────────────────────────────────────────────────────────────────────
+  def submit_attachee_task(task_id, attrs) do
+    task = get_task!(task_id, preloads: [:project, :assignee])
+
+    task
+    |> Task.changeset(
+      Map.merge(attrs, %{
+        status: "submitted",
+        submitted_at: DateTime.utc_now(),
+        reject_reason: nil  # Clear rejection feedback on resubmit
+      })
+    )
+    |> Repo.update()
+  end
+
+  def reject_attachee_task(task_id, reason) do
+    task = get_task!(task_id, preloads: [:project, :assignee])
+
+    task
+    |> Task.changeset(%{
+      status: "rejected",
+      reject_reason: reason
+    })
+    |> Repo.update()
+  end
+
+  def approve_attachee_task(task_id) do
+    task = get_task!(task_id, preloads: [:project, :assignee])
+
+    task
+    |> Task.changeset(%{
+      status: "completed"
+    })
+    |> Repo.update()
+  end
 end

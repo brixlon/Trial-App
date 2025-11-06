@@ -6,6 +6,7 @@ defmodule TrialApp.Eams.Attachee do
 
   schema "attachees" do
     field :status, :string, default: "active"
+    field :position, :string, default: "Software Developer Attachee"
     field :starts_on, :date
     field :ends_on, :date
 
@@ -24,13 +25,23 @@ defmodule TrialApp.Eams.Attachee do
 
   def changeset(attachee, attrs) do
     attachee
-    |> cast(attrs, [:status, :starts_on, :ends_on, :user_id, :organization_id, :department_id])
+    |> cast(attrs, [
+      :status,
+      :position,
+      :starts_on,
+      :ends_on,
+      :user_id,
+      :organization_id,
+      :department_id
+    ])
     |> validate_required([:user_id, :organization_id, :department_id])
     |> validate_inclusion(:status, @statuses)
     |> assoc_constraint(:user)
     |> assoc_constraint(:organization)
     |> assoc_constraint(:department)
-    |> unique_constraint([:user_id, :department_id], name: :attachees_user_id_department_id_index)
+    |> unique_constraint([:user_id, :department_id],
+      name: :attachees_user_id_department_id_index
+    )
   end
 
   def create_changeset(attachee, attrs), do: changeset(attachee, attrs)

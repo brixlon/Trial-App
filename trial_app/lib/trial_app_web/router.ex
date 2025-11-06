@@ -30,41 +30,54 @@ defmodule TrialAppWeb.Router do
     get "/home", PageController, :home
     live "/", UserLive.Login
 
-    # FIXED: Controller routes BEFORE LiveView routes to handle login with user_id
+    # Controller routes BEFORE LiveView to avoid conflicts
     get "/users/login", UserSessionController, :login
     post "/users/login", UserSessionController, :create
     get "/users/login/direct", UserSessionController, :direct
     post "/users/update-password", UserSessionController, :update_password
     delete "/users/logout", UserSessionController, :delete
 
-    # LiveView routes (will only match if controller routes don't match)
+    # Public LiveView routes
     live_session :current_user,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
       live "/users/register", UserLive.Registration, :new
-      # Remove this duplicate line: live "/users/login", UserLive.Login, :new
     end
   end
 
-  # Authenticated routes
+  # Authenticated routes (all roles)
   scope "/", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
+
+      # General Dashboard
       live "/dashboard", DashboardLive, :index
+
+      # ──────────────────────────────────────────────────────────────────────
+      # ATTACHEE ROUTES
+      # ──────────────────────────────────────────────────────────────────────
       live "/attachee", AttacheeDashboardLive, :index
+      live "/attachee/tasks", AttacheeTasksLive, :index
+      live "/attachee/profile", AttacheeProfileLive, :show
+
+      # ──────────────────────────────────────────────────────────────────────
+      # GENERAL USER ROUTES
+      # ──────────────────────────────────────────────────────────────────────
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
       live "/departments", DepartmentLive.Index, :index
       live "/teams", TeamLive.Index, :index
       live "/employees", EmployeeLive.Index, :index
       live "/positions", PositionLive.Index, :index
+
+      # Settings
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
   end
 
-  # Admin routes
+  # Admin-only routes
   scope "/admin", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user, :admin]
 
@@ -73,14 +86,18 @@ defmodule TrialAppWeb.Router do
         {TrialAppWeb.UserAuth, :require_authenticated},
         {TrialAppWeb.UserAuth, :require_admin}
       ] do
+
       live "/dashboard", AdminLive.Dashboard, :index
+
+      # User & HR Management
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
-      # EAMS
+
+      # EAMS Admin
       live "/eams/programs", AdminLive.ProgramManagement, :index
       live "/eams/projects", AdminLive.ProjectManagement, :index
       live "/eams/attachees", AdminLive.AttacheeManagement, :index
@@ -88,7 +105,7 @@ defmodule TrialAppWeb.Router do
     end
   end
 
-  # Permissions Policy header
+  # Permissions-Policy header
   def put_custom_permissions_policy(conn, _opts) do
     permissions_policy =
       [
