@@ -448,6 +448,28 @@
 
       <!-- Modal Body -->
       <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <!-- Global Error Display -->
+        <%= if @errors != %{} do %>
+          <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-2">
+              <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-red-800 mb-1">Please fix the following errors:</h3>
+                <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                  <%= for {field, error} <- @errors do %>
+                    <li>
+                      <strong><%= field |> to_string() |> String.replace("_", " ") |> String.capitalize() %>:</strong>
+                      <%= if is_tuple(error), do: elem(error, 0), else: error %>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
         <.form for={to_form(@form_data, as: :project)} id="project-form" phx-submit="save" phx-change="update">
           <div class="space-y-5">
             <!-- Project Name -->
@@ -458,33 +480,58 @@
               <input 
                 name="project[name]" 
                 value={@form_data["name"]} 
-                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all" 
+                class={"w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all #{if @errors[:name], do: "border-red-500", else: "border-gray-300"}"} 
                 placeholder="Enter project name"
                 required 
               />
+              <%= if @errors[:name] do %>
+                <p class="text-sm text-red-600 mt-1"><%= if is_tuple(@errors[:name]), do: elem(@errors[:name], 0), else: @errors[:name] %></p>
+              <% end %>
             </div>
 
-            <!-- Date Range -->
+            <!-- Date Range with Validation -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Start Date</label>
+                <label class="block text-sm font-semibold text-gray-700">
+                  Start Date
+                  <span class="text-xs font-normal text-gray-500 ml-2">(Optional)</span>
+                </label>
                 <input 
                   type="date" 
                   name="project[starts_on]" 
                   value={@form_data["starts_on"]} 
-                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all" 
+                  class={"w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all #{if @errors[:starts_on] || @errors[:date_range], do: "border-red-500", else: "border-gray-300"}"} 
                 />
+                <%= if @errors[:starts_on] do %>
+                  <p class="text-sm text-red-600 mt-1"><%= elem(@errors[:starts_on], 0) %></p>
+                <% end %>
               </div>
               <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">End Date</label>
+                <label class="block text-sm font-semibold text-gray-700">
+                  End Date
+                  <span class="text-xs font-normal text-gray-500 ml-2">(Optional)</span>
+                </label>
                 <input 
                   type="date" 
                   name="project[ends_on]" 
                   value={@form_data["ends_on"]} 
-                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all" 
+                  class={"w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all #{if @errors[:ends_on] || @errors[:date_range], do: "border-red-500", else: "border-gray-300"}"} 
                 />
+                <%= if @errors[:ends_on] do %>
+                  <p class="text-sm text-red-600 mt-1"><%= elem(@errors[:ends_on], 0) %></p>
+                <% end %>
               </div>
             </div>
+
+            <!-- Date Range Error (if any) -->
+            <%= if @errors[:date_range] do %>
+              <div class="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-sm text-red-700"><%= @errors[:date_range] %></p>
+              </div>
+            <% end %>
 
             <!-- Project Code -->
             <div class="space-y-2">
@@ -599,7 +646,7 @@
               type="submit" 
               class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8] transition-colors"
             >
-              Create Project
+              <%= if @editing_project, do: "Update Project", else: "Create Project" %>
             </button>
           </div>
         </.form>

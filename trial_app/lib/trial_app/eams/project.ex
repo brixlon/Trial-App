@@ -32,8 +32,7 @@ defmodule TrialApp.Eams.Project do
       :organization_id,
       :department_id,
       :program_id,
-      :supervisor_id     
-
+      :supervisor_id
     ])
     |> validate_required([:name, :organization_id, :department_id, :program_id])
     |> validate_length(:code, min: 2, max: 16)
@@ -53,15 +52,24 @@ defmodule TrialApp.Eams.Project do
 
   def update_changeset(project, attrs), do: changeset(project, attrs)
 
+  # FIXED: This function now properly validates dates
   defp validate_date_range(changeset) do
     starts_on = get_field(changeset, :starts_on)
     ends_on = get_field(changeset, :ends_on)
 
-    case {starts_on, ends_on} do
-      {nil, _} -> changeset
-      {_, nil} -> changeset
-      {s, e} when e < s -> add_error(changeset, :ends_on, "must be on or after start date")
-      _ -> changeset
+    cond do
+      # If either date is nil, skip validation
+      is_nil(starts_on) or is_nil(ends_on) ->
+        changeset
+
+      # Only add error if end date is BEFORE start date
+      # Using Date.compare/2 for proper date comparison
+      Date.compare(ends_on, starts_on) == :lt ->
+        add_error(changeset, :ends_on, "must be after start date")
+
+      # All other cases are valid (including when dates are equal or end is after start)
+      true ->
+        changeset
     end
   end
 end
