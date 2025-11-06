@@ -11,15 +11,15 @@ defmodule TrialApp.Accounts.User do
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
+    field :roles, {:array, :string}, default: []
+    field :active_role, :string  
     field :first_name, :string
     field :last_name, :string
     field :phone_number, :string
 
-    # ✅ Added fields for forced password change support
     field :must_change_password, :boolean, default: false
     field :password_changed_at, :utc_datetime
 
-    # ✅ Relationships (kept exactly as before)
     has_many :employees, TrialApp.Orgs.Employee
     has_many :teams, through: [:employees, :team]
     has_many :organizations, through: [:employees, :team, :organization]
