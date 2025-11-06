@@ -35,8 +35,7 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   end
 
   @impl true
-  @impl true
-  
+
   # === Event Handlers ===
 
   @impl true
@@ -77,17 +76,10 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     org_int = safe_int(org_id)
     departments = if org_int, do: load_departments_safe(org_int), else: []
 
-    # Clear date errors when dates change
-    new_errors =
-      socket.assigns.errors
-      |> Map.delete(:starts_on)
-      |> Map.delete(:ends_on)
-
     {:noreply,
      socket
      |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
-     |> assign(:departments, departments)
-     |> assign(:errors, new_errors)}
+     |> assign(:departments, departments)}
   end
 
   @impl true
@@ -100,59 +92,45 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   def handle_event("save", %{"program" => params}, socket) do
     Logger.info("SAVE PROGRAM: #{inspect(params)}")
 
-    starts_on = parse_date(params["starts_on"])
-    ends_on = parse_date(params["ends_on"])
+    attrs = %{
+      name: params["name"],
+      description: params["description"] || "",
+      code: params["code"] || "",
+      starts_on: parse_date(params["starts_on"]),
+      ends_on: parse_date(params["ends_on"]),
+      status: "active",
+      organization_id: parse_int(params["organization_id"]),
+      department_id: parse_int(params["department_id"])
+    }
 
-    Logger.info("Parsed dates - starts_on: #{inspect(starts_on)}, ends_on: #{inspect(ends_on)}")
+    case Eams.create_program(attrs) do
+      {:ok, _program} ->
+        Logger.info("Program created successfully")
+        {:noreply,
+         socket
+         |> assign(:show_form, false)
+         |> assign(:errors, %{})
+         |> assign(:departments, [])
+         |> assign(:form_data, %{
+           "name" => "",
+           "description" => "",
+           "organization_id" => "",
+           "department_id" => "",
+           "code" => "",
+           "starts_on" => "",
+           "ends_on" => "",
+           "status" => "active"
+         })
+         |> assign(:programs, list_programs_safe())
+         |> put_flash(:info, "Program created successfully")}
 
-    # Validate dates before attempting to create
-    case validate_dates(starts_on, ends_on) do
-      :ok ->
-        attrs = %{
-          name: params["name"],
-          description: params["description"] || "",
-          code: params["code"] || "",
-          starts_on: starts_on,
-          ends_on: ends_on,
-          status: "active",
-          organization_id: parse_int(params["organization_id"]),
-          department_id: parse_int(params["department_id"])
-        }
+      {:error, %Ecto.Changeset{} = changeset} ->
+        Logger.error("Program creation failed: #{inspect(changeset.errors)}")
+        errors =
+          changeset.errors
+          |> Enum.map(fn {field, {msg, _}} -> {field, msg} end)
+          |> Enum.into(%{})
 
-        case Eams.create_program(attrs) do
-          {:ok, _program} ->
-            Logger.info("Program created successfully")
-            {:noreply,
-             socket
-             |> assign(:show_form, false)
-             |> assign(:errors, %{})
-             |> assign(:departments, [])
-             |> assign(:form_data, %{
-               "name" => "",
-               "description" => "",
-               "organization_id" => "",
-               "department_id" => "",
-               "code" => "",
-               "starts_on" => "",
-               "ends_on" => "",
-               "status" => "active"
-             })
-             |> assign(:programs, list_programs_safe())
-             |> put_flash(:info, "Program created successfully")}
-
-          {:error, %Ecto.Changeset{} = changeset} ->
-            Logger.error("Program creation failed: #{inspect(changeset.errors)}")
-            errors =
-              changeset.errors
-              |> Enum.map(fn {field, {msg, _}} -> {field, msg} end)
-              |> Enum.into(%{})
-
-            {:noreply, assign(socket, :errors, errors)}
-        end
-
-      {:error, error_field, error_message} ->
-        Logger.warning("Date validation failed: #{error_message}")
-        errors = Map.put(socket.assigns.errors, error_field, error_message)
         {:noreply, assign(socket, :errors, errors)}
     end
   end
@@ -175,19 +153,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
      |> assign(:filter_org_id, org_id)
      |> assign(:filter_department_id, dept_id)
      |> assign(:filter_program_id, prog_id)}
-  end
-
-  # === Date Validation ===
-
-  defp validate_dates(nil, nil), do: :ok
-  defp validate_dates(nil, _ends_on), do: :ok
-  defp validate_dates(_starts_on, nil), do: :ok
-
-  defp validate_dates(starts_on, ends_on) do
-    case Date.compare(starts_on, ends_on) do
-      :gt -> {:error, :ends_on, "End date must be on or after start date"}
-      _ -> :ok
-    end
   end
 
   # === Helper Functions with error handling ===
@@ -269,7 +234,6 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   defp parse_date(""), do: nil
   defp parse_date(nil), do: nil
 
-  # Handle YYYY-MM-DD format (standard HTML date input)
   defp parse_date(<<y::4-binary, "-", m::2-binary, "-", d::2-binary>>) do
     with {year, _} <- Integer.parse(y),
          {month, _} <- Integer.parse(m),
@@ -281,36 +245,5 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     end
   end
 
-  # Handle DD/MM/YYYY format
-  defp parse_date(<<d::2-binary, "/", m::2-binary, "/", y::4-binary>>) do
-    with {day, _} <- Integer.parse(d),
-         {month, _} <- Integer.parse(m),
-         {year, _} <- Integer.parse(y),
-         {:ok, date} <- Date.new(year, month, day) do
-      date
-    else
-      _ -> nil
-    end
-  end
-
-  # Handle MM/DD/YYYY format
-  defp parse_date(<<m::2-binary, "/", d::2-binary, "/", y::4-binary>> = str) do
-    # Try MM/DD/YYYY first
-    with {month, _} <- Integer.parse(m),
-         {day, _} <- Integer.parse(d),
-         {year, _} <- Integer.parse(y),
-         {:ok, date} <- Date.new(year, month, day) do
-      date
-    else
-      _ ->
-        # If that fails, maybe it was DD/MM/YYYY
-        Logger.warning("Could not parse date: #{str}")
-        nil
-    end
-  end
-
-  defp parse_date(val) do
-    Logger.warning("Unexpected date format: #{inspect(val)}")
-    nil
-  end
+  defp parse_date(_), do: nil
 end

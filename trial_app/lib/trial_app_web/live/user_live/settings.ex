@@ -240,6 +240,12 @@ defmodule TrialAppWeb.UserLive.Settings do
   end
 
   def handle_event("lv:clear-flash", %{"key" => key}, socket) do
-    {:noreply, clear_flash(socket, String.to_atom(key))}
+    # Flash keys are predefined atoms, but use a whitelist for safety
+    flash_key = case key do
+      "info" -> :info
+      "error" -> :error
+      _ -> :info  # default fallback
+    end
+    {:noreply, clear_flash(socket, flash_key)}
   end
 end

@@ -31,6 +31,40 @@ defmodule TrialApp.Orgs.Organization do
   Changeset for creating a new organization with additional validations.
   """
   def create_changeset(organization, attrs) do
+    # Auto-generate code from name if not provided
+    # Handle both atom and string keys
+    has_code = (Map.has_key?(attrs, :code) && attrs[:code] != nil && attrs[:code] != "") ||
+               (Map.has_key?(attrs, "code") && attrs["code"] != nil && attrs["code"] != "")
+
+    attrs =
+      if has_code do
+        attrs
+      else
+        name = Map.get(attrs, :name) || Map.get(attrs, "name") || ""
+
+        code = name
+               |> String.upcase()
+               |> String.replace(~r/[^A-Z0-9]/, "_")
+               |> String.replace(~r/_+/, "_")
+               |> String.trim("_")
+               |> String.slice(0, 10)  # Ensure max length
+
+        # Ensure minimum length - pad with numbers if needed
+        code = if String.length(code) < 2 do
+          base = if String.length(code) > 0, do: code, else: "ORG"
+          "#{base}1"
+        else
+          code
+        end
+
+        # Use the same key type as the attrs map
+        if Map.has_key?(attrs, "name") do
+          Map.put(attrs, "code", code)
+        else
+          Map.put(attrs, :code, code)
+        end
+      end
+
     organization
     |> changeset(attrs)
     |> validate_required([:code])

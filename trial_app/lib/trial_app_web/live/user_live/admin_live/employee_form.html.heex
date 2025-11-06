@@ -1,217 +1,226 @@
- <div class="max-w-4xl mx-auto py-8 px-4">
-      <!-- Header -->
-      <div class="mb-8">
-        <div class="flex items-center gap-3 mb-2">
-          <.link navigate={~p"/admin/employees"} class="p-2 hover:bg-gray-100 rounded-lg transition">
-            <.icon name="hero-arrow-left" class="w-5 h-5 text-gray-600" />
-          </.link>
-          <h1 class="text-3xl font-bold text-[#3B3B98]">Add New Employee</h1>
-        </div>
-        <p class="text-sm text-gray-500 ml-14">Create a new employee record in your organization</p>
+<div class="max-w-4xl mx-auto py-8 px-4">
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 mb-2">
+      <.link navigate={~p"/admin/employees"} class="p-2 hover:bg-gray-100 rounded-lg transition">
+        <.icon name="hero-arrow-left" class="w-5 h-5 text-gray-600" />
+      </.link>
+      <h1 class="text-3xl font-bold text-[#3B3B98]">Add New Employee</h1>
+    </div>
+    <p class="text-sm text-gray-500 ml-14">Create a new employee record in your organization</p>
+  </div>
+
+  <!-- Form Card -->
+  <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
+    <.form for={@form} phx-change="validate" phx-submit="save" class="p-8 space-y-6">
+
+      <!-- User Selection -->
+      <div class="space-y-2">
+        <label class="block text-sm font-semibold text-gray-700">
+          Link to User Account <span class="text-red-500">*</span>
+        </label>
+        <.input
+          field={@form[:user_id]}
+          type="select"
+          options={[{"Select a user", ""} | Enum.map(@users, &{&1.email, &1.id})]}
+          required
+          class="w-full"
+        />
+        <p class="text-xs text-gray-500">Select the user account to link with this employee record</p>
       </div>
 
-      <!-- Form Card -->
-      <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
-        <.form for={@form} phx-change="validate" phx-submit="save" class="p-8 space-y-6">
+      <!-- Basic Information -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">
+            Full Name <span class="text-red-500">*</span>
+          </label>
+          <.input
+            field={@form[:name]}
+            type="text"
+            placeholder="John Doe"
+            required
+          />
+        </div>
 
-          <!-- User Selection -->
+        <div class="space-y-2">
+          <label class="block text-sm font-semibold text-gray-700">
+            Email <span class="text-red-500">*</span>
+          </label>
+          <.input
+            field={@form[:email]}
+            type="email"
+            placeholder="john.doe@company.com"
+            required
+          />
+        </div>
+      </div>
+
+      <!-- Organization Hierarchy -->
+      <div class="border-t pt-6 mt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Organization Structure</h3>
+
+        <div class="space-y-4">
+          <!-- Organization -->
           <div class="space-y-2">
             <label class="block text-sm font-semibold text-gray-700">
-              Link to User Account <span class="text-red-500">*</span>
+              Organization <span class="text-red-500">*</span>
+            </label>
+            <select
+              name="org_select"
+              phx-change="organization_selected"
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none"
+            >
+              <option value="">Select an organization</option>
+              <%= for org <- @organizations do %>
+                <option value={org.id} selected={@selected_org_id == to_string(org.id)}>
+                  <%= org.name %>
+                </option>
+              <% end %>
+            </select>
+          </div>
+
+          <!-- Department -->
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Department <span class="text-red-500">*</span>
+            </label>
+            <select
+              name="dept_select"
+              phx-change="department_selected"
+              disabled={Enum.empty?(@departments)}
+              class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                <%= if Enum.empty?(@departments), do: "Select an organization first", else: "Select a department" %>
+              </option>
+              <%= for dept <- @departments do %>
+                <option value={dept.id} selected={@selected_dept_id == to_string(dept.id)}>
+                  <%= dept.name %>
+                </option>
+              <% end %>
+            </select>
+          </div>
+
+          <!-- Team -->
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Team <span class="text-red-500">*</span>
             </label>
             <.input
-              field={@form[:user_id]}
+              field={@form[:team_id]}
               type="select"
-              options={[{"Select a user", ""} | Enum.map(@users, &{&1.email, &1.id})]}
+              options={[
+                {if(Enum.empty?(@teams), do: "Select a department first", else: "Select a team"), ""}
+                | Enum.map(@teams, &{&1.name, &1.id})
+              ]}
+              disabled={Enum.empty?(@teams)}
               required
-              class="w-full"
             />
-            <p class="text-xs text-gray-500">Select the user account to link with this employee record</p>
           </div>
 
-          <!-- Basic Information -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">
-                Full Name <span class="text-red-500">*</span>
-              </label>
-              <.input
-                field={@form[:name]}
-                type="text"
-                placeholder="John Doe"
-                required
-              />
-            </div>
-
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">
-                Email <span class="text-red-500">*</span>
-              </label>
-              <.input
-                field={@form[:email]}
-                type="email"
-                placeholder="john.doe@company.com"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Organization Hierarchy -->
-          <div class="border-t pt-6 mt-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Organization Structure</h3>
-
-            <div class="space-y-4">
-              <!-- Organization -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Organization <span class="text-red-500">*</span>
-                </label>
-                <select
-                  name="org_select"
-                  phx-change="organization_selected"
-                  class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none"
-                >
-                  <option value="">Select an organization</option>
-                  <%= for org <- @organizations do %>
-                    <option value={org.id} selected={@selected_org_id == to_string(org.id)}>
-                      <%= org.name %>
-                    </option>
-                  <% end %>
-                </select>
-              </div>
-
-              <!-- Department -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Department <span class="text-red-500">*</span>
-                </label>
-                <select
-                  name="dept_select"
-                  phx-change="department_selected"
-                  disabled={Enum.empty?(@departments)}
-                  class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    <%= if Enum.empty?(@departments), do: "Select an organization first", else: "Select a department" %>
-                  </option>
-                  <%= for dept <- @departments do %>
-                    <option value={dept.id} selected={@selected_dept_id == to_string(dept.id)}>
-                      <%= dept.name %>
-                    </option>
-                  <% end %>
-                </select>
-              </div>
-
-              <!-- Team -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Team <span class="text-red-500">*</span>
-                </label>
-                <.input
-                  field={@form[:team_id]}
-                  type="select"
-                  options={[
-                    {if(Enum.empty?(@teams), do: "Select a department first", else: "Select a team"), ""}
-                    | Enum.map(@teams, &{&1.name, &1.id})
-                  ]}
-                  disabled={Enum.empty?(@teams)}
-                  required
-                />
-              </div>
-
-              <!-- Hidden fields for organization and department -->
-              <.input field={@form[:organization_id]} type="hidden" value={@selected_org_id} />
-              <.input field={@form[:department_id]} type="hidden" value={@selected_dept_id} />
-            </div>
-          </div>
-
-          <!-- Role and Position -->
-          <div class="border-t pt-6 mt-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Role & Position</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Role <span class="text-red-500">*</span>
-                </label>
-                <.input
-                  field={@form[:role]}
-                  type="select"
-                  options={[
-                    {"Member", "member"},
-                    {"Lead", "lead"},
-                    {"Manager", "manager"},
-                    {"Admin", "admin"},
-                    {"Developer", "developer"},
-                    {"Designer", "designer"},
-                    {"Engineer", "engineer"},
-                    {"Analyst", "analyst"},
-                    {"QA", "qa"},
-                    {"Support", "support"}
-                  ]}
-                  required
-                />
-              </div>
-
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Position
-                </label>
-                <.input
-                  field={@form[:position]}
-                  type="text"
-                  placeholder="e.g., Senior Developer"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Status -->
-          <div class="border-t pt-6 mt-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
-
-            <div class="space-y-4">
-              <div class="flex items-center gap-3">
-                <.input
-                  field={@form[:is_active]}
-                  type="checkbox"
-                  label="Active Employee"
-                />
-              </div>
-
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">
-                  Employment Status
-                </label>
-                <.input
-                  field={@form[:status]}
-                  type="select"
-                  options={[
-                    {"Active", "active"},
-                    {"On Leave", "on_leave"},
-                    {"Inactive", "inactive"}
-                  ]}
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Form Actions -->
-          <div class="flex items-center justify-end gap-3 pt-6 border-t">
-            <button
-              type="button"
-              phx-click="cancel"
-              class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition font-medium shadow-sm"
-            >
-              Create Employee
-            </button>
-          </div>
-        </.form>
+          <!-- Hidden fields for organization and department -->
+          <.input field={@form[:organization_id]} type="hidden" value={@selected_org_id} />
+          <.input field={@form[:department_id]} type="hidden" value={@selected_dept_id} />
+        </div>
       </div>
-    </div>
+
+      <!-- Role and Position -->
+      <div class="border-t pt-6 mt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Role & Position</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Role <span class="text-red-500">*</span>
+            </label>
+            <.input
+              field={@form[:role]}
+              type="select"
+              options={[
+                {"Member", "member"},
+                {"Lead", "lead"},
+                {"Manager", "manager"},
+                {"Admin", "admin"},
+                {"Developer", "developer"},
+                {"Designer", "designer"},
+                {"Engineer", "engineer"},
+                {"Analyst", "analyst"},
+                {"QA", "qa"},
+                {"Support", "support"}
+              ]}
+              required
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Position
+            </label>
+            <.input
+              field={@form[:position]}
+              type="text"
+              placeholder="e.g., Senior Developer"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="border-t pt-6 mt-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
+
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <.input
+              field={@form[:is_active]}
+              type="checkbox"
+              label="Active Employee"
+            />
+          </div>
+
+          <div class="flex items-center gap-3">
+            <.input
+              field={@form[:is_attachee]}
+              type="checkbox"
+              label="Attachee"
+            />
+            <span class="text-xs text-gray-500">Mark this employee as an attachee</span>
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Employment Status
+            </label>
+            <.input
+              field={@form[:status]}
+              type="select"
+              options={[
+                {"Active", "active"},
+                {"On Leave", "on_leave"},
+                {"Inactive", "inactive"}
+              ]}
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex items-center justify-end gap-3 pt-6 border-t">
+        <button
+          type="button"
+          phx-click="cancel"
+          class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition font-medium"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition font-medium shadow-sm"
+        >
+          Create Employee
+        </button>
+      </div>
+    </.form>
+  </div>
+</div>

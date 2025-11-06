@@ -3,9 +3,9 @@ alias TrialApp.{Repo, Accounts}
 
 # Create admin user directly with admin role
 admin_attrs = %{
-  email: "admin@trialapp.com",
-  username: "admin",
-  password: "admin123456"
+  email: "developer@trialapp.com",
+  username: "developer",
+  password: "@@@mwendia19"
 }
 
 # Create admin user using direct changeset

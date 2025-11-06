@@ -177,10 +177,11 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                         </button>
                         <%= if task.status == "submitted" do %>
                           <button
-                            phx-click={JS.navigate("/admin/eams/review-tasks")}
+                            phx-click="review"
+                            phx-value-id={task.id}
                             class="text-red-600 hover:text-red-900 font-medium"
                           >
-                            Review All
+                            Review
                           </button>
                         <% end %>
                       </div>
@@ -262,6 +263,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                     />
                   </div>
 
+                  <!-- Status is READ-ONLY based on assignment -->
                   <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
                     <input
@@ -273,6 +275,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                   </div>
                 </div>
 
+                <!-- Only show full status options when editing existing task -->
                 <%= if @selected_task do %>
                   <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Change Status (Admin Only)</label>
@@ -310,7 +313,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
         </div>
       <% end %>
 
-      <!-- Task Detail Modal -->
+      <!-- Task Detail Modal with Edit & Delete -->
       <%= if @show_detail && @selected_task do %>
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div class="bg-white rounded-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
@@ -371,6 +374,9 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
                       <%= if @selected_task.assignee.user do %>
                         <div class="text-sm text-gray-600"><%= @selected_task.assignee.user.email %></div>
                       <% end %>
+                      <%= if Map.get(@selected_task.assignee, :position) do %>
+                        <div class="text-xs text-gray-500 mt-1"><%= @selected_task.assignee.position %></div>
+                      <% end %>
                     </div>
                   </div>
                 <% else %>
@@ -407,6 +413,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   end
 
   # === Event Handlers ===
+
   def handle_event("new", _params, socket) do
     {:noreply,
      socket
@@ -496,7 +503,9 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     {:noreply, socket}
   end
 
+  # Fixed: Handle save with raw params (not nested under "task")
   def handle_event("save", params, socket) when is_map(params) do
+    # Extract task params from top-level form
     task_params = %{
       "title" => params["title"],
       "description" => params["description"] || "",
@@ -517,16 +526,7 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     cond do
       socket.assigns.selected_task ->
         task = socket.assigns.selected_task
-
-        status =
-          cond do
-            task_params["status"] in ["", nil] -> task.status
-            task_params["status"] in ["pending", "in_progress", "blocked", "submitted", "completed", "cancelled"] ->
-              task_params["status"]
-            true -> task.status
-          end
-
-        update_attrs = Map.merge(attrs, %{status: status})
+        update_attrs = Map.merge(attrs, %{status: task_params["status"] || task.status})
 
         case Eams.update_task(task, update_attrs) do
           {:ok, _task} ->
@@ -544,16 +544,14 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
              |> put_flash(:info, "Task updated successfully!")}
 
           {:error, changeset} ->
-            IO.inspect(changeset.errors, label: "UPDATE ERRORS")
             {:noreply, assign(socket, :errors, changeset.errors |> Enum.into(%{}))}
         end
 
       true ->
         status =
-          if parse_int(task_params["assignee_id"]) do
-            "in_progress"
-          else
-            "pending"
+          cond do
+            parse_int(task_params["assignee_id"]) -> "in_progress"
+            true -> "pending"
           end
 
         create_attrs = Map.put(attrs, :status, status)
@@ -573,13 +571,17 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
              |> put_flash(:info, "Task created successfully!")}
 
           {:error, changeset} ->
-            IO.inspect(changeset.errors, label: "CREATE ERRORS")
             {:noreply, assign(socket, :errors, changeset.errors |> Enum.into(%{}))}
         end
     end
   end
 
+  def handle_event("review", %{"id" => id}, socket) do
+    {:noreply, push_redirect(socket, to: "/admin/review-tasks/#{id}")}
+  end
+
   # === Helper Functions ===
+
   defp filtered_tasks(tasks, "all"), do: tasks
   defp filtered_tasks(tasks, status), do: Enum.filter(tasks, &(&1.status == status))
 
@@ -590,9 +592,12 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     cond do
       Map.get(attachee, :first_name) && Map.get(attachee, :last_name) ->
         "#{attachee.first_name} #{attachee.last_name}"
-      attachee.user && attachee.user.username -> attachee.user.username
-      attachee.user && attachee.user.email -> attachee.user.email
-      true -> "Attachee ##{attachee.id}"
+      attachee.user && attachee.user.username ->
+        attachee.user.username
+      attachee.user && attachee.user.email ->
+        attachee.user.email
+      true ->
+        "Attachee ##{attachee.id}"
     end
   end
 
@@ -602,7 +607,8 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
         "#{String.first(attachee.first_name)}#{String.first(attachee.last_name)}"
       attachee.user && attachee.user.username ->
         String.slice(attachee.user.username, 0..1) |> String.upcase()
-      true -> "A"
+      true ->
+        "A"
     end
   end
 

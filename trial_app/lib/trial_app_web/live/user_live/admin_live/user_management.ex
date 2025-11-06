@@ -41,34 +41,27 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   end
 
   def handle_event("open_add_modal", _, socket) do
-    available_teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
-    available_departments = Orgs.list_departments() |> Repo.preload([:organization])
-
+    # Use string keys to be consistent with update_form_field
     user_form = %{
-      email: "",
-      username: "",
-      password: "",
-      role: "employee",
-      status: "pending"
+      "email" => "",
+      "first_name" => "",
+      "last_name" => "",
+      "phone_number" => ""
     }
 
     {:noreply,
      socket
      |> assign(:show_add_modal, true)
-     |> assign(:user_form, user_form)
-     |> assign(:team_assignments, %{})
-     |> assign(:available_teams, available_teams)
-     |> assign(:available_departments, available_departments)
-     |> assign(:selected_org_id, nil)
-     |> assign(:selected_dept_id, nil)}
+     |> assign(:user_form, user_form)}
   end
 
-  # NEW: Handle form input changes to preserve values
+  # Handle form input changes to preserve values
   def handle_event("update_form_field", params, socket) do
     field = params["field"]
     value = params["value"] || Map.get(params, field, "")
 
-    user_form = Map.put(socket.assigns.user_form, String.to_atom(field), value)
+    # Use string keys to avoid String.to_atom memory leak
+    user_form = Map.put(socket.assigns.user_form, field, value)
     {:noreply, assign(socket, :user_form, user_form)}
   end
 
@@ -76,43 +69,35 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     # Extract user params
     user_params = %{
       "email" => params["email"],
-      "username" => params["username"],
-      "password" => params["password"],
-      "role" => params["role"],
-      "status" => params["status"]
+      "first_name" => params["first_name"],
+      "last_name" => params["last_name"],
+      "phone_number" => params["phone_number"],
+      "role" => params["role"] || "employee",
+      "status" => params["status"] || "pending"
     }
 
-    # Extract team IDs from the form
-    team_ids =
-      case params["team_ids"] do
-        nil -> []
-        ids when is_list(ids) -> Enum.map(ids, &String.to_integer/1)
-        id when is_binary(id) -> [String.to_integer(id)]
-      end
-
-    IO.inspect(user_params, label: "USER PARAMS FOR CREATE")
-    IO.inspect(team_ids, label: "TEAM IDs FOR ASSIGNMENT")
-
-    case Accounts.create_user_with_assignments(user_params, team_ids) do
+    case Accounts.create_user(user_params) do
       {:ok, _new_user} ->
-        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
+        # Reload users list with fresh data
+        users = Accounts.list_users_with_assignments()
+        filtered_users = apply_filter(users, socket.assigns.filter)
 
         {:noreply,
          socket
          |> put_flash(:info, "User created successfully!")
-         |> assign(:users, users)
+         |> assign(:users, filtered_users)
          |> assign(:show_add_modal, false)
-         |> assign(:user_form, %{})
-         |> assign(:team_assignments, %{})
-         |> assign(:available_teams, [])
-         |> assign(:available_departments, [])}
+         |> assign(:user_form, %{})}
 
       {:error, changeset} ->
-        IO.inspect(changeset.errors, label: "CREATE ERROR")
+        error_message =
+          changeset.errors
+          |> Enum.map(fn {field, {message, _}} -> "#{field}: #{message}" end)
+          |> Enum.join(", ")
 
         {:noreply,
          socket
-         |> put_flash(:error, "Failed to create user: #{inspect(changeset.errors)}")}
+         |> put_flash(:error, "Failed to create user: #{error_message}")}
     end
   end
 
@@ -162,9 +147,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:show_view_modal, false)
      |> assign(:selected_user, nil)
      |> assign(:user_form, %{})
-     |> assign(:team_assignments, %{})
-     |> assign(:available_teams, [])
-     |> assign(:available_departments, [])}
+     |> assign(:team_assignments, %{})}
   end
 
   def handle_event("toggle_team_assignment", %{"team-id" => team_id}, socket) do
@@ -272,10 +255,14 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
         id when is_binary(id) -> [String.to_integer(id)]
       end
 
-    IO.inspect(user_params, label: "USER PARAMS FOR UPDATE")
-    IO.inspect(team_ids, label: "TEAM IDs FOR ASSIGNMENT")
+    # Attachee enrollment params
+    attachee? = params["is_attachee"] == "true"
+    attachee_dates = %{
+      "starts_on" => Map.get(params, "attachee_starts_on"),
+      "ends_on" => Map.get(params, "attachee_ends_on")
+    }
 
-    case Accounts.update_user_with_assignments(user, user_params, team_ids) do
+    case Accounts.update_user_with_assignments(user, user_params, team_ids, %{attachee?: attachee?, attachee_dates: attachee_dates}) do
       {:ok, _updated_user} ->
         users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
 
@@ -291,8 +278,6 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
          |> assign(:available_departments, [])}
 
       {:error, changeset} ->
-        IO.inspect(changeset.errors, label: "UPDATE ERROR")
-
         {:noreply,
          socket
          |> put_flash(:error, "Failed to update user: #{inspect(changeset.errors)}")}
