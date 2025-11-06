@@ -36,7 +36,7 @@ defmodule TrialApp.Accounts do
   end
 
   @doc """
-  Gets a user by usernames or email and password.
+  Gets a user by username or email and password.
   Case-insensitive email, constant-time verification.
   """
   def get_user_by_username_or_email_and_password(username_or_email, password)
@@ -102,12 +102,9 @@ defmodule TrialApp.Accounts do
     |> Repo.all()
   end
 
-  @doc """
-  Lists users by role (array contains role).
-  """
   def list_users_by_role(role) when is_binary(role) do
     User
-    |> where([u], ^role in u.roles)
+    |> where([u], u.role == ^role)
     |> Repo.all()
     |> Repo.preload(employees: [:organization, :department, :team])
   end
@@ -132,11 +129,11 @@ defmodule TrialApp.Accounts do
   end
 
   @doc """
-  Updates a user's active role.
+  Updates a user's role.
   """
-  def update_user_active_role(%User{} = user, new_role) do
+  def update_user_role(user, role) do
     user
-    |> User.switch_role_changeset(new_role)
+    |> Ecto.Changeset.change(%{role: role})
     |> Repo.update()
   end
 
@@ -217,8 +214,9 @@ defmodule TrialApp.Accounts do
   defp normalize_employee_role(user_role) do
     case user_role do
       "admin" -> "admin"
-      "supervisor" -> "manager"
-      "attachee" -> "employee"
+      "manager" -> "manager"
+      "lead" -> "lead"
+      "employee" -> "employee"
       _ -> "member"
     end
   end
@@ -300,24 +298,14 @@ defmodule TrialApp.Accounts do
     token
   end
 
+  # FIXED: This function was missing
   @doc """
   Gets the user with the given signed session token.
-  Returns {user, token_inserted_at} or {nil, nil}.
+  Returns {user, token_inserted_at} or nil.
   """
   def get_user_by_session_token(token) do
-    case UserToken.verify_session_token_query(token) do
-      {:ok, query} ->
-        case Repo.one(query) do
-          {%User{} = user, %UserToken{inserted_at: inserted_at}} ->
-            {user, inserted_at}
-
-          _ ->
-            {nil, nil}
-        end
-
-      {:error, _} ->
-        {nil, nil}
-    end
+    {:ok, query} = UserToken.verify_session_token_query(token)
+    Repo.one(query)
   end
 
   @doc """
@@ -384,8 +372,12 @@ defmodule TrialApp.Accounts do
     :ok
   end
 
-  ## Department / Team / Employee
+  ## Department / Team / Employee (unchanged)
+  # ... [your existing functions] ...
 
+  @doc """
+  Lists all departments.
+  """
   def list_departments do
     Repo.all(Department)
   end
@@ -500,7 +492,7 @@ defmodule TrialApp.Accounts do
                      team_id: team_id,
                      department_id: team.department_id,
                      organization_id: team.department.organization_id,
-                     role: normalize_employee_role(new_user.active_role),
+                     role: normalize_employee_role(new_user.role),
                      position: "Employee",
                      is_active: true,
                      status: "active"

@@ -11,7 +11,6 @@ defmodule TrialApp.Accounts.UserToken do
   @magic_link_validity_in_minutes 15
   @change_email_validity_in_days 7
   @session_validity_in_days 14
-  @session_reissue_age_in_days 7
 
   schema "users_tokens" do
     field :token, :binary
@@ -150,16 +149,6 @@ defmodule TrialApp.Accounts.UserToken do
         :error
     end
   end
-
-  @doc """
-  Determines if a session token should be reissued based on its age.
-  """
-  def should_reissue?(token_inserted_at) when is_struct(token_inserted_at, DateTime) do
-    token_age = DateTime.diff(DateTime.utc_now(), token_inserted_at, :day)
-    token_age >= @session_reissue_age_in_days
-  end
-
-  def should_reissue?(_), do: false
 
   defp by_token_and_context_query(token, context) do
     from UserToken, where: [token: ^token, context: ^context]
