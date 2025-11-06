@@ -73,13 +73,13 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  def list_attachees_by_program(program_id, opts \\ %{}) do
+   def list_attachees_by_program(program_id, opts \\ %{}) do
+    preloads = Map.get(opts, :preloads, [])
+
     from(a in Attachee,
-      join: ap in AttacheeProgram,
-      on: ap.attachee_id == a.id,
-      where: ap.program_id == ^program_id
+      where: a.program_id == ^program_id,
+      preload: ^preloads
     )
-    |> preload(^Map.get(opts, :preloads, [:user, :department, :organization]))
     |> Repo.all()
   end
 
