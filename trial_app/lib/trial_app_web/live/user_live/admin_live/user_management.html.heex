@@ -76,8 +76,6 @@
               <tr class="bg-primary text-primary-content">
                 <th class="text-base font-bold">User</th>
                 <th class="text-base font-bold">Status</th>
-                <th class="text-base font-bold">Role</th>
-                <th class="text-base font-bold">Teams</th>
                 <th class="text-base font-bold">Registered</th>
                 <th class="text-base font-bold">Actions</th>
               </tr>
@@ -105,40 +103,11 @@
                       {user_status_label(user.status)}
                     </span>
                   </td>
-                  <td class="text-base-content/80">
-                    {String.capitalize(user.role)}
-                  </td>
-                  <td>
-                    <%= if Enum.any?(user.employees) do %>
-                      <div class="flex flex-wrap gap-1 max-w-xs">
-                        <%= for employee <- Enum.take(user.employees, 3) do %>
-                          <span class="badge badge-outline border-purple-300 text-purple-700 text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
-                            {employee.team.name}
-                          </span>
-                        <% end %>
-                        <%= if Enum.count(user.employees) > 3 do %>
-                          <span class="badge badge-ghost text-xs">
-                            +{Enum.count(user.employees) - 3} more
-                          </span>
-                        <% end %>
-                      </div>
-                    <% else %>
-                      <span class="text-base-content/40">No teams</span>
-                    <% end %>
-                  </td>
                   <td class="text-base-content/70">
                     {Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}")}
                   </td>
                   <td>
                     <div class="flex gap-2">
-                      <%= if user.status == "pending" do %>
-                        <.link
-                          navigate={~p"/admin/pending-approvals?user_id=#{user.id}"}
-                          class="btn btn-sm btn-success"
-                        >
-                          Approve
-                        </.link>
-                      <% end %>
                       <%= if user.status == "active" && user.role == "employee" do %>
                         <button
                           phx-click="make_admin"
@@ -221,9 +190,6 @@
                   <span class={["badge", user_status_class(@selected_user.status)]}>
                     {user_status_label(@selected_user.status)}
                   </span>
-                  <span class="badge badge-primary">
-                    {String.capitalize(@selected_user.role)}
-                  </span>
                 </div>
               </div>
             </div>
@@ -237,10 +203,6 @@
               <div class="bg-white p-4 rounded-lg border border-purple-100">
                 <label class="block text-sm font-semibold text-purple-700 mb-2">Username</label>
                 <p class="text-gray-800">{@selected_user.username}</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Role</label>
-                <p class="text-gray-800">{String.capitalize(@selected_user.role)}</p>
               </div>
               <div class="bg-white p-4 rounded-lg border border-purple-100">
                 <label class="block text-sm font-semibold text-purple-700 mb-2">Status</label>
@@ -368,6 +330,26 @@
               </div>
             </div>
 
+            <!-- Attachee Enrollment -->
+            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
+              <label class="block text-sm font-semibold text-purple-700 mb-3">Attachee Enrollment</label>
+              <div class="flex items-center gap-3 mb-4">
+                <input type="checkbox" id="is_attachee" name="is_attachee" value="true" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
+                <label for="is_attachee" class="text-sm text-gray-700">Enroll this user as an attachee</label>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">Start date (optional)</label>
+                  <input type="date" name="attachee_starts_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">End date (optional)</label>
+                  <input type="date" name="attachee_ends_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-gray-500">If checked, an Attachee record will be created for each selected team/department.</p>
+            </div>
+
             <!-- Team Assignments -->
             <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
               <label class="block text-sm font-semibold text-purple-700 mb-3">Team Assignments</label>
@@ -449,7 +431,7 @@
   <!-- ==================== ADD USER MODAL ==================== -->
   <%= if @show_add_modal do %>
     <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
         <div class="mt-3">
           <div class="flex justify-between items-center pb-4 border-b">
             <h3 class="text-lg font-medium text-gray-900">Add New User</h3>
@@ -461,102 +443,42 @@
           </div>
 
           <form phx-submit="create_user"
-            class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
+            class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-6 border border-purple-100">
 
-            <!-- Email & Username -->
+            <!-- Email -->
+            <div>
+              <label class="block text-sm font-semibold text-purple-700">Email <span class="text-red-500">*</span></label>
+              <input type="email" name="email" value={@user_form["email"] || ""} 
+                phx-blur="update_form_field" phx-value-field="email"
+                placeholder="user@example.com" required
+                class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+            </div>
+
+            <!-- First Name & Last Name -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label class="block text-sm font-semibold text-purple-700">Email</label>
-                <input type="email" name="email" value={@user_form[:email] || ""} 
-                  phx-blur="update_form_field" phx-value-field="email"
-                  placeholder="user@example.com"
+                <label class="block text-sm font-semibold text-purple-700">First Name <span class="text-red-500">*</span></label>
+                <input type="text" name="first_name" value={@user_form["first_name"] || ""}
+                  phx-blur="update_form_field" phx-value-field="first_name"
+                  placeholder="John" required
                   class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
               </div>
               <div>
-                <label class="block text-sm font-semibold text-purple-700">Username</label>
-                <input type="text" name="username" value={@user_form[:username] || ""}
-                  phx-blur="update_form_field" phx-value-field="username"
-                  placeholder="username"
+                <label class="block text-sm font-semibold text-purple-700">Last Name <span class="text-red-500">*</span></label>
+                <input type="text" name="last_name" value={@user_form["last_name"] || ""}
+                  phx-blur="update_form_field" phx-value-field="last_name"
+                  placeholder="Doe" required
                   class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
               </div>
             </div>
 
-            <!-- Role & Status -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Role</label>
-                <select name="role" 
-                  phx-blur="update_form_field" phx-value-field="role"
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                  <option value="employee" selected={@user_form[:role] == "employee"}>Employee</option>
-                  <option value="manager" selected={@user_form[:role] == "manager"}>Manager</option>
-                  <option value="admin" selected={@user_form[:role] == "admin"}>Admin</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Status</label>
-                <select name="status"
-                  phx-blur="update_form_field" phx-value-field="status"
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                  <option value="pending" selected={@user_form[:status] == "pending"}>Pending</option>
-                  <option value="active" selected={@user_form[:status] == "active"}>Active</option>
-                  <option value="suspended" selected={@user_form[:status] == "suspended"}>Suspended</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Team Assignments (same as Edit modal) -->
-            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-              <label class="block text-sm font-semibold text-purple-700 mb-3">Team Assignments</label>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Organization</label>
-                  <select phx-change="select_organization" name="filter_organization_id"
-                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="">All Organizations</option>
-                    <%= for org <- @organizations do %>
-                      <option value={org.id}>{org.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Department</label>
-                  <select phx-change="select_department" name="filter_department_id"
-                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="">All Departments</option>
-                    <%= for dept <- @available_departments do %>
-                      <option value={dept.id}>{dept.name} - {dept.organization.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto p-3 border border-purple-100 rounded-lg bg-purple-50/50">
-                <%= for team <- @available_teams do %>
-                  <div class="flex items-start">
-                    <input type="checkbox"
-                      id={"team_add_#{team.id}"}
-                      name={"team_assignment[#{team.id}]"}
-                      value="true"
-                      phx-click="toggle_team_assignment"
-                      phx-value-team-id={team.id}
-                      class="h-4 w-4 mt-1 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for={"team_add_#{team.id}"} class="ml-2 text-sm text-gray-700">
-                      <div class="font-semibold">{team.name}</div>
-                      <div class="text-xs text-purple-600">
-                        {team.department.name} - {team.department.organization.name}
-                      </div>
-                    </label>
-                  </div>
-                <% end %>
-                <%= if Enum.empty?(@available_teams) do %>
-                  <div class="col-span-full text-center py-6 text-gray-500 italic">No teams available</div>
-                <% end %>
-              </div>
-
-              <%= for {team_id, _} <- @team_assignments do %>
-                <input type="hidden" name="team_ids[]" value={team_id} />
-              <% end %>
+            <!-- Phone Number -->
+            <div>
+              <label class="block text-sm font-semibold text-purple-700">Phone Number <span class="text-red-500">*</span></label>
+              <input type="tel" name="phone_number" value={@user_form["phone_number"] || ""}
+                phx-blur="update_form_field" phx-value-field="phone_number"
+                placeholder="+254 712 345 678" required
+                class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
             </div>
 
             <!-- Form Actions -->

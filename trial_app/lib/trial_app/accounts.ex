@@ -8,6 +8,7 @@ defmodule TrialApp.Accounts do
 
   alias TrialApp.Accounts.{User, UserToken, UserNotifier}
   alias TrialApp.Orgs.{Department, Team, Employee}
+  alias TrialApp.Eams
 
   ## Database getters
 
@@ -139,47 +140,66 @@ defmodule TrialApp.Accounts do
   @doc """
   Updates a user with assignments and team assignments.
   """
-  def update_user_with_assignments(user, params, team_ids) do
+  def update_user_with_assignments(user, params, team_ids, opts \\ %{}) do
     case Repo.transaction(fn ->
            user_changeset = User.admin_update_changeset(user, params)
 
-           case Repo.update(user_changeset) do
-             {:ok, updated_user} ->
-               IO.inspect("User updated successfully")
-               IO.inspect(updated_user.updated_at, label: "NEW UPDATED_AT TIMESTAMP")
+          case Repo.update(user_changeset) do
+            {:ok, updated_user} ->
+              if Enum.any?(team_ids) do
+                Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
 
-               if Enum.any?(team_ids) do
-                 Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
+                Enum.each(team_ids, fn team_id ->
+                  team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
 
-                 Enum.each(team_ids, fn team_id ->
-                   team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+                  employee_attrs = %{
+                    user_id: updated_user.id,
+                    name: updated_user.username || updated_user.email,
+                    email: updated_user.email,
+                    team_id: team_id,
+                    department_id: team.department_id,
+                    organization_id: team.department.organization_id,
+                    role: normalize_employee_role(updated_user.role),
+                    position: "Employee",
+                    is_active: true,
+                    status: "active"
+                  }
 
-                   employee_attrs = %{
-                     user_id: updated_user.id,
-                     name: updated_user.username || updated_user.email,
-                     email: updated_user.email,
-                     team_id: team_id,
-                     department_id: team.department_id,
-                     organization_id: team.department.organization_id,
-                     role: normalize_employee_role(updated_user.role),
-                     position: "Employee",
-                     is_active: true,
-                     status: "active"
-                   }
+                  %Employee{}
+                  |> Employee.changeset(employee_attrs)
+                  |> Repo.insert!()
 
-                   %Employee{}
-                   |> Employee.changeset(employee_attrs)
-                   |> Repo.insert!()
-                 end)
-               else
-                 Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
-               end
+                  # Optionally create Attachee records
+                  if Map.get(opts, :attachee?) do
+                    dates = Map.get(opts, :attachee_dates, %{})
+                    starts_on = blank_to_nil(Map.get(dates, "starts_on"))
+                    ends_on = blank_to_nil(Map.get(dates, "ends_on"))
 
-               updated_user
+                    attachee_attrs = %{
+                      user_id: updated_user.id,
+                      organization_id: team.department.organization_id,
+                      department_id: team.department_id,
+                      status: "active",
+                      starts_on: starts_on,
+                      ends_on: ends_on
+                    }
+
+                    _ = Eams.create_attachee(attachee_attrs)
+                  end
+                end)
+
+                # Mark user as active once they have at least one employee assignment
+                {:ok, updated_user} =
+                  updated_user
+                  |> Ecto.Changeset.change(%{status: "active"})
+                  |> Repo.update()
+              else
+                Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
+              end
+
+              updated_user
 
              {:error, changeset} ->
-               IO.inspect("User update failed")
-               IO.inspect(changeset.errors, label: "UPDATE ERRORS")
                Repo.rollback(changeset)
            end
          end) do
@@ -187,6 +207,9 @@ defmodule TrialApp.Accounts do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(val), do: val
 
   defp normalize_employee_role(user_role) do
     case user_role do
@@ -440,6 +463,16 @@ defmodule TrialApp.Accounts do
   end
 
   @doc """
+  Creates a user from admin form (with first_name, last_name, phone_number).
+  Generates username and password automatically.
+  """
+  def create_user(attrs) do
+    %User{}
+    |> User.admin_create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
   Creates a user with team assignments.
   """
   def create_user_with_assignments(user_params, team_ids) do
@@ -448,9 +481,6 @@ defmodule TrialApp.Accounts do
 
            case Repo.insert(user_changeset) do
              {:ok, new_user} ->
-               IO.inspect("User created successfully")
-               IO.inspect(new_user.id, label: "NEW USER ID")
-
                if Enum.any?(team_ids) do
                  Enum.each(team_ids, fn team_id ->
                    team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
@@ -477,8 +507,6 @@ defmodule TrialApp.Accounts do
                new_user
 
              {:error, changeset} ->
-               IO.inspect("User creation failed")
-               IO.inspect(changeset.errors, label: "CREATE ERRORS")
                Repo.rollback(changeset)
            end
          end) do

@@ -11,6 +11,9 @@ defmodule TrialApp.Accounts.User do
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
+    field :first_name, :string
+    field :last_name, :string
+    field :phone_number, :string
 
     # ✅ Added fields for forced password change support
     field :must_change_password, :boolean, default: false
@@ -72,13 +75,77 @@ defmodule TrialApp.Accounts.User do
   A user changeset for admin to update all user details including assignments.
   """
   def admin_update_changeset(user, attrs) do
+    # Delegate to profile_changeset to avoid code duplication
+    profile_changeset(user, attrs)
+  end
+
+  @doc """
+  A user changeset for admin to create a user from contact information.
+  Generates username and password automatically.
+  """
+  def admin_create_changeset(user, attrs) do
+    status = Map.get(attrs, "status") || Map.get(attrs, :status) || "pending"
+    role = Map.get(attrs, "role") || Map.get(attrs, :role) || "employee"
+
     user
-    |> cast(attrs, [:email, :username, :role, :status])
-    |> validate_required([:email, :username, :role])
+    |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :role, :status])
+    |> validate_required([:email, :first_name, :last_name, :phone_number])
+    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+      message: "must have the @ sign and no spaces"
+    )
+    |> validate_length(:email, max: 160)
     |> validate_inclusion(:role, ["admin", "manager", "employee"])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
-    |> unique_constraint(:username)
+    |> generate_username_from_name()
+    |> generate_default_password()
+    |> put_hashed_password([])
+    |> change(status: status, role: role)
+  end
+
+  defp generate_username_from_name(changeset) do
+    first_name = get_change(changeset, :first_name) || get_field(changeset, :first_name)
+    last_name = get_change(changeset, :last_name) || get_field(changeset, :last_name)
+    email = get_change(changeset, :email) || get_field(changeset, :email)
+
+    username =
+      if first_name && last_name do
+        base_username =
+          "#{String.downcase(first_name)}.#{String.downcase(last_name)}"
+          |> String.replace(~r/[^a-z0-9_]/, "_")
+          |> String.slice(0, 20)  # Leave room for suffix
+
+        # Generate a unique username by appending a random number
+        # The unique_constraint will handle conflicts if they occur
+        random_suffix = :rand.uniform(9999)
+        "#{base_username}#{random_suffix}"
+      else
+        # Fallback to email prefix with random suffix
+        email_prefix =
+          email
+          |> String.split("@")
+          |> List.first()
+          |> String.downcase()
+          |> String.replace(~r/[^a-z0-9_]/, "_")
+          |> String.slice(0, 20)  # Leave room for suffix
+
+        random_suffix = :rand.uniform(9999)
+        "#{email_prefix}#{random_suffix}"
+      end
+
+    changeset
+    |> put_change(:username, username)
+  end
+
+  defp generate_default_password(changeset) do
+    # Generate a random password
+    password =
+      :crypto.strong_rand_bytes(12)
+      |> Base.encode64()
+      |> String.slice(0, 12)
+
+    changeset
+    |> put_change(:password, password)
   end
 
   @doc """
