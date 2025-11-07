@@ -20,7 +20,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
        programs: [],
        users: users,
        attachees: attachees,
-       show_form: false,
+       show_modal: false,
        editing_attachee: nil,
        filter_status: "all"
      )}
@@ -48,10 +48,10 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
                 <p class="text-sm text-gray-500 mt-1">Manage attachees and their enrollments</p>
               </div>
               <button
-                phx-click="toggle_form"
+                phx-click="open_modal"
                 class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition"
               >
-                <%= if @show_form, do: "Close Form", else: "Add Attachee" %>
+                Add Attachee
               </button>
             </div>
 
@@ -101,107 +101,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
                 </div>
               </div>
             </div>
-
-            <!-- Attachee Form -->
-            <%= if @show_form do %>
-              <div class="bg-gray-50 p-6 rounded-xl shadow">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                  <%= if @editing_attachee, do: "Edit Attachee", else: "Add New Attachee" %>
-                </h2>
-                <.form for={@form} phx-submit="save" phx-change="validate">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <.input
-                        field={@form[:user_id]}
-                        type="select"
-                        label="User"
-                        options={[{"Select User", ""} | Enum.map(@users, &{user_display(&1), &1.id})]}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:organization_id]}
-                        type="select"
-                        label="Organization"
-                        options={[{"Select Organization", ""} | Enum.map(@organizations, &{&1.name, &1.id})]}
-                        phx-change="organization_changed"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:department_id]}
-                        type="select"
-                        label="Department"
-                        options={department_options(@departments)}
-                        phx-change="department_changed"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:program_id]}
-                        type="select"
-                        label="Program"
-                        options={program_options(@programs)}
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:starts_on]}
-                        type="date"
-                        label="Start Date"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:ends_on]}
-                        type="date"
-                        label="End Date"
-                      />
-                    </div>
-
-                    <%= if @editing_attachee do %>
-                      <div>
-                        <.input
-                          field={@form[:status]}
-                          type="select"
-                          label="Status"
-                          options={[
-                            {"Active", "active"},
-                            {"Inactive", "inactive"},
-                            {"Completed", "completed"}
-                          ]}
-                        />
-                      </div>
-                    <% end %>
-                  </div>
-
-                  <div class="mt-6 flex justify-end gap-3">
-                    <button
-                      type="button"
-                      phx-click="toggle_form"
-                      class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition"
-                    >
-                      <%= if @editing_attachee, do: "Update Attachee", else: "Save Attachee" %>
-                    </button>
-                  </div>
-                </.form>
-              </div>
-            <% end %>
 
             <!-- Attachee List -->
             <div class="bg-white shadow rounded-xl overflow-hidden">
@@ -313,21 +212,157 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
           </div>
         </main>
       </div>
+
+      <!-- Modal -->
+      <%= if @show_modal do %>
+        <div class="fixed inset-0 z-50 overflow-y-auto" phx-click="close_modal">
+          <!-- Backdrop -->
+          <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+
+          <!-- Modal content -->
+          <div class="flex min-h-full items-center justify-center p-4">
+            <div
+              class="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              phx-click="stop_propagation"
+            >
+              <!-- Modal Header -->
+              <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+                <h2 class="text-xl font-semibold text-gray-800">
+                  <%= if @editing_attachee, do: "Edit Attachee", else: "Add New Attachee" %>
+                </h2>
+                <button
+                  phx-click="close_modal"
+                  class="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Modal Body -->
+              <div class="px-6 py-4">
+                <.form for={@form} phx-submit="save" phx-change="validate">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <.input
+                        field={@form[:user_id]}
+                        type="select"
+                        label="User"
+                        options={[{"Select User", ""} | Enum.map(@users, &{user_display(&1), &1.id})]}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <.input
+                        field={@form[:organization_id]}
+                        type="select"
+                        label="Organization"
+                        options={[{"Select Organization", ""} | Enum.map(@organizations, &{&1.name, &1.id})]}
+                        phx-change="organization_changed"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <.input
+                        field={@form[:department_id]}
+                        type="select"
+                        label="Department"
+                        options={department_options(@departments)}
+                        phx-change="department_changed"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <.input
+                        field={@form[:program_id]}
+                        type="select"
+                        label="Program"
+                        options={program_options(@programs)}
+                      />
+                    </div>
+
+                    <div>
+                      <.input
+                        field={@form[:starts_on]}
+                        type="date"
+                        label="Start Date"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <.input
+                        field={@form[:ends_on]}
+                        type="date"
+                        label="End Date"
+                      />
+                    </div>
+
+                    <%= if @editing_attachee do %>
+                      <div>
+                        <.input
+                          field={@form[:status]}
+                          type="select"
+                          label="Status"
+                          options={[
+                            {"Active", "active"},
+                            {"Inactive", "inactive"},
+                            {"Completed", "completed"}
+                          ]}
+                        />
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <div class="mt-6 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      phx-click="close_modal"
+                      class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition"
+                    >
+                      <%= if @editing_attachee, do: "Update Attachee", else: "Save Attachee" %>
+                    </button>
+                  </div>
+                </.form>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
     </div>
     """
   end
 
-  # Toggle form visibility
-  def handle_event("toggle_form", _params, socket) do
-    # Reset form when toggling
+  # Open modal for new attachee
+  def handle_event("open_modal", _params, socket) do
     changeset = Attachee.changeset(%Attachee{}, %{})
     {:noreply,
      socket
-     |> assign(:show_form, !socket.assigns.show_form)
+     |> assign(:show_modal, true)
      |> assign(:editing_attachee, nil)
      |> assign(:form, to_form(changeset))
      |> assign(:departments, [])
      |> assign(:programs, [])}
+  end
+
+  # Close modal
+  def handle_event("close_modal", _params, socket) do
+    {:noreply, assign(socket, :show_modal, false)}
+  end
+
+  # Prevent modal from closing when clicking inside
+  def handle_event("stop_propagation", _params, socket) do
+    {:noreply, socket}
   end
 
   # Handle filter
@@ -367,7 +402,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
 
     {:noreply,
      socket
-     |> assign(:show_form, true)
+     |> assign(:show_modal, true)
      |> assign(:editing_attachee, attachee)
      |> assign(:form, to_form(changeset))
      |> assign(:departments, departments)
@@ -492,7 +527,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
 
         {:noreply,
          socket
-         |> assign(:show_form, false)
+         |> assign(:show_modal, false)
          |> assign(:editing_attachee, nil)
          |> assign(:form, to_form(changeset))
          |> assign(:attachees, updated_attachees)
