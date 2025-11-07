@@ -1,352 +1,453 @@
- <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
-    <div class="ml-64 p-8">
-      <div class="space-y-8">
-        <!-- Header -->
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 class="text-3xl font-bold text-[#3B3B98]">Task Management</h1>
-            <p class="text-sm text-gray-500 mt-1">Create, assign, and track tasks across projects</p>
-          </div>
-          <button phx-click="new" class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+<.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+<div class="ml-64 p-8">
+  <div class="space-y-8">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div>
+        <h1 class="text-3xl font-bold text-[#3B3B98]">Task Management</h1>
+        <p class="text-sm text-gray-500 mt-1">Create, assign, and track tasks across projects</p>
+      </div>
+      <button phx-click="new" class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Task
+      </button>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex gap-2 border-b border-gray-200">
+      <%= for {label, status, count} <- [
+            {"All", "all", total_tasks(@tasks)},
+            {"Pending", "pending", Enum.count(@tasks, &(&1.status == "pending"))},
+            {"In Progress", "in_progress", in_progress_tasks(@tasks)},
+            {"Completed", "completed", completed_tasks(@tasks)}
+          ] do %>
+        <button
+          phx-click="filter"
+          phx-value-status={status}
+          class={"px-5 py-2.5 text-sm font-medium border-b-2 transition #{if @filter_status == status, do: "border-[#6C63FF] text-[#6C63FF]", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
+        >
+          <%= label %> <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"><%= count %></span>
+        </button>
+      <% end %>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
-            New Task
-          </button>
-        </div>
-
-        <!-- Filter Tabs -->
-        <div class="flex gap-2 border-b border-gray-200">
-          <%= for {label, status, count} <- [
-                {"All", "all", total_tasks(@tasks)},
-                {"Pending", "pending", Enum.count(@tasks, &(&1.status == "pending"))},
-                {"In Progress", "in_progress", in_progress_tasks(@tasks)},
-                {"Completed", "completed", completed_tasks(@tasks)}
-              ] do %>
-            <button
-              phx-click="filter"
-              phx-value-status={status}
-              class={"px-5 py-2.5 text-sm font-medium border-b-2 transition #{if @filter_status == status, do: "border-[#6C63FF] text-[#6C63FF]", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
-            >
-              <%= label %> <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"><%= count %></span>
-            </button>
-          <% end %>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] rounded-2xl p-5 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
-              </div>
-              <span class="text-2xl font-bold"><%= total_tasks(@tasks) %></span>
-            </div>
-            <p class="text-sm opacity-90">Total Tasks</p>
           </div>
-
-          <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-5 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-              </div>
-              <span class="text-2xl font-bold"><%= active_tasks(@tasks) %></span>
-            </div>
-            <p class="text-sm opacity-90">Active</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-              </div>
-              <span class="text-2xl font-bold"><%= in_progress_tasks(@tasks) %></span>
-            </div>
-            <p class="text-sm opacity-90">In Progress</p>
-          </div>
-
-          <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
-              </div>
-              <span class="text-2xl font-bold"><%= completed_tasks(@tasks) %></span>
-            </div>
-            <p class="text-sm opacity-90">Completed</p>
-          </div>
+          <span class="text-2xl font-bold"><%= total_tasks(@tasks) %></span>
         </div>
-
-        <!-- Tasks Table -->
-        <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
-          <%= if @tasks == [] do %>
-            <div class="py-12 text-center">
-              <div class="flex flex-col items-center gap-3">
-                <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
-                  <svg class="w-10 h-10 text-[#6C63FF]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                  </svg>
-                </div>
-                <p class="font-semibold text-gray-700 text-lg">No tasks yet</p>
-                <p class="text-sm text-gray-500">Get started by creating your first task</p>
-                <button phx-click="new" class="mt-2 px-5 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8]">
-                  Create Task
-                </button>
-              </div>
-            </div>
-          <% else %>
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-left">
-                <thead class="bg-[#6C63FF] text-white">
-                  <tr>
-                    <th class="px-6 py-4 text-sm font-semibold">TASK</th>
-                    <th class="px-6 py-4 text-sm font-semibold">PROJECT</th>
-                    <th class="px-6 py-4 text-sm font-semibold">ASSIGNEE</th>
-                    <th class="px-6 py-4 text-sm font-semibold">DUE DATE</th>
-                    <th class="px-6 py-4 text-sm font-semibold">STATUS</th>
-                    <th class="px-6 py-4 text-sm font-semibold text-right">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                  <%= for task <- filtered_tasks(@tasks, @filter_status) do %>
-                    <tr class="hover:bg-[#F8F8FF] transition group">
-                      <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                          <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] flex items-center justify-center text-white font-bold text-sm shadow-md">
-                            <%= if task.assignee, do: initials(task.assignee), else: "T" %>
-                          </div>
-                          <div>
-                            <span class="text-gray-800 font-semibold block"><%= task.title %></span>
-                            <%= if task.description do %>
-                              <span class="text-xs text-gray-500 line-clamp-1"><%= task.description %></span>
-                            <% end %>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4">
-                        <span class="inline-flex items-center px-3 py-1.5 text-sm rounded-full bg-purple-100 text-purple-800 font-medium">
-                          <%= if task.project, do: task.project.name, else: "—" %>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4">
-                        <%= if task.assignee do %>
-                          <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
-                              <%= initials(task.assignee) %>
-                            </div>
-                            <div>
-                              <span class="text-sm font-medium text-gray-900"><%= get_attachee_name(task.assignee) %></span>
-                              <span class="block text-xs text-gray-500"><%= task.assignee.user.email %></span>
-                            </div>
-                          </div>
-                        <% else %>
-                          <span class="text-sm text-gray-400">Unassigned</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4">
-                        <%= if task.due_on do %>
-                          <div class="text-sm text-gray-600">
-                            <div class="flex items-center gap-1.5">
-                              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                              </svg>
-                              <%= Calendar.strftime(task.due_on, "%b %d, %Y") %>
-                            </div>
-                            <% {color, label} = due_date_badge(task.due_on) %>
-                            <span class={"inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium #{color}"}>
-                              <%= label %>
-                            </span>
-                          </div>
-                        <% else %>
-                          <span class="text-gray-400">Not set</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4">
-                        <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium #{status_color(task.status)}"}>
-                          <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                          <%= status_label(task.status) %>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4">
-                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
-                          <button phx-click="view_task" phx-value-id={task.id} class="p-2 hover:bg-[#E8E7FF] rounded-lg" title="View">
-                            <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                          </button>
-                          <button phx-click="edit_task" phx-value-id={task.id} class="p-2 hover:bg-[#E8E7FF] rounded-lg" title="Edit">
-                            <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                            </svg>
-                          </button>
-                          <button phx-click="delete_task" phx-value-id={task.id} data-confirm="Delete this task?" class="p-2 hover:bg-red-50 rounded-lg" title="Delete">
-                            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
+        <p class="text-sm opacity-90">Total Tasks</p>
+      </div>
+      <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold"><%= active_tasks(@tasks) %></span>
         </div>
+        <p class="text-sm opacity-90">Active</p>
+      </div>
+      <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold"><%= in_progress_tasks(@tasks) %></span>
+        </div>
+        <p class="text-sm opacity-90">In Progress</p>
+      </div>
+      <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <span class="text-2xl font-bold"><%= completed_tasks(@tasks) %></span>
+        </div>
+        <p class="text-sm opacity-90">Completed</p>
       </div>
     </div>
 
-    <!-- VIEW MODAL -->
-    <%= if @show_view_modal && @viewing_task do %>
-      <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl">
-          <div class="flex items-center justify-between p-6 border-b border-gray-200">
-            <div class="flex items-center gap-4">
-              <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                <%= if @viewing_task.assignee, do: initials(@viewing_task.assignee), else: "T" %>
-              </div>
-              <div>
-                <h2 class="text-2xl font-bold text-[#3B3B98]"><%= @viewing_task.title %></h2>
-                <p class="text-sm text-gray-500 mt-1">Task Details</p>
-              </div>
-            </div>
-            <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
-              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+    <!-- Tasks Table -->
+    <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
+      <%= if @tasks == [] do %>
+        <div class="py-12 text-center">
+          <div class="flex flex-col items-center gap-3">
+            <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
+              <svg class="w-10 h-10 text-[#6C63FF]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
-            </button>
-          </div>
-          <div class="p-6 space-y-6">
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-semibold text-gray-500">Status:</span>
-              <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium #{status_color(@viewing_task.status)}"}>
-                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
-                <%= status_label(@viewing_task.status) %>
-              </span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="bg-gray-50 rounded-xl p-4">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Project</p>
-                <p class="text-lg font-semibold text-gray-800"><%= if @viewing_task.project, do: @viewing_task.project.name, else: "—" %></p>
-              </div>
-              <div class="bg-gray-50 rounded-xl p-4">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Due Date</p>
-                <p class="text-lg font-semibold text-gray-800">
-                  <%= if @viewing_task.due_on, do: Calendar.strftime(@viewing_task.due_on, "%B %d, %Y"), else: "Not set" %>
-                </p>
-              </div>
-            </div>
-            <%= if @viewing_task.description do %>
-              <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</p>
-                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p class="text-gray-700 leading-relaxed"><%= @viewing_task.description %></p>
-                </div>
-              </div>
-            <% end %>
-            <%= if @viewing_task.assignee do %>
-              <div>
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Assigned To</p>
-                <div class="flex items-center p-4 bg-gray-50 rounded-lg">
-                  <div class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
-                    <%= initials(@viewing_task.assignee) %>
-                  </div>
-                  <div class="ml-4">
-                    <div class="text-base font-semibold text-gray-900"><%= get_attachee_name(@viewing_task.assignee) %></div>
-                    <div class="text-sm text-gray-600"><%= @viewing_task.assignee.user.email %></div>
-                  </div>
-                </div>
-              </div>
-            <% end %>
-          </div>
-          <div class="flex justify-end gap-3 p-6 border-t border-gray-200">
-            <button phx-click="edit_task" phx-value-id={@viewing_task.id} class="px-6 py-2.5 rounded-lg border border-[#6C63FF] text-[#6C63FF] font-medium hover:bg-[#F0EEFF]">
-              Edit Task
-            </button>
-            <button phx-click="close" class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8]">
-              Close
+            <p class="font-semibold text-gray-700 text-lg">No tasks yet</p>
+            <p class="text-sm text-gray-500">Get started by creating your first task</p>
+            <button phx-click="new" class="mt-2 px-5 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8]">
+              Create Task
             </button>
           </div>
         </div>
-      </div>
-    <% end %>
-
-    <!-- FORM MODAL -->
-    <%= if @show_form do %>
-      <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
-          <div class="flex items-center justify-between p-6 border-b border-gray-200">
-            <div>
-              <h2 class="text-2xl font-bold text-[#3B3B98]"><%= if @editing_task, do: "Edit Task", else: "Create New Task" %></h2>
-              <p class="text-sm text-gray-500 mt-1"><%= if @editing_task, do: "Update task details", else: "Fill in the details" %></p>
-            </div>
-            <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
-              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-          <div class="p-6">
-            <form id="task-form" phx-submit="save" phx-change="update_form">
-              <div class="space-y-5">
-                <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-gray-700">Task Title <span class="text-red-500">*</span></label>
-                  <input name="task[title]" value={@form_data["title"]} class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF]" required />
-                  <%= if @errors[:title] do %><p class="text-xs text-red-600"><%= @errors[:title] %></p><% end %>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-2">
-                    <label class="block text-sm font-semibold text-gray-700">Project <span class="text-red-500">*</span></label>
-                    <select name="task[project_id]" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF]" required>
-                      <option value="">Select project</option>
-                      <%= for p <- @projects do %>
-                        <option value={p.id} selected={to_string(p.id) == @form_data["project_id"]}><%= p.name %></option>
-                      <% end %>
-                    </select>
-                  </div>
-                  <div class="space-y-2">
-                    <label class="block text-sm font-semibold text якого-700">Due Date</label>
-                    <input type="date" name="task[due_on]" value={@form_data["due_on"]} class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF]" />
-                  </div>
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-gray-700">Assign to Attachee</label>
-                  <select name="task[assignee_id]" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF]">
-                    <option value=""><%= if Enum.empty?(@attachees), do: "Select project first", else: "Leave unassigned" %></option>
-                    <%= for a <- @attachees do %>
-                      <option value={a.id} selected={to_string(a.id) == @form_data["assignee_id"]}><%= get_attachee_name(a) %></option>
+      <% else %>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left">
+            <thead class="bg-[#6C63FF] text-white">
+              <tr>
+                <th class="px-6 py-4 text-sm font-semibold">TASK</th>
+                <th class="px-6 py-4 text-sm font-semibold">PROJECT</th>
+                <th class="px-6 py-4 text-sm font-semibold">ASSIGNEE</th>
+                <th class="px-6 py-4 text-sm font-semibold">DUE DATE</th>
+                <th class="px-6 py-4 text-sm font-semibold">STATUS</th>
+                <th class="px-6 py-4 text-sm font-semibold text-right">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <%= for task <- filtered_tasks(@tasks, @filter_status) do %>
+                <tr class="hover:bg-[#F8F8FF] transition group">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] flex items-center justify-center text-white font-bold text-sm shadow-md">
+                        <%= if task.assignee, do: initials(task.assignee), else: "T" %>
+                      </div>
+                      <div>
+                        <span class="text-gray-800 font-semibold block"><%= task.title %></span>
+                        <%= if task.description do %>
+                          <span class="text-xs text-gray-500 line-clamp-1"><%= task.description %></span>
+                        <% end %>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-3 py-1.5 text-sm rounded-full bg-purple-100 text-purple-800 font-medium">
+                      <%= if task.project, do: task.project.name, else: "—" %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <%= if task.assignee do %>
+                      <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                          <%= initials(task.assignee) %>
+                        </div>
+                        <div>
+                          <span class="text-sm font-medium text-gray-900"><%= get_attachee_name(task.assignee) %></span>
+                          <span class="block text-xs text-gray-500"><%= task.assignee.user.email %></span>
+                        </div>
+                      </div>
+                    <% else %>
+                      <span class="text-sm text-gray-400">Unassigned</span>
                     <% end %>
-                  </select>
-                </div>
-                <div class="space-y-2">
-                  <label class="block text-sm font-semibold text-gray-700">Description</label>
-                  <textarea name="task[description]" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] resize-none" rows="4"><%= @form_data["description"] %></textarea>
-                </div>
-                <%= if @editing_task do %>
-                  <div class="space-y-2">
-                    <label class="block text-sm font-semibold text-gray-700">Status (Admin)</label>
-                    <select name="task[status]" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF]">
-                      <%= for s <- ["pending", "in_progress", "blocked", "submitted", "completed", "cancelled"] do %>
-                        <option value={s} selected={s == @form_data["status"]}><%= status_label(s) %></option>
-                      <% end %>
-                    </select>
-                  </div>
+                  </td>
+                  <td class="px-6 py-4">
+                    <%= if task.due_on do %>
+                      <div class="text-sm text-gray-600">
+                        <div class="flex items-center gap-1.5">
+                          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                          <%= Calendar.strftime(task.due_on, "%b %d, %Y") %>
+                        </div>
+                        <% {color, label} = due_date_badge(task.due_on) %>
+                        <span class={"inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium #{color}"}>
+                          <%= label %>
+                        </span>
+                      </div>
+                    <% else %>
+                      <span class="text-gray-400">Not set</span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium #{status_color(task.status)}"}>
+                      <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      <%= status_label(task.status) %>
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                      <button phx-click="view_task" phx-value-id={task.id} class="p-2 hover:bg-[#E8E7FF] rounded-lg" title="View">
+                        <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                      </button>
+                      <button phx-click="edit_task" phx-value-id={task.id} class="p-2 hover:bg-[#E8E7FF] rounded-lg" title="Edit">
+                        <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                      </button>
+                      <button phx-click="delete_task" phx-value-id={task.id} data-confirm="Delete this task?" class="p-2 hover:bg-red-50 rounded-lg" title="Delete">
+                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW MODAL -->
+<%= if @show_view_modal && @viewing_task do %>
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl">
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div class="flex items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+            <%= if @viewing_task.assignee, do: initials(@viewing_task.assignee), else: "T" %>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold text-[#3B3B98]"><%= @viewing_task.title %></h2>
+            <p class="text-sm text-gray-500 mt-1">Task Details</p>
+          </div>
+        </div>
+        <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
+          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-6">
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-semibold text-gray-500">Status:</span>
+          <span class={"inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium #{status_color(@viewing_task.status)}"}>
+            <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+            <%= status_label(@viewing_task.status) %>
+          </span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Project</p>
+            <p class="text-lg font-semibold text-gray-800"><%= if @viewing_task.project, do: @viewing_task.project.name, else: "—" %></p>
+          </div>
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Due Date</p>
+            <p class="text-lg font-semibold text-gray-800">
+              <%= if @viewing_task.due_on, do: Calendar.strftime(@viewing_task.due_on, "%B %d, %Y"), else: "Not set" %>
+            </p>
+          </div>
+        </div>
+        <%= if @viewing_task.description do %>
+          <div>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</p>
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <p class="text-gray-700 leading-relaxed"><%= @viewing_task.description %></p>
+            </div>
+          </div>
+        <% end %>
+        <%= if @viewing_task.assignee do %>
+          <div>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Assigned To</p>
+            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div class="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-lg">
+                <%= initials(@viewing_task.assignee) %>
+              </div>
+              <div class="ml-4">
+                <div class="text-base font-semibold text-gray-900"><%= get_attachee_name(@viewing_task.assignee) %></div>
+                <div class="text-sm text-gray-600"><%= @viewing_task.assignee.user.email %></div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+      <div class="flex justify-end gap-3 p-6 border-t border-gray-200">
+        <button phx-click="edit_task" phx-value-id={@viewing_task.id} class="px-6 py-2.5 rounded-lg border border-[#6C63FF] text-[#6C63FF] font-medium hover:bg-[#F0EEFF]">
+          Edit Task
+        </button>
+        <button phx-click="close" class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8]">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- FORM MODAL (COMPLETE & FIXED) -->
+<%= if @show_form do %>
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div>
+          <h2 class="text-2xl font-bold text-[#3B3B98]">
+            <%= if @editing_task, do: "Edit Task", else: "Create New Task" %>
+          </h2>
+          <p class="text-sm text-gray-500 mt-1">
+            <%= if @editing_task, do: "Update task details", else: "Fill in the details" %>
+          </p>
+        </div>
+        <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
+          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+        <!-- Errors -->
+        <%= if @errors != %{} do %>
+          <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-start gap-2">
+              <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-red-800 mb-1">Please fix the following errors:</h3>
+                <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                  <%= for {field, error} <- @errors do %>
+                    <li>
+                      <strong><%= field |> to_string() |> String.replace("_", " ") |> String.capitalize() %>:</strong>
+                      <%= error %>
+                    </li>
+                  <% end %>
+                </ul>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <form id="task-form" phx-submit="save" phx-change="update_form">
+          <div class="space-y-5">
+
+            <!-- Task Title -->
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">
+                Task Title <span class="text-red-500">*</span>
+              </label>
+              <input
+                name="task[title]"
+                value={@form_data["title"]}
+                class={"w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all #{if @errors[:title], do: "border-red-500", else: "border-gray-300"}"}
+                placeholder="Enter task title"
+                required
+              />
+              <%= if @errors[:title] do %>
+                <p class="text-sm text-red-600 mt-1"><%= @errors[:title] %></p>
+              <% end %>
+            </div>
+
+            <!-- Project & Due Date -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">
+                  Project <span class="text-red-500">*</span>
+                </label>
+                <select
+                  name="task[project_id]"
+                  phx-change="update_form"
+                  class={"w-full border rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all #{if @errors[:project_id], do: "border-red-500", else: "border-gray-300"}"}
+                  required
+                >
+                  <option value="">Select project</option>
+                  <%= for p <- @projects do %>
+                    <option value={p.id} selected={to_string(p.id) == @form_data["project_id"]}>
+                      <%= p.name %>
+                    </option>
+                  <% end %>
+                </select>
+                <%= if @errors[:project_id] do %>
+                  <p class="text-sm text-red-600 mt-1"><%= @errors[:project_id] %></p>
                 <% end %>
               </div>
-              <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-                <button type="button" phx-click="close" class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8]"><%= if @editing_task, do: "Update Task", else: "Create Task" %></button>
+
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Due Date</label>
+                <input
+                  type="date"
+                  name="task[due_on]"
+                  value={@form_data["due_on"]}
+                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
+                />
               </div>
-            </form>
+            </div>
+
+            <!-- Assign to Attachee -->
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">Assign to Attachee</label>
+
+              <select
+                name="task[assignee_id]"
+                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
+              >
+                <option value=""><%= if Enum.empty?(@attachees), do: "Select project first", else: "Leave unassigned" %></option>
+                <%= for a <- @attachees do %>
+                  <option value={a.id} selected={to_string(a.id) == @form_data["assignee_id"]}>
+                    <%= get_attachee_name(a) %> (ID: <%= a.id %>)
+                  </option>
+                <% end %>
+              </select>
+
+              <%= if Enum.empty?(@attachees) && @form_data["project_id"] != "" do %>
+                <p class="text-xs text-gray-500 mt-1">No attachees available for this project's program</p>
+              <% end %>
+            </div>
+
+            <!-- Description -->
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">Description</label>
+              <textarea
+                name="task[description]"
+                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all resize-none"
+                rows="4"
+                placeholder="Describe the task..."
+              ><%= @form_data["description"] %></textarea>
+            </div>
+
+            <!-- Status – only when editing -->
+            <%= if @editing_task do %>
+              <div class="space-y-2">
+                <label class="block text-sm font-semibold text-gray-700">Status</label>
+                <select
+                  name="task[status]"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
+                >
+                  <%= for s <- ["pending", "in_progress", "blocked", "submitted", "completed", "cancelled"] do %>
+                    <option value={s} selected={s == @form_data["status"]}>
+                      <%= status_label(s) %>
+                    </option>
+                  <% end %>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                  Current status: <strong><%= status_label(@form_data["status"]) %></strong>
+                </p>
+              </div>
+            <% end %>
+
           </div>
-        </div>
+
+          <!-- Footer -->
+          <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              phx-click="close"
+              class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8] transition-colors"
+            >
+              <%= if @editing_task, do: "Update Task", else: "Create Task" %>
+            </button>
+          </div>
+        </form>
       </div>
-    <% end %>
+    </div>
+  </div>
+<% end %>
