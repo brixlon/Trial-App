@@ -212,7 +212,7 @@ defmodule TrialAppWeb.UserAuth do
     ~p"/dashboard"
   end
 
-  def signed_in_path(_), do: ~p"/dashboard"
+  def signed_in_path(_), do: ~p"/admin/dashboard"
 
   def require_authenticated_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user do

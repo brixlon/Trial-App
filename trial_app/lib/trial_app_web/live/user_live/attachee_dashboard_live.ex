@@ -18,14 +18,14 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       projects = Eams.list_projects_for_attachee(attachee.id)
       team_mates = get_team_mates(attachee.department_id)
 
-      # Evaluation data with zero scores (to be implemented later)
-      evaluation_data = [
-        %{category: "Technical Skills", score: 0, max: 100},
-        %{category: "Communication", score: 0, max: 100},
-        %{category: "Teamwork", score: 0, max: 100},
-        %{category: "Initiative", score: 0, max: 100},
-        %{category: "Professionalism", score: 0, max: 100}
-      ]
+      # Get REAL evaluation data
+      evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
+      avg_score = Eams.get_average_evaluation_score(attachee.id)
+      eval_count = Eams.count_evaluations_for_attachee(attachee.id)
+      evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
+
+      # Calculate not meeting expectations (scores below 41)
+      not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
 
       {:ok,
        socket
@@ -35,7 +35,11 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
        |> assign(:tasks, tasks)
        |> assign(:projects, projects)
        |> assign(:team_mates, team_mates)
+       |> assign(:evaluations, evaluations)
        |> assign(:evaluation_data, evaluation_data)
+       |> assign(:avg_score, avg_score)
+       |> assign(:eval_count, eval_count)
+       |> assign(:not_meeting, not_meeting)
        |> assign(:show_task_modal, false)
        |> assign(:selected_task, nil)
        |> assign(:submission_comment, "")}
@@ -89,6 +93,11 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to submit task.")}
     end
+  end
+
+  @impl true
+  def handle_info({:switch_role, role}, socket) do
+    TrialAppWeb.Live.Helpers.RoleSwitcher.handle_role_switch(socket, role)
   end
 
   @impl true
@@ -350,52 +359,111 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
             <div class="bg-gray-50 p-6 rounded-xl shadow">
               <div class="flex justify-between items-center mb-4">
                 <h3 class="text-md font-semibold text-gray-800">Account Evaluation Summary</h3>
-                <button class="text-sm text-purple-600 hover:text-purple-800 font-medium">View Report</button>
-              </div>
-
-              <!-- Evaluation Chart -->
-              <div class="space-y-4">
-                <%= for eval <- @evaluation_data do %>
-                  <div class="flex items-center justify-between">
-                    <div class="w-1/4">
-                      <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
-                    </div>
-                    <div class="w-2/4">
-                      <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div
-                          class="h-3 rounded-full bg-gradient-to-r from-green-400 to-blue-500"
-                          style={"width: #{eval.score}%"}
-                        ></div>
-                      </div>
-                    </div>
-                    <div class="w-1/4 text-right">
-                      <span class="text-sm font-semibold text-gray-900">
-                        <%= eval.score %>/<%= eval.max %>
-                      </span>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-
-              <!-- Overall Performance -->
-              <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <h4 class="font-semibold text-gray-900">Overall Performance</h4>
-                    <p class="text-sm text-gray-600">Based on all evaluation criteria</p>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-2xl font-bold text-gray-900">0%</div>
-                    <div class="text-sm text-gray-600 font-medium">Not Evaluated</div>
-                  </div>
+                <div class="text-sm">
+                  <span class="text-gray-600">Total Evaluations</span>
+                  <span class="font-bold text-purple-600 ml-2"><%= @eval_count %></span>
                 </div>
               </div>
 
-              <!-- Not Meeting Expectations -->
-              <div class="mt-4">
-                <div class="text-sm font-medium text-gray-700 mb-2">Not Meeting Expectations</div>
-                <div class="text-2xl font-bold text-gray-900">0/5</div>
-              </div>
+              <%= if @eval_count == 0 do %>
+                <!-- No Evaluations Yet -->
+                <div class="text-center py-12">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <h4 class="text-lg font-semibold text-gray-900 mb-2">No Evaluations Yet</h4>
+                  <p class="text-gray-600">Your supervisor will evaluate your performance soon.</p>
+                </div>
+              <% else %>
+                <!-- Evaluation Chart -->
+                <div class="space-y-4">
+                  <%= for eval <- @evaluation_data do %>
+                    <div class="flex items-center justify-between">
+                      <div class="w-1/4">
+                        <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
+                      </div>
+                      <div class="w-2/4">
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                          <div
+                            class={"h-3 rounded-full #{score_bar_color(eval.score)}"}
+                            style={"width: #{eval.score}%"}
+                          ></div>
+                        </div>
+                      </div>
+                      <div class="w-1/4 text-right">
+                        <span class="text-sm font-semibold text-gray-900">
+                          <%= eval.score %>/<%= eval.max %>
+                        </span>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+
+                <!-- Overall Performance -->
+                <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h4 class="font-semibold text-gray-900">Overall Performance</h4>
+                      <p class="text-sm text-gray-600">Based on <%= @eval_count %> evaluation(s)</p>
+                    </div>
+                    <div class="text-right">
+                      <div class={"text-2xl font-bold #{overall_score_color(@avg_score)}"}>
+                        <%= @avg_score %>%
+                      </div>
+                      <div class={"text-sm font-medium #{overall_label_color(@avg_score)}"}>
+                        <%= overall_label(@avg_score) %>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Recent Evaluations -->
+                <div class="mt-6">
+                  <h4 class="text-sm font-semibold text-gray-800 mb-3">Recent Evaluations</h4>
+                  <div class="space-y-2">
+                    <%= for evaluation <- Enum.take(@evaluations, 3) do %>
+                      <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                        <div class="flex items-center gap-3">
+                          <div class={"w-10 h-10 rounded-full flex items-center justify-center font-bold #{evaluation_badge_bg(evaluation.score)}"}>
+                            <%= evaluation.score %>
+                          </div>
+                          <div>
+                            <p class="text-sm font-medium text-gray-900">
+                              <%= evaluation.evaluator.username || evaluation.evaluator.email %>
+                            </p>
+                            <p class="text-xs text-gray-500">
+                              <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
+                            </p>
+                          </div>
+                        </div>
+                        <span class={"px-2 py-1 text-xs rounded font-medium #{evaluation_badge_class(evaluation.score)}"}>
+                          <%= evaluation_label(evaluation.score) %>
+                        </span>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <!-- Not Meeting Expectations -->
+                <div class="mt-4">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="text-sm font-medium text-gray-700 mb-1">Areas Needing Improvement</div>
+                      <div class={"text-2xl font-bold #{if @not_meeting > 0, do: "text-red-600", else: "text-green-600"}"}>
+                        <%= @not_meeting %>/5
+                      </div>
+                    </div>
+                    <%= if @not_meeting == 0 do %>
+                      <div class="flex items-center gap-2 text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span class="text-sm font-medium">All areas meeting expectations!</span>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
             </div>
           </div>
         </main>
@@ -516,10 +584,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       true -> "text-gray-500 text-xs"
     end
   end
-@impl true
-def handle_info({:switch_role, role}, socket) do
-  TrialAppWeb.Live.Helpers.RoleSwitcher.handle_role_switch(socket, role)
-end
+
   defp relative_date(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
     cond do
@@ -530,4 +595,41 @@ end
       true -> "In #{div(diff, 7)} weeks"
     end
   end
+
+  # Evaluation helper functions
+  defp score_bar_color(score) when score >= 81, do: "bg-gradient-to-r from-green-400 to-green-600"
+  defp score_bar_color(score) when score >= 61, do: "bg-gradient-to-r from-blue-400 to-blue-600"
+  defp score_bar_color(score) when score >= 41, do: "bg-gradient-to-r from-yellow-400 to-yellow-600"
+  defp score_bar_color(_), do: "bg-gradient-to-r from-red-400 to-red-600"
+
+  defp overall_score_color(score) when score >= 81, do: "text-green-600"
+  defp overall_score_color(score) when score >= 61, do: "text-blue-600"
+  defp overall_score_color(score) when score >= 41, do: "text-yellow-600"
+  defp overall_score_color(_), do: "text-red-600"
+
+  defp overall_label_color(score) when score >= 81, do: "text-green-600"
+  defp overall_label_color(score) when score >= 61, do: "text-blue-600"
+  defp overall_label_color(score) when score >= 41, do: "text-yellow-600"
+  defp overall_label_color(_), do: "text-red-600"
+
+  defp overall_label(score) when score >= 81, do: "Excellent"
+  defp overall_label(score) when score >= 61, do: "Good"
+  defp overall_label(score) when score >= 41, do: "Satisfactory"
+  defp overall_label(score) when score > 0, do: "Needs Improvement"
+  defp overall_label(_), do: "Not Evaluated"
+
+  defp evaluation_badge_bg(score) when score >= 81, do: "bg-green-100 text-green-700"
+  defp evaluation_badge_bg(score) when score >= 61, do: "bg-blue-100 text-blue-700"
+  defp evaluation_badge_bg(score) when score >= 41, do: "bg-yellow-100 text-yellow-700"
+  defp evaluation_badge_bg(_), do: "bg-red-100 text-red-700"
+
+  defp evaluation_badge_class(score) when score >= 81, do: "bg-green-100 text-green-700"
+  defp evaluation_badge_class(score) when score >= 61, do: "bg-blue-100 text-blue-700"
+  defp evaluation_badge_class(score) when score >= 41, do: "bg-yellow-100 text-yellow-700"
+  defp evaluation_badge_class(_), do: "bg-red-100 text-red-700"
+
+  defp evaluation_label(score) when score >= 81, do: "Excellent"
+  defp evaluation_label(score) when score >= 61, do: "Good"
+  defp evaluation_label(score) when score >= 41, do: "Satisfactory"
+  defp evaluation_label(_), do: "Needs Improvement"
 end

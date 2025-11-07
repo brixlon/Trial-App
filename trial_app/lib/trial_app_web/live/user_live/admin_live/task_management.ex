@@ -95,7 +95,6 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
       "status" => task.status || "pending"
     }
 
-    # Load attachees based on the task's project
     attachees = if task.project_id do
       load_attachees_safe_via_project(task.project_id)
     else
@@ -138,7 +137,6 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   def handle_event("update_form", %{"task" => params}, socket) do
     Logger.debug("Form update params: #{inspect(params)}")
 
-    # Check if project changed and load attachees
     project_id = Map.get(params, "project_id")
 
     attachees = if project_id != "" and project_id != nil do
@@ -152,7 +150,6 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
       []
     end
 
-    # Merge all params including status
     updated_form_data = Map.merge(socket.assigns.form_data, params)
 
     Logger.debug("Updated form data: #{inspect(updated_form_data)}")
@@ -168,7 +165,6 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   def handle_event("save", %{"task" => params}, socket) do
     Logger.info("Saving task with params: #{inspect(params)}")
 
-    # Build base attributes
     attrs = %{
       title: params["title"],
       description: params["description"] || "",
@@ -177,13 +173,10 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
       assignee_id: parse_int(params["assignee_id"])
     }
 
-    # Determine status
     attrs = if socket.assigns.editing_task do
-      # When editing, use the provided status or default to current
       status = params["status"] || socket.assigns.editing_task.status || "pending"
       Map.put(attrs, :status, status)
     else
-      # When creating, set status based on assignee
       status = if attrs.assignee_id, do: "in_progress", else: "pending"
       Map.put(attrs, :status, status)
     end
@@ -237,34 +230,32 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     end
   end
 
+  # FIXED: Use Eams.list_attachees_in_program
   defp load_attachees_safe_via_project(project_id) when is_integer(project_id) do
     try do
-      # First get the project with its program preloaded
       project = Eams.get_project!(project_id) |> Repo.preload(:program)
-      Logger.debug("Project loaded: #{inspect(project.id)}, Program ID: #{inspect(project.program_id)}")
 
-      cond do
-        # If project has a program, get attachees enrolled in that program
-        project.program_id ->
-          attachees = Eams.list_attachees_by_program(project.program_id, %{preloads: [:user]})
-          Logger.debug("Found #{length(attachees)} attachees for program #{project.program_id}")
-          attachees
+      attachees =
+        cond do
+          project.program_id ->
+            Logger.debug("Loading attachees from program #{project.program_id}")
+            Eams.list_attachees_in_program(project.program_id)
 
-        # If project has a department, get all attachees in that department
-        project.department_id ->
-          Logger.debug("Project has no program, trying department #{project.department_id}")
-          query = from a in TrialApp.Eams.Attachee,
-            where: a.department_id == ^project.department_id and a.status == "active",
-            preload: [:user]
-          attachees = Repo.all(query)
-          Logger.debug("Found #{length(attachees)} attachees in department")
-          attachees
+          project.department_id ->
+            Logger.debug("No program, loading from department #{project.department_id}")
+            query = from a in TrialApp.Eams.Attachee,
+              where: a.department_id == ^project.department_id and a.status == "active",
+              preload: [:user],
+              order_by: [asc: a.id]
+            Repo.all(query)
 
-        # Otherwise return all active attachees
-        true ->
-          Logger.debug("Project has no program_id or department_id, loading all active attachees")
-          load_all_active_attachees()
-      end
+          true ->
+            Logger.debug("No program or department, loading all active attachees")
+            load_all_active_attachees()
+        end
+
+      Logger.debug("Loaded #{length(attachees)} attachees for project #{project_id}")
+      attachees
     rescue
       e ->
         Logger.error("Error loading attachees for project #{project_id}: #{inspect(e)}")
@@ -304,7 +295,6 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     end
   end
 
-  # Improved date parsing function that handles dates across years
   defp parse_date(""), do: nil
   defp parse_date(nil), do: nil
   defp parse_date(date_string) when is_binary(date_string) do
@@ -368,5 +358,4 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   defp active_tasks(tasks), do: Enum.count(tasks, &(&1.status == "pending" || &1.status == "in_progress"))
   defp in_progress_tasks(tasks), do: Enum.count(tasks, &(&1.status == "in_progress"))
   defp completed_tasks(tasks), do: Enum.count(tasks, &(&1.status == "completed"))
-
 end

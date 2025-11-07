@@ -375,7 +375,7 @@ defmodule TrialAppWeb.SidebarComponent do
                       <li>
                         <.link
                           navigate={~p"/admin/eams/tasks"}
-                          class="block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                          class="block py-1.5 px-3 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
                         >
                           Tasks
                         </.link>
@@ -403,7 +403,7 @@ defmodule TrialAppWeb.SidebarComponent do
                   </.link>
                 </li>
 
-              <%# REGULAR USER VIEW %>
+              <%# DEFAULT VIEW (e.g., Employee, Manager) %>
               <% _ -> %>
                 <li>
                   <.link
@@ -468,12 +468,12 @@ defmodule TrialAppWeb.SidebarComponent do
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center">
               <span class="text-purple-700 font-bold text-sm">
-                {String.at(@current_scope.user.username, 0) |> String.upcase()}
+                {String.at(@current_scope.user.username || @current_scope.user.email, 0) |> String.upcase()}
               </span>
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-gray-800 truncate">
-                {@current_scope.user.username}
+                {@current_scope.user.username || @current_scope.user.email}
               </p>
               <p class="text-xs text-purple-600 truncate">
                 {role_display_name(@active_role)}

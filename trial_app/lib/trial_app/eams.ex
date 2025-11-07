@@ -11,7 +11,7 @@ defmodule TrialApp.Eams do
   }
   alias TrialApp.Orgs.{Department, Organization}
   alias TrialApp.Accounts.User
-
+alias TrialApp.Eams.Evaluation
   # ──────────────────────────────────────────────────────────────────────
   # PROGRAMS
   # ──────────────────────────────────────────────────────────────────────
@@ -71,6 +71,17 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
+  def list_projects_by_programs(program_ids) when is_list(program_ids) and program_ids != [] do
+    from(p in Project,
+      where: p.program_id in ^program_ids,
+      where: p.is_active == true,
+      preload: [:program, :department, :organization]
+    )
+    |> Repo.all()
+  end
+
+  def list_projects_by_programs(_), do: []
+
   def get_project!(id, opts \\ %{}) do
     Project
     |> Repo.get!(id)
@@ -107,26 +118,27 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  def list_attachees_by_program(program_id, opts \\ %{}) do
-    preloads = Map.get(opts, :preloads, [])
-
+  # FIXED: Use AttacheeProgram join
+  def list_attachees_in_program(program_id) do
     from(a in Attachee,
-      where: a.program_id == ^program_id,
-      preload: ^preloads
+      join: ap in AttacheeProgram,
+      on: ap.attachee_id == a.id,
+      where: ap.program_id == ^program_id and a.status == "active",
+      preload: [:user, :department, :organization],
+      order_by: [asc: a.id]
     )
     |> Repo.all()
   end
 
   @doc """
   Lists all attachees assigned to tasks in a specific project.
-  Returns attachees with their user information.
   """
   def list_attachees_in_project(project_id) do
     from(a in Attachee,
       join: t in Task, on: t.assignee_id == a.id,
       where: t.project_id == ^project_id,
-      distinct: true,
-      preload: [:user]
+      distinct: a.id,
+      preload: [:user, :department, :organization]
     )
     |> Repo.all()
   end
@@ -270,51 +282,6 @@ defmodule TrialApp.Eams do
   end
 
   # ──────────────────────────────────────────────────────────────────────
-  # TASK COMMENTS (Optional - uncomment when TaskComment schema is created)
-  # ──────────────────────────────────────────────────────────────────────
-  # def create_task_comment(attrs) do
-  #   %TaskComment{}
-  #   |> TaskComment.changeset(attrs)
-  #   |> Repo.insert()
-  # end
-
-  # def list_task_comments(task_id) do
-  #   TaskComment
-  #   |> where([c], c.task_id == ^task_id)
-  #   |> preload([:user])
-  #   |> order_by([c], asc: c.inserted_at)
-  #   |> Repo.all()
-  # end
-
-  # ──────────────────────────────────────────────────────────────────────
-  # EVALUATIONS (Add Evaluation to aliases at top when schema is created)
-  # ──────────────────────────────────────────────────────────────────────
-
-  # Uncomment these after creating Evaluation schema with:
-  # mix phx.gen.schema Eams.Evaluation evaluations attachee_id:references:attachees evaluator_id:references:users score:integer comments:text
-
-  # def list_evaluations_for_attachee(attachee_id) do
-  #   from(e in Evaluation,
-  #     where: e.attachee_id == ^attachee_id,
-  #     order_by: [desc: e.inserted_at],
-  #     preload: [:evaluator, :attachee]
-  #   )
-  #   |> Repo.all()
-  # end
-
-  # def create_evaluation(attrs) do
-  #   %Evaluation{}
-  #   |> Evaluation.changeset(attrs)
-  #   |> Repo.insert()
-  # end
-
-  # def get_evaluation!(id) do
-  #   Evaluation
-  #   |> Repo.get!(id)
-  #   |> Repo.preload([:evaluator, :attachee])
-  # end
-
-  # ──────────────────────────────────────────────────────────────────────
   # SUPERVISOR DASHBOARD HELPERS
   # ──────────────────────────────────────────────────────────────────────
   def count_attachees_under_supervisor(supervisor_id) do
@@ -392,4 +359,117 @@ defmodule TrialApp.Eams do
       %{row | status: status}
     end)
   end
+
+# Add these functions to your TrialApp.Eams module (lib/trial_app/eams.ex)
+
+# ──────────────────────────────────────────────────────────────────────
+# EVALUATIONS
+# ──────────────────────────────────────────────────────────────────────
+
+alias TrialApp.Eams.Evaluation
+
+
+def create_evaluation(attrs, user_scope) do
+  %Evaluation{}
+  |> Evaluation.changeset(attrs, user_scope)
+  |> Repo.insert()
+end
+
+@doc """
+Lists all evaluations for a specific attachee.
+"""
+def list_evaluations_for_attachee(attachee_id, opts \\ %{}) do
+  Evaluation
+  |> where([e], e.attachee_id == ^attachee_id)
+  |> order_by([e], desc: e.inserted_at)
+  |> preload(^Map.get(opts, :preloads, [:evaluator]))
+  |> Repo.all()
+end
+
+@doc """
+Gets a single evaluation.
+"""
+def get_evaluation!(id, opts \\ %{}) do
+  Evaluation
+  |> Repo.get!(id)
+  |> Repo.preload(Map.get(opts, :preloads, [:attachee, :evaluator]))
+end
+
+@doc """
+Updates an evaluation.
+"""
+def update_evaluation(%Evaluation{} = evaluation, attrs, user_scope) do
+  evaluation
+  |> Evaluation.changeset(attrs, user_scope)
+  |> Repo.update()
+end
+
+@doc """
+Deletes an evaluation.
+"""
+def delete_evaluation(%Evaluation{} = evaluation) do
+  Repo.delete(evaluation)
+end
+
+@doc """
+Gets the average evaluation score for an attachee.
+"""
+def get_average_evaluation_score(attachee_id) do
+  from(e in Evaluation,
+    where: e.attachee_id == ^attachee_id,
+    select: avg(e.score)
+  )
+  |> Repo.one()
+  |> case do
+    nil -> 0
+    score -> Float.round(score, 1)
+  end
+end
+
+@doc """
+Counts total evaluations for an attachee.
+"""
+def count_evaluations_for_attachee(attachee_id) do
+  from(e in Evaluation,
+    where: e.attachee_id == ^attachee_id,
+    select: count(e.id)
+  )
+  |> Repo.one() || 0
+end
+
+@doc """
+Gets the latest evaluation for an attachee.
+"""
+def get_latest_evaluation_for_attachee(attachee_id) do
+  from(e in Evaluation,
+    where: e.attachee_id == ^attachee_id,
+    order_by: [desc: e.inserted_at],
+    limit: 1,
+    preload: [:evaluator]
+  )
+  |> Repo.one()
+end
+
+@doc """
+Gets evaluation breakdown categories (for dashboard visualization).
+"""
+def get_evaluation_categories_for_attachee(attachee_id) do
+  # This returns a breakdown based on score ranges
+  evaluations = list_evaluations_for_attachee(attachee_id)
+  avg_score = get_average_evaluation_score(attachee_id)
+
+  # Generate category data based on average score
+  [
+    %{category: "Technical Skills", score: calculate_category_score(avg_score, 1.0), max: 100},
+    %{category: "Communication", score: calculate_category_score(avg_score, 0.95), max: 100},
+    %{category: "Teamwork", score: calculate_category_score(avg_score, 0.9), max: 100},
+    %{category: "Initiative", score: calculate_category_score(avg_score, 1.05), max: 100},
+    %{category: "Professionalism", score: calculate_category_score(avg_score, 0.98), max: 100}
+  ]
+end
+
+defp calculate_category_score(avg_score, multiplier) do
+  score = avg_score * multiplier
+  min(round(score), 100)
+end
 end

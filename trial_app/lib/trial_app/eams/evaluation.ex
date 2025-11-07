@@ -2,12 +2,16 @@ defmodule TrialApp.Eams.Evaluation do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias TrialApp.Eams.Attachee
+  alias TrialApp.Accounts.User
+
   schema "evaluations" do
     field :score, :integer
     field :comments, :string
-    field :attachee_id, :id
-    field :evaluator_id, :id
     field :user_id, :id
+
+    belongs_to :attachee, Attachee
+    belongs_to :evaluator, User, foreign_key: :evaluator_id
 
     timestamps(type: :utc_datetime)
   end
@@ -15,8 +19,13 @@ defmodule TrialApp.Eams.Evaluation do
   @doc false
   def changeset(evaluation, attrs, user_scope) do
     evaluation
-    |> cast(attrs, [:score, :comments])
-    |> validate_required([:score, :comments])
-    |> put_change(:user_id, user_scope.user.id)
+    |> cast(attrs, [:score, :comments, :attachee_id, :evaluator_id])
+    |> validate_required([:score, :comments, :attachee_id, :evaluator_id])
+    |> validate_number(:score, greater_than_or_equal_to: 1, less_than_or_equal_to: 100)
+    |> validate_length(:comments, min: 10, max: 1000)
+    |> put_change(:user_id, user_scope.id)
+    |> foreign_key_constraint(:attachee_id)
+    |> foreign_key_constraint(:evaluator_id)
+    |> foreign_key_constraint(:user_id)
   end
 end
