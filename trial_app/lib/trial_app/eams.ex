@@ -412,7 +412,8 @@ def delete_evaluation(%Evaluation{} = evaluation) do
 end
 
 @doc """
-Gets the average evaluation score for an attachee.
+Gets the average evaluation score for an attachee, always returning a float.
+Handles Decimal values safely to avoid Float.round errors.
 """
 def get_average_evaluation_score(attachee_id) do
   from(e in Evaluation,
@@ -421,8 +422,19 @@ def get_average_evaluation_score(attachee_id) do
   )
   |> Repo.one()
   |> case do
-    nil -> 0
-    score -> Float.round(score, 1)
+    nil ->
+      0.0
+
+    %Decimal{} = d ->
+      d
+      |> Decimal.round(1)
+      |> Decimal.to_float()
+
+    n when is_number(n) ->
+      Float.round(n, 1)
+
+    _ ->
+      0.0
   end
 end
 

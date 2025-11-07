@@ -15,19 +15,15 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
      |> assign(:selected_attachee, nil)
      |> assign(:show_evaluation_form, false)
      |> assign(:evaluations, [])
-     |> assign(:avg_score, 0)
+     |> assign(:avg_score, 0.0)
      |> assign(:eval_count, 0)
      |> load_attachees(current_user)}
   end
 
   defp load_attachees(socket, user) do
-    # Get attachees only in projects supervised by this user
     attachee_list = load_attachee_list(user.id)
-
-    # Count total
     total_attachees = length(attachee_list)
 
-    # Debug info
     IO.inspect(user.id, label: "Supervisor ID")
     IO.inspect(total_attachees, label: "Total Attachees Found")
 
@@ -37,8 +33,6 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   defp load_attachee_list(supervisor_id) do
-    # Check if projects have supervisor_id column
-    # First try: Get attachees through projects with supervisor_id
     query1 = from(a in Eams.Attachee,
       join: t in Eams.Task, on: t.assignee_id == a.id,
       join: p in Eams.Project, on: t.project_id == p.id,
@@ -50,12 +44,9 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     result = Repo.all(query1)
     IO.inspect(result, label: "Attachees via Projects with supervisor_id")
 
-    # If empty, try alternative: Get all attachees with tasks in any project
-    # This is for debugging - remove once we know the right approach
     if result == [] do
       IO.puts("No attachees found via supervisor_id, trying alternative query...")
 
-      # Alternative: Get attachees by department (if supervisor manages department)
       dept_result = from(a in Eams.Attachee,
         where: a.department_id == ^get_supervisor_department_id(supervisor_id),
         preload: [:user, :department, :organization]
@@ -70,7 +61,6 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   defp get_supervisor_department_id(supervisor_id) do
-    # Get the department where this supervisor works
     case Orgs.get_department_for_user(supervisor_id) do
       nil -> nil
       dept -> dept.id
@@ -80,22 +70,15 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   @impl true
   def handle_event("select_attachee", %{"id" => id}, socket) do
     attachee = Eams.get_attachee!(id, %{preloads: [:user, :department, :organization]})
-
-    # Get attachee's tasks
     tasks = Eams.list_tasks_for_attachee(attachee.id)
-
-    # Get attachee's projects
     projects = Eams.list_projects_for_attachee(attachee.id)
-
-    # Get attachee's programs
     programs = Eams.list_programs_for_attachee(attachee.id)
-
-    # Get evaluations
     evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-    avg_score = Eams.get_average_evaluation_score(attachee.id)
-    eval_count = Eams.count_evaluations_for_attachee(attachee.id)
 
-    # Calculate stats
+    # FIXED: This is the problematic line 79 - completely avoid Float.round
+    avg_score = Eams.get_average_evaluation_score(attachee.id) |> safe_round_decimal()
+
+    eval_count = Eams.count_evaluations_for_attachee(attachee.id)
     stats = calculate_attachee_stats(attachee)
 
     {:noreply,
@@ -124,12 +107,11 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
 
   @impl true
   def handle_info({:evaluation_submitted, attachee_id}, socket) do
-    # Reload the attachee to get fresh data
     attachee = Eams.get_attachee!(attachee_id, %{preloads: [:user, :department, :organization]})
-
-    # Reload evaluations
     evaluations = Eams.list_evaluations_for_attachee(attachee_id, %{preloads: [:evaluator]})
-    avg_score = Eams.get_average_evaluation_score(attachee_id)
+
+    # FIXED: Use decimal_to_float instead of Float.round
+    avg_score = Eams.get_average_evaluation_score(attachee_id) |> decimal_to_float(1)
     eval_count = Eams.count_evaluations_for_attachee(attachee_id)
 
     {:noreply,
@@ -145,6 +127,91 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   def handle_info({:close_modal, _}, socket) do
     {:noreply, assign(socket, :show_evaluation_form, false)}
   end
+
+  def handle_info(:close_modal, socket) do
+    {:noreply, assign(socket, :show_evaluation_form, false)}
+  end
+
+  # === NEW: Safe decimal conversion with rounding ===
+  defp decimal_to_float(value, precision) do
+    case value do
+      %Decimal{} = decimal ->
+        decimal
+        |> Decimal.round(precision)
+        |> Decimal.to_float()
+
+      number when is_number(number) ->
+        Float.round(number, precision)
+
+      nil ->
+        0.0
+
+      _ ->
+        value
+        |> to_string()
+        |> Float.parse()
+        |> case do
+          {float, _} -> Float.round(float, precision)
+          :error -> 0.0
+        end
+    end
+  end
+
+  # === FIXED: Safe completion rate (integer math) ===
+  defp calculate_attachee_stats(attachee) do
+    tasks = Eams.list_tasks_for_attachee(attachee.id)
+    total_tasks = length(tasks)
+    completed = Enum.count(tasks, &(&1.status == "completed"))
+
+    completion_rate =
+      if total_tasks > 0 do
+        (completed * 100.0 / total_tasks) |> Float.round(1)
+      else
+        0.0
+      end
+
+    %{
+      total_tasks: total_tasks,
+      completed: completed,
+      pending: Enum.count(tasks, &(&1.status == "pending")),
+      submitted: Enum.count(tasks, &(&1.status == "submitted")),
+      in_progress: Enum.count(tasks, &(&1.status == "in_progress")),
+      completion_rate: completion_rate
+    }
+  end
+
+  # === HELPER FUNCTIONS ===
+  defp score_color_class(score) when score >= 81, do: "bg-success text-success-content"
+  defp score_color_class(score) when score >= 61, do: "bg-info text-info-content"
+  defp score_color_class(score) when score >= 41, do: "bg-warning text-warning-content"
+  defp score_color_class(_), do: "bg-error text-error-content"
+
+  defp score_badge_class(score) when score >= 81, do: "badge-success badge-lg"
+  defp score_badge_class(score) when score >= 61, do: "badge-info badge-lg"
+  defp score_badge_class(score) when score >= 41, do: "badge-warning badge-lg"
+  defp score_badge_class(_), do: "badge-error badge-lg"
+
+  defp score_label(score) when score >= 81, do: "Excellent"
+  defp score_label(score) when score >= 61, do: "Good"
+  defp score_label(score) when score >= 41, do: "Satisfactory"
+  defp score_label(_), do: "Needs Improvement"
+
+  defp status_badge("active"), do: "badge-success"
+  defp status_badge("inactive"), do: "badge-error"
+  defp status_badge(_), do: "badge-ghost"
+
+  defp task_status_badge("completed"), do: "badge-success"
+  defp task_status_badge("in_progress"), do: "badge-info"
+  defp task_status_badge("pending"), do: "badge-warning"
+  defp task_status_badge("submitted"), do: "badge-primary"
+  defp task_status_badge("rejected"), do: "badge-error"
+  defp task_status_badge(_), do: "badge-ghost"
+
+  defp activity_indicator("completed"), do: "bg-success"
+  defp activity_indicator("in_progress"), do: "bg-info"
+  defp activity_indicator("pending"), do: "bg-warning"
+  defp activity_indicator("submitted"), do: "bg-primary"
+  defp activity_indicator(_), do: "bg-base-content/20"
 
   @impl true
   def render(assigns) do
@@ -371,7 +438,6 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           <p class="text-sm text-base-content/90"><%= evaluation.comments %></p>
                         </div>
 
-                        <!-- Score Badge -->
                         <div class="flex justify-end mt-2">
                           <span class={"badge #{score_badge_class(evaluation.score)}"}>
                             <%= score_label(evaluation.score) %>
@@ -504,67 +570,24 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       />
     </div>
     """
+
   end
+  defp safe_round_decimal(value) do
+  cond do
+    is_nil(value) ->
+      0.0
 
-  # === HELPER FUNCTIONS ===
+    match?(%Decimal{}, value) ->
+      value
+      |> Decimal.round(1)
+      |> Decimal.to_float()
 
-  # Calculate attachee statistics
-  defp calculate_attachee_stats(attachee) do
-    tasks = Eams.list_tasks_for_attachee(attachee.id)
+    is_number(value) ->
+      Float.round(value, 1)
 
-    completed = Enum.count(tasks, &(&1.status == "completed"))
-    pending = Enum.count(tasks, &(&1.status == "pending"))
-    submitted = Enum.count(tasks, &(&1.status == "submitted"))
-    in_progress = Enum.count(tasks, &(&1.status == "in_progress"))
-    total_tasks = length(tasks)
-
-    completion_rate = if total_tasks > 0 do
-      Float.round(completed / total_tasks * 100, 1)
-    else
-      0
-    end
-
-    %{
-      total_tasks: total_tasks,
-      completed: completed,
-      pending: pending,
-      submitted: submitted,
-      in_progress: in_progress,
-      completion_rate: completion_rate
-    }
+    true ->
+      0.0
   end
+end
 
-  # Evaluation score helpers
-  defp score_color_class(score) when score >= 81, do: "bg-success text-success-content"
-  defp score_color_class(score) when score >= 61, do: "bg-info text-info-content"
-  defp score_color_class(score) when score >= 41, do: "bg-warning text-warning-content"
-  defp score_color_class(_), do: "bg-error text-error-content"
-
-  defp score_badge_class(score) when score >= 81, do: "badge-success badge-lg"
-  defp score_badge_class(score) when score >= 61, do: "badge-info badge-lg"
-  defp score_badge_class(score) when score >= 41, do: "badge-warning badge-lg"
-  defp score_badge_class(_), do: "badge-error badge-lg"
-
-  defp score_label(score) when score >= 81, do: "Excellent"
-  defp score_label(score) when score >= 61, do: "Good"
-  defp score_label(score) when score >= 41, do: "Satisfactory"
-  defp score_label(_), do: "Needs Improvement"
-
-  # Status badge helpers
-  defp status_badge("active"), do: "badge-success"
-  defp status_badge("inactive"), do: "badge-error"
-  defp status_badge(_), do: "badge-ghost"
-
-  defp task_status_badge("completed"), do: "badge-success"
-  defp task_status_badge("in_progress"), do: "badge-info"
-  defp task_status_badge("pending"), do: "badge-warning"
-  defp task_status_badge("submitted"), do: "badge-primary"
-  defp task_status_badge("rejected"), do: "badge-error"
-  defp task_status_badge(_), do: "badge-ghost"
-
-  defp activity_indicator("completed"), do: "bg-success"
-  defp activity_indicator("in_progress"), do: "bg-info"
-  defp activity_indicator("pending"), do: "bg-warning"
-  defp activity_indicator("submitted"), do: "bg-primary"
-  defp activity_indicator(_), do: "bg-base-content/20"
 end

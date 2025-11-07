@@ -1,8 +1,8 @@
-
 # lib/trial_app_web/live/supervisor_live/evaluation_form.ex
 
 defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   use TrialAppWeb, :live_component
+  import TrialAppWeb.CoreComponents, except: [translate_error: 1]  # 👈 Prevent conflict
 
   alias TrialApp.Eams
 
@@ -16,7 +16,8 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
       |> Eams.Evaluation.changeset(%{
         attachee_id: assigns.attachee.id,
         evaluator_id: assigns.current_user.id,
-        score: 50
+        score: 50,
+        comments: ""
       }, assigns.current_user)
 
     {:ok,
@@ -26,24 +27,49 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   end
 
   def handle_event("validate", %{"evaluation" => params}, socket) do
+    params =
+      Map.merge(params, %{
+        "attachee_id" => socket.assigns.attachee.id,
+        "evaluator_id" => socket.assigns.current_user.id
+      })
+
     changeset =
       %Eams.Evaluation{}
       |> Eams.Evaluation.changeset(params, socket.assigns.current_user)
       |> Map.put(:action, :validate)
 
+    IO.inspect(changeset.valid?, label: "Changeset Valid?")
+    IO.inspect(changeset.errors, label: "Changeset Errors")
+    IO.inspect(params, label: "Params")
+
     {:noreply, assign(socket, :changeset, changeset)}
   end
 
   def handle_event("save", %{"evaluation" => params}, socket) do
+    IO.puts("\n=== SAVE EVENT TRIGGERED ===")
+    IO.inspect(params, label: "Raw params")
+
     socket = assign(socket, :submitting, true)
 
+    params =
+      Map.merge(params, %{
+        "attachee_id" => socket.assigns.attachee.id,
+        "evaluator_id" => socket.assigns.current_user.id
+      })
+
+    IO.inspect(params, label: "Merged params")
+
     case Eams.create_evaluation(params, socket.assigns.current_user) do
-      {:ok, _eval} ->
+      {:ok, eval} ->
+        IO.puts("✅ Evaluation created successfully!")
+        IO.inspect(eval, label: "Created evaluation")
         send(self(), {:evaluation_submitted, socket.assigns.attachee.id})
         send(self(), :close_modal)
         {:noreply, socket}
 
       {:error, %Ecto.Changeset{} = changeset} ->
+        IO.puts("❌ Evaluation creation failed!")
+        IO.inspect(changeset.errors, label: "Save errors")
         {:noreply, assign(socket, changeset: changeset, submitting: false)}
     end
   end
@@ -53,15 +79,21 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
     {:noreply, socket}
   end
 
+  # Custom helper to translate local error tuples safely
+  defp translate_error({msg, opts}) do
+    Enum.reduce(opts, msg, fn {key, value}, acc ->
+      String.replace(acc, "%{#{key}}", to_string(value))
+    end)
+  end
+
   def render(assigns) do
     ~H"""
     <div
       id={@id}
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      phx-click="close"
-      phx-target={@myself}
       phx-window-keydown="close"
       phx-key="Escape"
+      phx-target={@myself}
     >
       <div
         class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
@@ -94,38 +126,36 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
             <div class="flex items-center gap-4">
               <input
                 type="range"
-                name={f[:score].name}
-                value={f[:score].value || 50}
+                name="evaluation[score]"
+                value={Phoenix.HTML.Form.input_value(f, :score) || 50}
                 min="1"
                 max="100"
                 class="range range-primary"
                 phx-debounce="100"
               />
               <span class="w-16 text-center font-bold text-xl">
-                <%= f[:score].value || 50 %>
+                <%= Phoenix.HTML.Form.input_value(f, :score) || 50 %>
               </span>
             </div>
-            <%= if msg = f[:score].errors[:score] do %>
-              <p class="text-error text-sm mt-1"><%= msg %></p>
-            <% end %>
           </div>
 
           <!-- COMMENTS -->
           <div>
             <label class="label">
               <span class="label-text font-bold">Comments <span class="text-red-500">*</span></span>
+              <span class="label-text-alt text-base-content/50">Minimum 10 characters</span>
             </label>
             <textarea
-              name={f[:comments].name}
+              name="evaluation[comments]"
               rows="6"
-              class="textarea textarea-bordered w-full"
-              placeholder="Write your feedback here..."
-              required
+              class={"textarea textarea-bordered w-full #{if @changeset.errors[:comments], do: "textarea-error"}"}
+              placeholder="Write your feedback here... (minimum 10 characters)"
               phx-debounce="500"
-            ><%= f[:comments].value %></textarea>
-
-            <%= if msg = f[:comments].errors[:comments] do %>
-              <p class="text-error text-sm mt-1"><%= msg %></p>
+            ><%= Phoenix.HTML.Form.input_value(f, :comments) %></textarea>
+            <%= if error = Keyword.get(@changeset.errors, :comments) do %>
+              <p class="text-error text-sm mt-1">
+                <%= translate_error(error) %>
+              </p>
             <% end %>
           </div>
 
@@ -137,7 +167,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
             <button
               type="submit"
               class="btn btn-primary"
-              disabled={!@changeset.valid? || @submitting}
+              disabled={@submitting}
             >
               <%= if @submitting, do: "Submitting...", else: "Submit Evaluation" %>
             </button>
