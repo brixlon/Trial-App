@@ -21,7 +21,7 @@
     <script defer phx-track-static src={~p"/assets/js/app.js"}></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- Dark Mode & Animations (unchanged) -->
+    <!-- Dark Mode & Animations -->
     <style>
       * { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
       html[data-theme="light"] body { background: #fff; color: #111; }
@@ -89,9 +89,6 @@
               <.link navigate={~p"/users/settings"} class="text-gray-600 hover:text-indigo-600">
                 Settings
               </.link>
-              <.link navigate={~p"/users/logout"} class="text-red-600 hover:text-red-800 font-medium">
-                Logout
-              </.link>
             </div>
 
             <!-- Mobile Menu Button -->
@@ -110,7 +107,6 @@
             <div class="space-y-3 px-4">
               <.link navigate={~p"/dashboard"} class="block text-gray-700 hover:text-indigo-600">Dashboard</.link>
               <.link navigate={~p"/users/settings"} class="block text-gray-700 hover:text-indigo-600">Settings</.link>
-              <.link navigate={~p"/users/logout"} class="block text-red-600">Logout</.link>
             </div>
           </div>
         </div>

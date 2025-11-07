@@ -3,7 +3,7 @@ defmodule TrialApp.Repo.Migrations.CreateTeamsAndTeamMembers do
   use Ecto.Migration
 
   def change do
-    create table(:teams) do
+    create_if_not_exists table(:teams) do
       add :name, :string, null: false
       add :supervisor_id, references(:users, on_delete: :delete_all), null: false
       timestamps()

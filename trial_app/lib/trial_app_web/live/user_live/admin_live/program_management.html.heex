@@ -1,358 +1,416 @@
-<.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
-<div class="ml-64 p-8">
-  <div class="space-y-8">
-    <!-- Header Section -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-bold text-[#3B3B98]">Program Management</h1>
-        <p class="text-sm text-gray-500 mt-1">Manage and track all your organization's programs</p>
-      </div>
-      <div class="flex gap-3">
-        <button phx-click="new" class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-          </svg>
-          New Program
-        </button>
-      </div>
-    </div>
+<div class="min-h-screen bg-white text-gray-900">
+  <div class="flex">
+    <!-- Sidebar -->
+    <.live_component
+      module={TrialAppWeb.SidebarComponent}
+      id="sidebar"
+      current_scope={@current_scope}
+    />
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div class="bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-            </svg>
+    <!-- Main content -->
+    <main class="ml-64 w-full p-8">
+      <div class="max-w-7xl mx-auto space-y-8">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-semibold text-gray-800">Program Management</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage and track all your organization's programs</p>
           </div>
-          <span class="text-2xl font-bold"><%= length(@programs) %></span>
+          <button
+            phx-click="new"
+            class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition"
+          >
+            <%= if @show_form, do: "Close Form", else: "New Program" %>
+          </button>
         </div>
-        <p class="text-sm opacity-90">Total Programs</p>
-      </div>
 
-      <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+        <!-- Stats Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
+            <div class="text-sm text-purple-600 font-medium">Total Programs</div>
+            <div class="text-2xl font-bold text-purple-700 mt-1"><%= length(@programs) %></div>
           </div>
-          <span class="text-2xl font-bold">
-            <%= Enum.count(@programs, fn p -> p.starts_on && Date.compare(p.starts_on, Date.utc_today()) != :gt end) %>
-          </span>
-        </div>
-        <p class="text-sm opacity-90">Active</p>
-      </div>
-
-      <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <span class="text-2xl font-bold">
-            <%= Enum.count(@programs,
-                 fn p -> p.starts_on && Date.compare(p.starts_on, Date.utc_today()) == :lt &&
-                         (!p.ends_on || Date.compare(p.ends_on, Date.utc_today()) != :lt) end) %>
-          </span>
-        </div>
-        <p class="text-sm opacity-90">In Progress</p>
-      </div>
-
-      <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M5 13l4 4L19 7"/>
-            </svg>
-          </div>
-          <span class="text-2xl font-bold">
-            <%= Enum.count(@programs, fn p -> p.ends_on && Date.compare(p.ends_on, Date.utc_today()) == :lt end) %>
-          </span>
-        </div>
-        <p class="text-sm opacity-90">Completed</p>
-      </div>
-    </div>
-
-    <!-- Programs Table -->
-    <div class="bg-white shadow-lg rounded-2xl border border-gray-100 overflow-hidden">
-      <%= if @programs == [] do %>
-        <div class="py-12 text-center">
-          <div class="flex flex-col items-center gap-3">
-            <div class="w-20 h-20 rounded-full bg-[#F0EEFF] flex items-center justify-center">
-              <svg class="w-10 h-10 text-[#6C63FF]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-              </svg>
+          <div class="bg-green-50 p-4 rounded-lg border border-green-100">
+            <div class="text-sm text-green-600 font-medium">Active</div>
+            <div class="text-2xl font-bold text-green-700 mt-1">
+              <%= Enum.count(@programs, fn p -> p.starts_on && Date.compare(p.starts_on, Date.utc_today()) != :gt end) %>
             </div>
-            <div>
-              <p class="font-semibold text-gray-700 text-lg">No programs yet</p>
-              <p class="text-sm text-gray-500 mt-1">Get started by creating your first program</p>
+          </div>
+          <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
+            <div class="text-sm text-amber-600 font-medium">In Progress</div>
+            <div class="text-2xl font-bold text-amber-700 mt-1">
+              <%= Enum.count(@programs, fn p -> p.starts_on && Date.compare(p.starts_on, Date.utc_today()) == :lt && (!p.ends_on || Date.compare(p.ends_on, Date.utc_today()) != :lt) end) %>
             </div>
-            <button phx-click="new" class="mt-2 px-5 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8] transition">
-              Create Your First Program
-            </button>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div class="text-sm text-blue-600 font-medium">Completed</div>
+            <div class="text-2xl font-bold text-blue-700 mt-1">
+              <%= Enum.count(@programs, fn p -> p.ends_on && Date.compare(p.ends_on, Date.utc_today()) == :lt end) %>
+            </div>
           </div>
         </div>
-      <% else %>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-left">
-            <thead class="bg-[#6C63FF] text-white">
-              <tr>
-                <th class="px-6 py-4 text-sm font-semibold">PROGRAM</th>
-                <!-- CODE COLUMN REMOVED -->
-                <th class="px-6 py-4 text-sm font-semibold">ORGANIZATION</th>
-                <th class="px-6 py-4 text-sm font-semibold">DEPARTMENT</th>
-                <th class="px-6 py-4 text-sm font-semibold">TIMELINE</th>
-                <th class="px-6 py-4 text-sm font-semibold">STATUS</th>
-                <th class="px-6 py-4 text-sm font-semibold text-right">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-              <%= for program <- @programs do %>
-                <tr class="hover:bg-[#F8F8FF] transition group">
-                  <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
-                      <div class="w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] text-white font-bold shadow-md">
-                        <%= String.first(program.name || "?") |> String.upcase() %>
-                      </div>
+
+        <!-- Program Form Modal -->
+        <%= if @show_form do %>
+          <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-xl w-full max-w-2xl shadow-xl">
+              <!-- Modal Header -->
+              <div class="flex items-center justify-between p-6 border-b border-gray-200">
+                <div>
+                  <h2 class="text-xl font-semibold text-gray-800">
+                    <%= if @editing_program, do: "Edit Program", else: "Create New Program" %>
+                  </h2>
+                  <p class="text-sm text-gray-500 mt-1">
+                    <%= if @editing_program, do: "Update program details", else: "Fill in the details to get started" %>
+                  </p>
+                </div>
+                <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
+                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Modal Body -->
+              <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                <form id="program-form" phx-submit="save" phx-change="update_form">
+                  <div class="space-y-4">
+                    <!-- Program Name -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Program Name <span class="text-red-500">*</span>
+                      </label>
+                      <input
+                        name="program[name]"
+                        value={@form_data["name"]}
+                        class="w-full border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter program name"
+                        required
+                      />
+                      <%= if error = @errors[:name] do %>
+                        <p class="mt-1 text-sm text-red-600"><%= error %></p>
+                      <% end %>
+                    </div>
+
+                    <!-- Organization & Department -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <span class="text-gray-800 font-semibold block"><%= program.name %></span>
-                        <%= if program.description do %>
-                          <span class="text-xs text-gray-500 line-clamp-1"><%= program.description %></span>
-                        <% end %>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Organization <span class="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="program[organization_id]"
+                          class="w-full border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">Select organization</option>
+                          <%= for org <- @orgs do %>
+                            <option value={org.id} selected={to_string(org.id) == @form_data["organization_id"]}>
+                              <%= org.name %>
+                            </option>
+                          <% end %>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                          Department <span class="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="program[department_id]"
+                          class="w-full border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">
+                            <%= if Enum.empty?(@departments), do: "Select organization first", else: "Select department" %>
+                          </option>
+                          <%= for dept <- @departments do %>
+                            <option value={dept.id} selected={to_string(dept.id) == @form_data["department_id"]}>
+                              <%= dept.name %>
+                            </option>
+                          <% end %>
+                        </select>
                       </div>
                     </div>
-                  </td>
 
-                  <!-- CODE CELL REMOVED -->
+                    <!-- Start & End Date -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          name="program[starts_on]"
+                          value={@form_data["starts_on"]}
+                          class="w-full border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
 
-                  <td class="px-6 py-4">
-                    <span class="text-gray-700 font-medium">
-                      <%= if Ecto.assoc_loaded?(program.organization) && program.organization, do: program.organization.name, else: "—" %>
-                    </span>
-                  </td>
-                  <td class="px-6 py-4">
-                    <span class="text-gray-700 font-medium">
-                      <%= if Ecto.assoc_loaded?(program.department) && program.department, do: program.department.name, else: "—" %>
-                    </span>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="text-sm text-gray-600">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          name="program[ends_on]"
+                          value={@form_data["ends_on"]}
+                          class="w-full border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <textarea
+                        name="program[description]"
+                        class="w-full border-gray-300 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        rows="4"
+                        placeholder="Describe the program goals and objectives..."
+                      ><%= @form_data["description"] %></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Modal Footer -->
+                  <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      phx-click="close"
+                      class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition"
+                    >
+                      <%= if @editing_program, do: "Update Program", else: "Save Program" %>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Programs Table -->
+        <div class="bg-white shadow rounded-xl overflow-hidden">
+          <%= if @programs == [] do %>
+            <div class="py-12 text-center">
+              <p class="text-gray-500 text-lg mb-2">No programs yet</p>
+              <p class="text-sm text-gray-400 mb-4">Get started by creating your first program</p>
+              <button
+                phx-click="new"
+                class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition"
+              >
+                Create Your First Program
+              </button>
+            </div>
+          <% else %>
+            <table class="min-w-full text-sm text-left text-gray-700">
+              <thead class="bg-gray-100 text-xs uppercase">
+                <tr>
+                  <th class="px-4 py-3">Program</th>
+                  <th class="px-4 py-3">Organization</th>
+                  <th class="px-4 py-3">Department</th>
+                  <th class="px-4 py-3">Timeline</th>
+                  <th class="px-4 py-3">Status</th>
+                  <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for program <- @programs do %>
+                  <tr class="border-t hover:bg-gray-50 transition">
+                    <td class="px-4 py-3">
+                      <div class="font-medium text-gray-900"><%= program.name %></div>
+                      <%= if program.description do %>
+                        <div class="text-xs text-gray-500 line-clamp-1"><%= program.description %></div>
+                      <% end %>
+                    </td>
+                    <td class="px-4 py-3">
+                      <%= if Ecto.assoc_loaded?(program.organization) && program.organization do %>
+                        <%= program.organization.name %>
+                      <% else %>
+                        <span class="text-gray-400">—</span>
+                      <% end %>
+                    </td>
+                    <td class="px-4 py-3">
+                      <%= if Ecto.assoc_loaded?(program.department) && program.department do %>
+                        <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                          <%= program.department.name %>
+                        </span>
+                      <% else %>
+                        <span class="text-gray-400">—</span>
+                      <% end %>
+                    </td>
+                    <td class="px-4 py-3">
                       <%= if program.starts_on do %>
-                        <div class="flex items-center gap-1.5">
-                          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                          </svg>
+                        <div class="text-sm">
                           <%= Calendar.strftime(program.starts_on, "%b %d, %Y") %>
+                          <%= if program.ends_on do %>
+                            <div class="text-xs text-gray-500">
+                              to <%= Calendar.strftime(program.ends_on, "%b %d, %Y") %>
+                            </div>
+                          <% end %>
                         </div>
-                      <% end %>
-                      <%= if program.ends_on do %>
-                        <div class="flex items-center gap-1.5 mt-1">
-                          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                          </svg>
-                          <%= Calendar.strftime(program.ends_on, "%b %d, %Y") %>
-                        </div>
-                      <% end %>
-                      <%= if !program.starts_on && !program.ends_on do %>
+                      <% else %>
                         <span class="text-gray-400">Not set</span>
                       <% end %>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <%= cond do %>
-                      <% program.ends_on && Date.compare(program.ends_on, Date.utc_today()) == :lt -> %>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-blue-50 text-blue-700">
-                          <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                          Completed
-                        </span>
-                      <% program.starts_on && Date.compare(program.starts_on, Date.utc_today()) == :lt -> %>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-amber-50 text-amber-700">
-                          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                          In Progress
-                        </span>
-                      <% true -> %>
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-emerald-50 text-emerald-700">
-                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Active
-                        </span>
-                    <% end %>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        phx-click="view_program"
-                        phx-value-id={program.id}
-                        class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
-                        title="View Details"
-                      >
-                        <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                      </button>
-                      <button
-                        phx-click="edit_program"
-                        phx-value-id={program.id}
-                        class="p-2 hover:bg-[#E8E7FF] rounded-lg transition"
-                        title="Edit"
-                      >
-                        <svg class="w-4 h-4 text-[#6C63FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                      </button>
-                      <button
-                        phx-click="delete_program"
-                        phx-value-id={program.id}
-                        data-confirm="Are you sure you want to delete this program?"
-                        class="p-2 hover:bg-red-50 rounded-lg transition"
-                        title="Delete"
-                      >
-                        <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+                    </td>
+                    <td class="px-4 py-3">
+                      <%= cond do %>
+                        <% program.ends_on && Date.compare(program.ends_on, Date.utc_today()) == :lt -> %>
+                          <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-blue-100 text-blue-800">
+                            Completed
+                          </span>
+                        <% program.starts_on && Date.compare(program.starts_on, Date.utc_today()) == :lt -> %>
+                          <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-amber-100 text-amber-800">
+                            In Progress
+                          </span>
+                        <% true -> %>
+                          <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
+                            Active
+                          </span>
+                      <% end %>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center justify-end gap-2">
+                        <button
+                          phx-click="view_program"
+                          phx-value-id={program.id}
+                          class="p-1.5 hover:bg-purple-50 rounded text-purple-600"
+                          title="View"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          </svg>
+                        </button>
+                        <button
+                          phx-click="edit_program"
+                          phx-value-id={program.id}
+                          class="p-1.5 hover:bg-purple-50 rounded text-purple-600"
+                          title="Edit"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                          </svg>
+                        </button>
+                        <button
+                          phx-click="delete_program"
+                          phx-value-id={program.id}
+                          data-confirm="Are you sure you want to delete this program?"
+                          class="p-1.5 hover:bg-red-50 rounded text-red-600"
+                          title="Delete"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          <% end %>
         </div>
-      <% end %>
-    </div>
+      </div>
+    </main>
   </div>
 </div>
 
-<!-- ========== VIEW MODAL ========== -->
+<!-- View Modal -->
 <%= if @show_view_modal && @viewing_program do %>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl">
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl w-full max-w-2xl shadow-xl">
       <!-- Modal Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <div class="flex items-center gap-4">
-          <div class="w-16 h-16 flex items-center justify-center rounded-full bg-gradient-to-br from-[#6C63FF] to-[#5A52E8] text-white font-bold text-2xl shadow-lg">
-            <%= String.first(@viewing_program.name || "?") |> String.upcase() %>
-          </div>
-          <div>
-            <h2 class="text-2xl font-bold text-[#3B3B98]"><%= @viewing_program.name %></h2>
-            <p class="text-sm text-gray-500 mt-1">Program Details</p>
-          </div>
+        <div>
+          <h2 class="text-xl font-semibold text-gray-800"><%= @viewing_program.name %></h2>
+          <p class="text-sm text-gray-500 mt-1">Program Details</p>
         </div>
-        <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg">
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
 
       <!-- Modal Body -->
-      <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <div class="space-y-6">
-          <!-- Status Badge -->
-          <div class="flex items-center gap-3">
-            <span class="text-sm font-semibold text-gray-500">Status:</span>
-            <%= cond do %>
-              <% @viewing_program.ends_on && Date.compare(@viewing_program.ends_on, Date.utc_today()) == :lt -> %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-blue-50 text-blue-700">
-                  <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                  Completed
-                </span>
-              <% @viewing_program.starts_on && Date.compare(@viewing_program.starts_on, Date.utc_today()) == :lt -> %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-amber-50 text-amber-700">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  In Progress
-                </span>
-              <% true -> %>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-emerald-50 text-emerald-700">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Active
-                </span>
-            <% end %>
-          </div>
-
-          <!-- Program Details Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- PROGRAM CODE REMOVED -->
-
-            <!-- Organization -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Organization</p>
-              <p class="text-lg font-semibold text-gray-800">
-                <%= if Ecto.assoc_loaded?(@viewing_program.organization) && @viewing_program.organization do %>
-                  <%= @viewing_program.organization.name %>
-                <% else %>
-                  —
-                <% end %>
-              </p>
-            </div>
-
-            <!-- Department -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Department</p>
-              <p class="text-lg font-semibold text-gray-800">
-                <%= if Ecto.assoc_loaded?(@viewing_program.department) && @viewing_program.department do %>
-                  <%= @viewing_program.department.name %>
-                <% else %>
-                  —
-                <% end %>
-              </p>
-            </div>
-
-            <!-- Placeholder for symmetry -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Type</p>
-              <p class="text-lg font-semibold text-gray-800">Internship Program</p>
-            </div>
-
-            <!-- Start Date -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Start Date</p>
-              <p class="text-lg font-semibold text-gray-800">
-                <%= if @viewing_program.starts_on do %>
-                  <%= Calendar.strftime(@viewing_program.starts_on, "%B %d, %Y") %>
-                <% else %>
-                  Not set
-                <% end %>
-              </p>
-            </div>
-
-            <!-- End Date -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">End Date</p>
-              <p class="text-lg font-semibold text-gray-800">
-                <%= if @viewing_program.ends_on do %>
-                  <%= Calendar.strftime(@viewing_program.ends_on, "%B %d, %Y") %>
-                <% else %>
-                  Not set
-                <% end %>
-              </p>
-            </div>
-          </div>
-
-          <!-- Description -->
-          <%= if @viewing_program.description do %>
-            <div>
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</p>
-              <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p class="text-gray-700 leading-relaxed"><%= @viewing_program.description %></p>
-              </div>
-            </div>
+      <div class="p-6 space-y-4">
+        <!-- Status -->
+        <div>
+          <span class="text-sm font-medium text-gray-500">Status: </span>
+          <%= cond do %>
+            <% @viewing_program.ends_on && Date.compare(@viewing_program.ends_on, Date.utc_today()) == :lt -> %>
+              <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-blue-100 text-blue-800">
+                Completed
+              </span>
+            <% @viewing_program.starts_on && Date.compare(@viewing_program.starts_on, Date.utc_today()) == :lt -> %>
+              <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-amber-100 text-amber-800">
+                In Progress
+              </span>
+            <% true -> %>
+              <span class="inline-flex items-center px-2 py-1 text-xs rounded-full font-medium bg-green-100 text-green-800">
+                Active
+              </span>
           <% end %>
         </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 font-medium mb-1">Organization</p>
+            <p class="text-sm font-semibold text-gray-800">
+              <%= if Ecto.assoc_loaded?(@viewing_program.organization) && @viewing_program.organization do %>
+                <%= @viewing_program.organization.name %>
+              <% else %>
+                —
+              <% end %>
+            </p>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 font-medium mb-1">Department</p>
+            <p class="text-sm font-semibold text-gray-800">
+              <%= if Ecto.assoc_loaded?(@viewing_program.department) && @viewing_program.department do %>
+                <%= @viewing_program.department.name %>
+              <% else %>
+                —
+              <% end %>
+            </p>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 font-medium mb-1">Start Date</p>
+            <p class="text-sm font-semibold text-gray-800">
+              <%= if @viewing_program.starts_on do %>
+                <%= Calendar.strftime(@viewing_program.starts_on, "%B %d, %Y") %>
+              <% else %>
+                Not set
+              <% end %>
+            </p>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 font-medium mb-1">End Date</p>
+            <p class="text-sm font-semibold text-gray-800">
+              <%= if @viewing_program.ends_on do %>
+                <%= Calendar.strftime(@viewing_program.ends_on, "%B %d, %Y") %>
+              <% else %>
+                Not set
+              <% end %>
+            </p>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <%= if @viewing_program.description do %>
+          <div>
+            <p class="text-xs text-gray-500 font-medium mb-2">Description</p>
+            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <p class="text-sm text-gray-700"><%= @viewing_program.description %></p>
+            </div>
+          </div>
+        <% end %>
       </div>
 
       <!-- Modal Footer -->
@@ -360,152 +418,16 @@
         <button
           phx-click="edit_program"
           phx-value-id={@viewing_program.id}
-          class="px-6 py-2.5 rounded-lg border border-[#6C63FF] text-[#6C63FF] font-medium hover:bg-[#F0EEFF] transition-colors"
+          class="px-4 py-2 rounded-lg border border-purple-600 text-purple-600 hover:bg-purple-50 transition"
         >
           Edit Program
         </button>
         <button
           phx-click="close"
-          class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8] transition-colors"
+          class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition"
         >
           Close
         </button>
-      </div>
-    </div>
-  </div>
-<% end %>
-
-<!-- ========== FORM MODAL ========== -->
-<%= if @show_form do %>
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between p-6 border-b border-gray-200">
-        <div>
-          <h2 class="text-2xl font-bold text-[#3B3B98]">
-            <%= if @editing_program, do: "Edit Program", else: "Create New Program" %>
-          </h2>
-          <p class="text-sm text-gray-500 mt-1">
-            <%= if @editing_program, do: "Update program details", else: "Fill in the details to get started" %>
-          </p>
-        </div>
-        <button phx-click="close" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form id="program-form" phx-submit="save" phx-change="update_form">
-          <div class="space-y-5">
-            <!-- Program Name -->
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">
-                Program Name <span class="text-red-500">*</span>
-              </label>
-              <input
-                name="program[name]"
-                value={@form_data["name"]}
-                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
-                placeholder="Enter program name"
-                required
-              />
-              <%= if error = @errors[:name] do %>
-                <p class="text-xs text-red-600"><%= error %></p>
-              <% end %>
-            </div>
-
-            <!-- Date Range -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Start Date</label>
-                <input
-                  type="date"
-                  name="program[starts_on]"
-                  value={@form_data["starts_on"]}
-                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">End Date</label>
-                <input
-                  type="date"
-                  name="program[ends_on]"
-                  value={@form_data["ends_on"]}
-                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            <!-- Organization -->
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">
-                Organization <span class="text-red-500">*</span>
-              </label>
-              <select
-                name="program[organization_id]"
-                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
-                required
-              >
-                <option value="">Select organization</option>
-                <%= for o <- @orgs do %>
-                  <option value={o.id} selected={to_string(o.id) == @form_data["organization_id"]}>
-                    <%= o.name %>
-                  </option>
-                <% end %>
-              </select>
-            </div>
-
-            <!-- Department -->
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">
-                Department <span class="text-red-500">*</span>
-              </label>
-              <select
-                name="program[department_id]"
-                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all"
-                required
-              >
-                <option value=""><%= if Enum.empty?(@departments), do: "Select organization first", else: "Select department" %></option>
-                <%= for d <- @departments do %>
-                  <option value={d.id} selected={to_string(d.id) == @form_data["department_id"]}>
-                    <%= d.name %>
-                  </option>
-                <% end %>
-              </select>
-            </div>
-
-            <!-- Description -->
-            <div class="space-y-2">
-              <label class="block text-sm font-semibold text-gray-700">Description</label>
-              <textarea
-                name="program[description]"
-                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-[#6C63FF] focus:border-transparent transition-all resize-none"
-                rows="4"
-                placeholder="Describe the program goals and objectives..."
-              ><%= @form_data["description"] %></textarea>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="flex items-center justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              phx-click="close"
-              class="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-6 py-2.5 rounded-lg bg-[#6C63FF] text-white font-medium hover:bg-[#5A52E8] transition-colors"
-            >
-              <%= if @editing_program, do: "Update Program", else: "Create Program" %>
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   </div>
