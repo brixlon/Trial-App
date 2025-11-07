@@ -6,7 +6,10 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
   def mount(_params, _session, socket) do
     {:ok, assign_dashboard_data(socket)}
   end
-
+@impl true
+def handle_info({:switch_role, role}, socket) do
+  TrialAppWeb.Live.Helpers.RoleSwitcher.handle_role_switch(socket, role)
+end
   # Helper function to assign stats
   defp assign_dashboard_data(socket) do
     total_users = Accounts.list_users() |> length()

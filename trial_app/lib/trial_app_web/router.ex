@@ -62,6 +62,14 @@ defmodule TrialAppWeb.Router do
       live "/attachee/profile", AttacheeProfileLive, :show
 
       # ──────────────────────────────────────────────────────────────────────
+      # SUPERVISOR ROUTES
+      # ──────────────────────────────────────────────────────────────────────
+      live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
+      live "/supervisor/team", SupervisorLive.Team, :index
+      live "/supervisor/attachees", SupervisorLive.Attachees, :index
+      live "/supervisor/tasks", SupervisorLive.Tasks, :index
+
+      # ──────────────────────────────────────────────────────────────────────
       # GENERAL USER ROUTES
       # ──────────────────────────────────────────────────────────────────────
       live "/organizations", OrganizationLive.Index, :index

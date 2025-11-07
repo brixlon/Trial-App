@@ -298,7 +298,6 @@ defmodule TrialApp.Accounts do
     token
   end
 
-  # FIXED: This function was missing
   @doc """
   Gets the user with the given signed session token.
   Returns {user, token_inserted_at} or nil.
@@ -372,8 +371,7 @@ defmodule TrialApp.Accounts do
     :ok
   end
 
-  ## Department / Team / Employee (unchanged)
-  # ... [your existing functions] ...
+  ## Department / Team / Employee
 
   @doc """
   Lists all departments.
@@ -521,6 +519,94 @@ defmodule TrialApp.Accounts do
   def must_change_password?(%User{must_change_password: true}), do: true
   def must_change_password?(%User{must_change_password: false}), do: false
   def must_change_password?(_), do: false
+
+  ## ROLE SWITCHING FUNCTIONS
+
+  @doc """
+  Switches the user's active role.
+  Only allows switching to roles the user actually has.
+  """
+  def switch_user_role(user, new_role) do
+    available_roles = get_user_roles(user)
+
+    if new_role in available_roles do
+      user
+      |> Ecto.Changeset.change(%{active_role: new_role})
+      |> Repo.update()
+    else
+      {:error, :unauthorized_role}
+    end
+  end
+
+  @doc """
+  Gets all roles available to a user.
+  Returns the roles array if populated, otherwise returns single role as list.
+  """
+  def get_user_roles(%User{roles: roles, role: single_role}) do
+    if Enum.any?(roles || []) do
+      roles
+    else
+      [single_role]
+    end
+    |> Enum.filter(& &1)
+  end
+
+  @doc """
+  Gets the user's active role.
+  Falls back to first available role if active_role is not set.
+  """
+  def get_active_role(%User{active_role: active_role} = user) when not is_nil(active_role) do
+    active_role
+  end
+
+  def get_active_role(%User{} = user) do
+    user
+    |> get_user_roles()
+    |> List.first()
+  end
+
+  @doc """
+  Checks if user has a specific role.
+  """
+  def has_role?(%User{} = user, role) do
+    role in get_user_roles(user)
+  end
+
+  @doc """
+  Adds a role to a user's roles array.
+  """
+  def add_role_to_user(%User{} = user, new_role) do
+    current_roles = user.roles || []
+
+    if new_role not in current_roles do
+      updated_roles = [new_role | current_roles] |> Enum.uniq()
+
+      user
+      |> Ecto.Changeset.change(%{roles: updated_roles})
+      |> Repo.update()
+    else
+      {:ok, user}
+    end
+  end
+
+  @doc """
+  Removes a role from a user's roles array.
+  """
+  def remove_role_from_user(%User{} = user, role_to_remove) do
+    updated_roles = (user.roles || []) |> Enum.reject(&(&1 == role_to_remove))
+
+    changeset = user |> Ecto.Changeset.change(%{roles: updated_roles})
+
+    # If removing the active role, switch to another available role
+    changeset =
+      if user.active_role == role_to_remove && Enum.any?(updated_roles) do
+        Ecto.Changeset.put_change(changeset, :active_role, List.first(updated_roles))
+      else
+        changeset
+      end
+
+    Repo.update(changeset)
+  end
 
   # Private helpers
   defp update_user_and_delete_all_tokens(changeset) do

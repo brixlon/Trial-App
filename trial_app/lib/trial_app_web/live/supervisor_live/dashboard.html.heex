@@ -1,0 +1,165 @@
+ def render(assigns) do
+    ~H"""
+    <div class="min-h-screen bg-base-200">
+      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+
+      <div class="lg:ml-64 p-8">
+        <div class="max-w-7xl mx-auto">
+          <!-- Breadcrumb -->
+          <div class="text-sm breadcrumbs mb-6">
+            <ul>
+              <li><%= @organization.name %></li>
+              <li><%= @department.name %></li>
+              <li><%= hd(@programs).name %></li>
+            </ul>
+          </div>
+
+          <!-- Header -->
+          <div class="flex justify-between items-center mb-8">
+            <div>
+              <h1 class="text-3xl font-bold">Supervisor Dashboard</h1>
+              <p class="text-base-content/70">Manage projects, assign tasks, evaluate performance.</p>
+            </div>
+            <div class="flex gap-3">
+              <.button phx-click="toggle_project_form">+ New Project</.button>
+              <.button phx-click="toggle_task_form" :if={@selected_project}>+ Assign Task</.button>
+            </div>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Total Attachees -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <p class="text-sm text-base-content/70">Total Attachees</p>
+                <p class="text-3xl font-bold"><%= @stats.total_attachees %></p>
+              </div>
+            </div>
+            <!-- Active Tasks -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <p class="text-sm text-base-content/70">Active Tasks</p>
+                <p class="text-3xl font-bold"><%= @stats.active_tasks %></p>
+              </div>
+            </div>
+            <!-- Pending Reviews -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <p class="text-sm text-base-content/70">Pending Reviews</p>
+                <p class="text-3xl font-bold"><%= @stats.pending_reviews %></p>
+              </div>
+            </div>
+            <!-- Completed This Week -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <p class="text-sm text-base-content/70">Completed</p>
+                <p class="text-3xl font-bold"><%= @stats.completed_this_week %></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Projects & Attachees -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Projects List -->
+            <div class="card bg-base-100 shadow-xl">
+              <div class="card-body">
+                <h2 class="card-title">Projects</h2>
+                <div class="space-y-2">
+                  <%= for project <- @projects do %>
+                    <div
+                      phx-click="select_project"
+                      phx-value-id={project.id}
+                      class={"p-3 rounded-lg cursor-pointer #{if @selected_project && @selected_project.id == project.id, do: "bg-primary text-white", else: "hover:bg-base-200"}"}
+                    >
+                      <p class="font-medium"><%= project.name %></p>
+                      <p class="text-sm opacity-70"><%= project.program.name %></p>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attachees in Project -->
+            <div class="card bg-base-100 shadow-xl" :if={@selected_project}>
+              <div class="card-body">
+                <h2 class="card-title">Attachees in <%= @selected_project.name %></h2>
+                <div class="space-y-2">
+                  <%= for att <- @attachees do %>
+                    <div
+                      phx-click="select_attachee"
+                      phx-value-id={att.id}
+                      class={"p-3 rounded-lg cursor-pointer #{if @selected_attachee && @selected_attachee.id == att.id, do: "bg-info text-white", else: "hover:bg-base-200"}"}
+                    >
+                      <div class="flex items-center gap-3">
+                        <div class="avatar placeholder">
+                          <div class="bg-neutral text-neutral-content rounded-full w-8">
+                            <span class="text-xs"><%= String.first(att.user.username || att.user.email) %></span>
+                          </div>
+                        </div>
+                        <div>
+                          <p class="font-medium"><%= att.user.username || att.user.email %></p>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Attachee Tasks + Eval -->
+            <div class="card bg-base-100 shadow-xl" :if={@selected_attachee}>
+              <div class="card-body">
+                <div class="flex justify-between items-center mb-4">
+                  <h2 class="card-title"><%= @selected_attachee.user.username %>'s Tasks</h2>
+                  <.button phx-click="toggle_evaluation_form" size="sm">Evaluate</.button>
+                </div>
+                <div class="space-y-3">
+                  <%= for task <- @attachee_tasks do %>
+                    <div class="p-3 bg-base-200 rounded-lg">
+                      <p class="font-medium"><%= task.title %></p>
+                      <p class="text-sm opacity-70"><%= task.status %></p>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activities -->
+          <div class="mt-8 card bg-base-100 shadow-xl">
+            <div class="card-body">
+              <h2 class="card-title">Recent Activities</h2>
+              <!-- your table -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modals -->
+      <.live_component
+        :if={@show_project_form}
+        module={ProjectForm}
+        id="project-form"
+        current_user={@current_user}
+        programs={@programs}
+      />
+
+      <.live_component
+        :if={@show_task_form}
+        module={TaskForm}
+        id="task-form"
+        project={@selected_project}
+        attachees={@attachees}
+      />
+
+      <.live_component
+        :if={@show_evaluation_form}
+        module={EvaluationForm}
+        id="eval-form"
+        attachee={@selected_attachee}
+        current_user={@current_user}
+      />
+    </div>
+    """
+  end
+end

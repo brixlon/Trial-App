@@ -30,6 +30,7 @@ defmodule TrialAppWeb.UserLive.Login do
              assign(socket, :error_message, "Your account is inactive. Contact admin.")}
 
           true ->
+            # Redirect to controller with user_id - controller will handle role-based redirect
             {:noreply, redirect(socket, to: ~p"/users/login?user_id=#{user.id}")}
         end
     end

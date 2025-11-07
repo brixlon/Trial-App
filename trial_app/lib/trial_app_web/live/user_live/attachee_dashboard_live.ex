@@ -18,6 +18,15 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       projects = Eams.list_projects_for_attachee(attachee.id)
       team_mates = get_team_mates(attachee.department_id)
 
+      # Evaluation data with zero scores (to be implemented later)
+      evaluation_data = [
+        %{category: "Technical Skills", score: 0, max: 100},
+        %{category: "Communication", score: 0, max: 100},
+        %{category: "Teamwork", score: 0, max: 100},
+        %{category: "Initiative", score: 0, max: 100},
+        %{category: "Professionalism", score: 0, max: 100}
+      ]
+
       {:ok,
        socket
        |> assign(:current_scope, current_scope)
@@ -26,6 +35,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
        |> assign(:tasks, tasks)
        |> assign(:projects, projects)
        |> assign(:team_mates, team_mates)
+       |> assign(:evaluation_data, evaluation_data)
        |> assign(:show_task_modal, false)
        |> assign(:selected_task, nil)
        |> assign(:submission_comment, "")}
@@ -36,6 +46,11 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
        |> assign(:attachee, nil)
        |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
     end
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, socket}
   end
 
   # Open modal
@@ -79,326 +94,373 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+    <div class="min-h-screen bg-white text-gray-900">
+      <div class="flex">
+        <!-- Sidebar -->
+        <.live_component
+          module={TrialAppWeb.SidebarComponent}
+          id="sidebar"
+          current_scope={@current_scope}
+        />
 
-    <div class="ml-64 p-8 bg-gray-50 min-h-screen">
-      <%= if @attachee do %>
-        <!-- HEADER -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-purple-100 mb-8">
-          <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-3xl font-bold text-gray-900">Attachee Dashboard</h1>
-              <p class="text-gray-600 mt-1">Welcome back, <%= @attachee.user.username || @attachee.user.email %></p>
-            </div>
-            <div class="flex gap-3">
-              <span class="px-4 py-1.5 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                <%= length(@tasks) %> Active Tasks
-              </span>
-              <span class="px-4 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-sm font-semibold">
-                <%= length(@projects) %> Projects
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- PROFILE CARD -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-4">
-              <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
-                <span class="text-indigo-700 font-bold text-xl">
-                  <%= String.first(@attachee.user.username || @attachee.user.email) |> String.upcase() %>
+        <!-- Main content -->
+        <main class="ml-64 w-full p-8">
+          <div class="max-w-7xl mx-auto space-y-8">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+              <div>
+                <h1 class="text-2xl font-semibold text-gray-800">Dashboard</h1>
+                <p class="text-gray-600 mt-1">View an overview of your employee information</p>
+              </div>
+              <div class="flex gap-3">
+                <span class="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-semibold">
+                  <%= length(@tasks) %> Active Tasks
+                </span>
+                <span class="px-4 py-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-semibold">
+                  <%= length(@projects) %> Projects
                 </span>
               </div>
-              <div>
-                <h2 class="text-xl font-semibold text-gray-900">
-                  <%= @attachee.user.username || @attachee.user.email %>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-2">
-                    Attachee
+            </div>
+
+            <!-- Overview Section -->
+            <div class="bg-gray-50 p-6 rounded-xl shadow">
+              <h2 class="text-lg font-semibold text-gray-800 mb-4">Overview</h2>
+
+              <!-- User Info -->
+              <div class="flex items-center space-x-4 mb-6">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <span class="text-purple-700 font-bold text-lg">
+                    <%= String.first(@attachee.user.username || @attachee.user.email) |> String.upcase() %>
                   </span>
-                </h2>
-                <p class="text-sm text-gray-500">ID: INT<%= String.pad_leading(to_string(@attachee.id), 4, "0") %></p>
+                </div>
+                <div>
+                  <div class="font-semibold text-gray-900">
+                    <%= String.upcase(@attachee.user.username || String.split(@attachee.user.email, "@") |> hd()) %>
+                  </div>
+                  <div class="text-sm text-gray-600">Attachee INT<%= String.pad_leading(to_string(@attachee.id), 4, "0") %></div>
+                </div>
+              </div>
+
+              <!-- Position & Job Level Table -->
+              <div class="mb-6">
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-4 py-3 text-left font-medium text-gray-700">Position</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-700">Job Level</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract Start Date</th>
+                        <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract End Date</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                      <tr>
+                        <td class="px-4 py-3 text-gray-900"><%= @attachee.position %></td>
+                        <td class="px-4 py-3 text-gray-900">Beginner</td>
+                        <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.starts_on) %></td>
+                        <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.ends_on) %></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-            <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
-              View Profile
-            </button>
-          </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div class="text-center">
-              <div class="text-2xl font-bold text-indigo-600"><%= @attachee.position %></div>
-              <div class="text-sm text-gray-500 mt-1">Position</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-blue-600"><%= @attachee.organization.name %></div>
-              <div class="text-sm text-gray-500 mt-1">Organization</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-purple-600"><%= @attachee.department.name %></div>
-              <div class="text-sm text-gray-500 mt-1">Department</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl font-bold text-green-600">
-                <%= length(@programs) %> Program<%= if length(@programs) != 1, do: "s" %>
+            <!-- Programs & Projects -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Enrolled Programs -->
+              <div class="bg-white shadow rounded-xl overflow-hidden">
+                <div class="p-6">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-4">Enrolled Programs</h3>
+                  <%= if @programs == [] do %>
+                    <p class="text-gray-500 text-center py-6">No programs enrolled.</p>
+                  <% else %>
+                    <div class="space-y-3">
+                      <%= for program <- @programs do %>
+                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                          <h4 class="font-medium text-gray-900"><%= program.name %></h4>
+                          <p class="text-sm text-gray-500 mt-1"><%= program.description || "Ongoing training" %></p>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
               </div>
-              <div class="text-sm text-gray-500 mt-1">Enrolled</div>
-            </div>
-          </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center text-sm">
-            <div>
-              <div class="font-medium text-gray-700 mb-1">Job Level</div>
-              <div class="text-gray-600">Beginner</div>
+              <!-- Assigned Projects -->
+              <div class="bg-white shadow rounded-xl overflow-hidden">
+                <div class="p-6">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-4">Assigned Projects</h3>
+                  <%= if @projects == [] do %>
+                    <p class="text-gray-500 text-center py-6">No projects assigned yet.</p>
+                  <% else %>
+                    <div class="space-y-3">
+                      <%= for project <- @projects do %>
+                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                          <div class="flex justify-between items-center">
+                            <div>
+                              <h4 class="font-medium text-gray-900"><%= project.name %></h4>
+                              <p class="text-sm text-gray-500 mt-1"><%= project.description || "No description" %></p>
+                            </div>
+                            <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-700 font-medium">
+                              <%= count_tasks_in_project(@tasks, project.id) %> tasks
+                            </span>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
             </div>
-            <div>
-              <div class="font-medium text-gray-700 mb-1">Contract Start</div>
-              <div class="text-gray-600"><%= format_date(@attachee.starts_on) %></div>
-            </div>
-            <div>
-              <div class="font-medium text-gray-700 mb-1">Contract End</div>
-              <div class="text-gray-600"><%= format_date(@attachee.ends_on) %></div>
-            </div>
-          </div>
-        </div>
 
-        <!-- PROGRAMS & PROJECTS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <!-- Enrolled Programs -->
-          <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Enrolled Programs</h3>
-            <%= if @programs == [] do %>
-              <p class="text-gray-500 text-center py-6">No programs enrolled.</p>
-            <% else %>
-              <div class="space-y-3">
-                <%= for program <- @programs do %>
-                  <div class="p-3 border rounded-lg hover:shadow-sm transition">
-                    <h4 class="font-medium text-gray-900"><%= program.name %></h4>
-                    <p class="text-xs text-gray-500"><%= program.description || "Ongoing training" %></p>
+            <!-- My Tasks Table -->
+            <div class="bg-white shadow rounded-xl overflow-hidden">
+              <div class="p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">My Tasks</h2>
+                <%= if @tasks == [] do %>
+                  <div class="text-center py-10 text-gray-500">
+                    <p class="text-lg">No tasks assigned yet.</p>
+                    <p class="text-sm mt-1">Check back later or contact your supervisor.</p>
+                  </div>
+                <% else %>
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm text-left text-gray-700">
+                      <thead class="bg-gray-100 text-xs uppercase">
+                        <tr>
+                          <th class="px-4 py-3">Task</th>
+                          <th class="px-4 py-3">Project</th>
+                          <th class="px-4 py-3">Status</th>
+                          <th class="px-4 py-3">Due Date</th>
+                          <th class="px-4 py-3">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <%= for task <- @tasks do %>
+                          <tr class="border-t hover:bg-gray-50 transition">
+                            <td class="px-4 py-3">
+                              <div class="font-medium text-gray-900"><%= task.title %></div>
+                              <%= if task.description do %>
+                                <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
+                              <% end %>
+                              <%= if task.reject_reason do %>
+                                <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                                  <span class="font-medium text-red-800">Feedback:</span>
+                                  <span class="text-red-700"><%= task.reject_reason %></span>
+                                </div>
+                              <% end %>
+                            </td>
+                            <td class="px-4 py-3">
+                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <%= task.project && task.project.name %>
+                              </span>
+                            </td>
+                            <td class="px-4 py-3">
+                              <span class={status_badge_class(task.status)}>
+                                <%= format_status(task.status) %>
+                              </span>
+                            </td>
+                            <td class="px-4 py-3">
+                              <%= if task.due_on do %>
+                                <div class="font-medium text-gray-900"><%= format_date(task.due_on) %></div>
+                                <div class={due_date_class(task.due_on)}>
+                                  <%= relative_date(task.due_on) %>
+                                </div>
+                              <% else %>
+                                <span class="text-gray-400">—</span>
+                              <% end %>
+                            </td>
+                            <td class="px-4 py-3">
+                              <%= if task.status in ["pending", "in_progress", "rejected"] do %>
+                                <button
+                                  phx-click="open_submit_modal"
+                                  phx-value-task_id={task.id}
+                                  class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 text-sm font-medium"
+                                >
+                                  <%= if task.status == "in_progress", do: "Submit", else: "Submit Work" %>
+                                </button>
+                              <% else %>
+                                <span class="text-sm text-gray-500">
+                                  <%= if task.status == "submitted", do: "Under Review", else: "Completed" %>
+                                </span>
+                              <% end %>
+                            </td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
                   </div>
                 <% end %>
               </div>
-            <% end %>
-          </div>
+            </div>
 
-          <!-- Assigned Projects -->
-          <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Assigned Projects</h3>
-            <%= if @projects == [] do %>
-              <p class="text-gray-500 text-center py-6">No projects assigned yet.</p>
-            <% else %>
-              <div class="space-y-3">
-                <%= for project <- @projects do %>
-                  <div class="p-3 border rounded-lg hover:shadow-sm transition">
-                    <div class="flex justify-between items-center">
-                      <div>
-                        <h4 class="font-medium text-gray-900"><%= project.name %></h4>
-                        <p class="text-xs text-gray-500"><%= project.description || "No description" %></p>
+            <!-- Team Mates Table -->
+            <div class="bg-white shadow rounded-xl overflow-hidden">
+              <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                  <h2 class="text-xl font-semibold text-gray-800">Team Mates</h2>
+                  <span class="text-sm text-gray-500"><%= @attachee.department.name %> Team</span>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full text-sm text-left text-gray-700">
+                    <thead class="bg-gray-100 text-xs uppercase">
+                      <tr>
+                        <th class="px-4 py-3">User</th>
+                        <th class="px-4 py-3">Organization</th>
+                        <th class="px-4 py-3">Department</th>
+                        <th class="px-4 py-3">Program(s)</th>
+                        <th class="px-4 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <%= for mate <- @team_mates do %>
+                        <tr class="border-t hover:bg-gray-50 transition">
+                          <td class="px-4 py-3">
+                            <div class="flex items-center">
+                              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                                <span class="text-purple-700 font-bold text-xs">
+                                  <%= String.first(mate.user.username || mate.user.email) |> String.upcase() %>
+                                </span>
+                              </div>
+                              <div>
+                                <div class="font-medium text-gray-900"><%= mate.user.username || mate.user.email %></div>
+                                <div class="text-xs text-gray-500">INT<%= String.pad_leading(to_string(mate.id), 4, "0") %></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="px-4 py-3"><%= mate.organization.name %></td>
+                          <td class="px-4 py-3"><%= mate.department.name %></td>
+                          <td class="px-4 py-3">
+                            Attachee <%= format_date(mate.starts_on) %>-<%= format_date(mate.ends_on) %>
+                          </td>
+                          <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              active
+                            </span>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Account Evaluation Summary -->
+            <div class="bg-gray-50 p-6 rounded-xl shadow">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-md font-semibold text-gray-800">Account Evaluation Summary</h3>
+                <button class="text-sm text-purple-600 hover:text-purple-800 font-medium">View Report</button>
+              </div>
+
+              <!-- Evaluation Chart -->
+              <div class="space-y-4">
+                <%= for eval <- @evaluation_data do %>
+                  <div class="flex items-center justify-between">
+                    <div class="w-1/4">
+                      <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
+                    </div>
+                    <div class="w-2/4">
+                      <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          class="h-3 rounded-full bg-gradient-to-r from-green-400 to-blue-500"
+                          style={"width: #{eval.score}%"}
+                        ></div>
                       </div>
-                      <span class="px-2 py-1 text-xs rounded-full bg-indigo-100 text-indigo-700">
-                        <%= count_tasks_in_project(@tasks, project.id) %> tasks
+                    </div>
+                    <div class="w-1/4 text-right">
+                      <span class="text-sm font-semibold text-gray-900">
+                        <%= eval.score %>/<%= eval.max %>
                       </span>
                     </div>
                   </div>
                 <% end %>
               </div>
-            <% end %>
-          </div>
-        </div>
 
-        <!-- MY TASKS TABLE -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">My Tasks</h2>
-          <%= if @tasks == [] do %>
-            <div class="text-center py-10 text-gray-500">
-              <p class="text-lg">No tasks assigned yet.</p>
-              <p class="text-sm mt-1">Check back later or contact your supervisor.</p>
-            </div>
-          <% else %>
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gradient-to-r from-gray-50 to-slate-50">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Task</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Project</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th class="px- Lage py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Due Date</th>
-                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-100">
-                  <%= for task <- @tasks do %>
-                    <tr class="hover:bg-indigo-50 transition">
-                      <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900"><%= task.title %></div>
-                        <%= if task.description do %>
-                          <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
-                        <% end %>
-                        <%= if task.reject_reason do %>
-                          <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-                            <span class="font-medium text-red-800">Feedback:</span>
-                            <span class="text-red-700"><%= task.reject_reason %></span>
-                          </div>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          <%= task.project && task.project.name %>
-                        </span>
-                      </td>
-                      <td class="px-6 py-4">
-                        <span class={status_badge_class(task.status)}><%= format_status(task.status) %></span>
-                      </td>
-                      <td class="px-6 py-4 text-sm">
-                        <%= if task.due_on do %>
-                          <div class="font-medium"><%= format_date(task.due_on) %></div>
-                          <div class={due_date_class(task.due_on)}><%= relative_date(task.due_on) %></div>
-                        <% else %>
-                          <span class="text-gray-400">—</span>
-                        <% end %>
-                      </td>
-                      <td class="px-6 py-4">
-                        <%= if task.status in ["pending", "in_progress", "rejected"] do %>
-                          <button
-                            phx-click="open_submit_modal"
-                            phx-value-task_id={task.id}
-                            class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
-                          >
-                            <%= if task.status == "in_progress", do: "Submit", else: "Submit Work" %>
-                          </button>
-                        <% else %>
-                          <span class="text-sm text-gray-500">
-                            <%= if task.status == "submitted", do: "Under Review", else: "Completed" %>
-                          </span>
-                        <% end %>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
-        </div>
-
-        <!-- TEAM MATES TABLE -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold text-gray-900">Team Mates</h2>
-            <span class="text-sm text-gray-500"><%= @attachee.department.name %> Team</span>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                <%= for mate <- @team_mates do %>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center">
-                        <div class="flex-shrink-0 h-10 w-10">
-                          <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm">
-                            <%= String.first(mate.user.username || mate.user.email) |> String.upcase() %>
-                          </span>
-                        </div>
-                        <div class="ml-4">
-                          <div class="text-sm font-medium text-gray-900"><%= mate.user.username || mate.user.email %></div>
-                          <div class="text-sm text-gray-500">INT<%= String.pad_leading(to_string(mate.id), 4, "0") %></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <%= obscure_email(mate.user.email) %>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                        <%= mate.position || "Member" %>
-                      </span>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- SUBMISSION MODAL -->
-        <%= if @show_task_modal && @selected_task do %>
-          <div
-            id="submit-task-modal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-            phx-click-away={JS.push("close_modal")}
-            phx-window-keydown={JS.push("close_modal")}
-            phx-key="Escape"
-          >
-            <div
-              class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6"
-              phx-click={JS.nothing()}
-            >
-              <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-900">
-                  Submit Task: <%= @selected_task.title %>
-                </h2>
-                <button
-                  phx-click="close_modal"
-                  class="text-gray-400 hover:text-gray-600"
-                >
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              <!-- Overall Performance -->
+              <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-semibold text-gray-900">Overall Performance</h4>
+                    <p class="text-sm text-gray-600">Based on all evaluation criteria</p>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-2xl font-bold text-gray-900">0%</div>
+                    <div class="text-sm text-gray-600 font-medium">Not Evaluated</div>
+                  </div>
+                </div>
               </div>
 
-              <p class="text-sm text-gray-600 mb-5">
-                Add your comments or notes about the work done.
-              </p>
-
-              <form phx-submit="submit_task" class="space-y-5">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Comments</label>
-                  <textarea
-                    name="comment"
-                    rows="5"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                    placeholder="Describe what you did, challenges faced, or any questions..."
-                    required
-                  ><%= @submission_comment %></textarea>
-                </div>
-
-                <div class="flex justify-end gap-3 pt-3">
-                  <button
-                    type="button"
-                    phx-click="close_modal"
-                    class="px-5 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition shadow-sm"
-                  >
-                    Submit Task
-                  </button>
-                </div>
-              </form>
+              <!-- Not Meeting Expectations -->
+              <div class="mt-4">
+                <div class="text-sm font-medium text-gray-700 mb-2">Not Meeting Expectations</div>
+                <div class="text-2xl font-bold text-gray-900">0/5</div>
+              </div>
             </div>
           </div>
-        <% end %>
+        </main>
+      </div>
 
-      <% else %>
-        <!-- NO PROFILE -->
-        <div class="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-200">
-          <div class="mx-auto w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H9v-1a4 4 0 014-4h2a4 4 0 014 4v1z" />
-            </svg>
+      <!-- SUBMISSION MODAL -->
+      <%= if @show_task_modal && @selected_task do %>
+        <div
+          id="submit-task-modal"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          phx-click-away={JS.push("close_modal")}
+          phx-window-keydown={JS.push("close_modal")}
+          phx-key="escape"
+        >
+          <div
+            class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
+            phx-click={JS.nothing()}
+          >
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-bold text-gray-900">
+                Submit Task: <%= @selected_task.title %>
+              </h2>
+              <button
+                phx-click="close_modal"
+                class="text-gray-400 hover:text-gray-600"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-5">
+              Add your comments or notes about the work done.
+            </p>
+
+            <form phx-submit="submit_task" class="space-y-5">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Comments</label>
+                <textarea
+                  name="comment"
+                  rows="5"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+                  placeholder="Describe what you did, challenges faced, or any questions..."
+                  required
+                ><%= @submission_comment %></textarea>
+              </div>
+
+              <div class="flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  phx-click="close_modal"
+                  class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition shadow"
+                >
+                  Submit Task
+                </button>
+              </div>
+            </form>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">No Attachee Profile</h3>
-          <p class="text-gray-600">Please contact HR to complete your onboarding.</p>
         </div>
       <% end %>
     </div>
@@ -407,7 +469,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
 
   # === HELPER FUNCTIONS ===
   defp get_team_mates(department_id) do
-    Eams.list_attachees_by_department(department_id, %{preloads: [:user]})
+    Eams.list_attachees_by_department(department_id, %{preloads: [:user, :organization, :department]})
   end
 
   defp count_tasks_in_project(tasks, project_id) do
@@ -422,7 +484,13 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
     end
   end
 
-  defp format_date(date), do: if(date, do: Calendar.strftime(date, "%b %d, %Y"), else: "Not set")
+  defp format_date(date) do
+    if date do
+      Calendar.strftime(date, "%b %d, %Y")
+    else
+      "Not set"
+    end
+  end
 
   defp format_status(status) do
     status
@@ -434,7 +502,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
 
   defp status_badge_class("pending"), do: "px-2.5 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
   defp status_badge_class("in_progress"), do: "px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-  defp status_badge_class("submitted"), do: "px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium"
+  defp status_badge_class("submitted"), do: "px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
   defp status_badge_class("completed"), do: "px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium"
   defp status_badge_class("rejected"), do: "px-2.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium"
   defp status_badge_class(_), do: "px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
@@ -448,7 +516,10 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       true -> "text-gray-500 text-xs"
     end
   end
-
+@impl true
+def handle_info({:switch_role, role}, socket) do
+  TrialAppWeb.Live.Helpers.RoleSwitcher.handle_role_switch(socket, role)
+end
   defp relative_date(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
     cond do
@@ -458,11 +529,5 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
       diff <= 7 -> "In #{diff} days"
       true -> "In #{div(diff, 7)} weeks"
     end
-  end
-
-  defp obscure_email(email) do
-    [name, domain] = String.split(email, "@")
-    obscured = String.slice(name, 0, 3) <> "****"
-    obscured <> "@" <> domain
   end
 end

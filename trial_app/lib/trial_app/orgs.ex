@@ -6,11 +6,36 @@ defmodule TrialApp.Orgs do
   import Ecto.Query, warn: false
   alias TrialApp.Repo
   alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position}
+  alias TrialApp.Accounts.User
 
-  # ----------------------------
+  # ──────────────────────────────────────────────────────────────────────
+  # USER → ORG / DEPT (CRITICAL FOR DASHBOARD)
+  # ──────────────────────────────────────────────────────────────────────
+  def get_organization_for_user(user_id) do
+    from(u in User,
+      where: u.id == ^user_id,
+      join: e in Employee, on: e.user_id == u.id and e.is_active == true,
+      join: o in Organization, on: o.id == e.organization_id and o.is_active == true,
+      select: o,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  def get_department_for_user(user_id) do
+    from(u in User,
+      where: u.id == ^user_id,
+      join: e in Employee, on: e.user_id == u.id and e.is_active == true,
+      join: d in Department, on: d.id == e.department_id and d.is_active == true,
+      select: d,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
   # ORGANIZATIONS - ENHANCED
-  # ----------------------------
-
+  # ──────────────────────────────────────────────────────────────────────
   def list_organizations do
     Organization
     |> where([o], o.is_active == true)
@@ -51,14 +76,12 @@ defmodule TrialApp.Orgs do
   end
 
   def delete_organization(%Organization{} = org) do
-    # Soft delete - set is_active to false
     update_organization(org, %{is_active: false})
   end
 
-  # ----------------------------
+  # ──────────────────────────────────────────────────────────────────────
   # DEPARTMENTS - ENHANCED
-  # ----------------------------
-
+  # ──────────────────────────────────────────────────────────────────────
   def list_departments do
     Department
     |> where([d], d.is_active == true)
@@ -95,14 +118,12 @@ defmodule TrialApp.Orgs do
   end
 
   def delete_department(%Department{} = department) do
-    # Soft delete - set is_active to false
     update_department(department, %{is_active: false})
   end
 
-  # ----------------------------
+  # ──────────────────────────────────────────────────────────────────────
   # TEAMS - ENHANCED
-  # ----------------------------
-
+  # ──────────────────────────────────────────────────────────────────────
   def list_teams do
     Team
     |> where([t], t.is_active == true)
@@ -131,7 +152,6 @@ defmodule TrialApp.Orgs do
     |> Repo.all()
   end
 
-  # Alias for consistency
   def list_teams_by_department(department_id), do: list_teams_by_dept(department_id)
 
   def list_teams_by_organization(org_id) do
@@ -157,56 +177,17 @@ defmodule TrialApp.Orgs do
   end
 
   def delete_team(%Team{} = team) do
-    # Soft delete - set is_active to false
     update_team(team, %{is_active: false})
   end
 
-  # ----------------------------
+  # ──────────────────────────────────────────────────────────────────────
   # EMPLOYEES - ENHANCED
-  # ----------------------------
-
+  # ──────────────────────────────────────────────────────────────────────
   def list_employees do
     Employee
     |> where([e], e.is_active == true)
     |> preload([:user, :team, :department, :organization])
     |> Repo.all()
-  end
-
-  # ----------------------------
-  # POSITIONS
-  # ----------------------------
-
-  def list_positions do
-    Position
-    |> where([p], p.is_active == true)
-    |> order_by([p], asc: p.name)
-    |> Repo.all()
-  end
-
-  def search_positions(term) when is_binary(term) do
-    like = "%" <> term <> "%"
-    Position
-    |> where([p], ilike(p.name, ^like) or ilike(p.description, ^like))
-    |> order_by([p], asc: p.name)
-    |> Repo.all()
-  end
-
-  def get_position!(id), do: Repo.get!(Position, id)
-
-  def create_position(attrs) do
-    %Position{}
-    |> Position.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  def update_position(%Position{} = position, attrs) do
-    position
-    |> Position.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def delete_position(%Position{} = position) do
-    update_position(position, %{is_active: false})
   end
 
   def list_all_employees do
@@ -251,7 +232,6 @@ defmodule TrialApp.Orgs do
   end
 
   def delete_employee(%Employee{} = employee) do
-    # Soft delete - set is_active to false
     update_employee(employee, %{is_active: false})
   end
 
@@ -259,10 +239,45 @@ defmodule TrialApp.Orgs do
     Repo.delete_all(from(e in Employee, where: e.user_id == ^user_id and e.team_id == ^team_id))
   end
 
-  # ----------------------------
-  # MULTI-TEAM SUPPORT FUNCTIONS
-  # ----------------------------
+  # ──────────────────────────────────────────────────────────────────────
+  # POSITIONS
+  # ──────────────────────────────────────────────────────────────────────
+  def list_positions do
+    Position
+    |> where([p], p.is_active == true)
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
 
+  def search_positions(term) when is_binary(term) do
+    like = "%" <> term <> "%"
+    Position
+    |> where([p], ilike(p.name, ^like) or ilike(p.description, ^like))
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
+
+  def get_position!(id), do: Repo.get!(Position, id)
+
+  def create_position(attrs) do
+    %Position{}
+    |> Position.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_position(%Position{} = position, attrs) do
+    position
+    |> Position.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_position(%Position{} = position) do
+    update_position(position, %{is_active: false})
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # MULTI-TEAM SUPPORT
+  # ──────────────────────────────────────────────────────────────────────
   def create_employee_for_teams(user_attrs, team_ids) when is_list(team_ids) do
     Repo.transaction(fn ->
       Enum.map(team_ids, fn team_id ->
@@ -284,10 +299,8 @@ defmodule TrialApp.Orgs do
 
   def update_employee_teams(user_id, team_ids) do
     Repo.transaction(fn ->
-      # Delete existing employee records for this user
       Repo.delete_all(from(e in Employee, where: e.user_id == ^user_id))
 
-      # Create new employee records for selected teams
       Enum.each(team_ids, fn team_id ->
         team = get_team_with_preloads!(team_id)
         user = TrialApp.Accounts.get_user!(user_id)
@@ -310,77 +323,39 @@ defmodule TrialApp.Orgs do
     end)
   end
 
-  # ----------------------------
-  # ENHANCED ADMIN FUNCTIONS
-  # ----------------------------
-
-  @doc """
-  Get organization with full hierarchy for admin dashboard.
-  """
+  # ──────────────────────────────────────────────────────────────────────
+  # ADMIN & DASHBOARD HELPERS
+  # ──────────────────────────────────────────────────────────────────────
   def get_organization_full_hierarchy!(id) do
     Organization
     |> where(id: ^id)
-    |> preload(
-      departments: [
-        teams: [
-          employees: [:user]
-        ]
-      ],
-      employees: [:user, :team, :department]
-    )
+    |> preload(departments: [teams: [employees: [:user]]], employees: [:user, :team, :department])
     |> Repo.one!()
   end
 
-  @doc """
-  Get user with all employee assignments and their organizations/departments/teams.
-  """
   def get_user_with_assignments!(user_id) do
     TrialApp.Accounts.get_user!(user_id)
     |> Repo.preload(employees: [:team, :department, :organization])
   end
 
-  @doc """
-  Move employee to different organization/department/team.
-  """
-  def move_employee(employee_id, %{
-        organization_id: org_id,
-        department_id: dept_id,
-        team_id: team_id
-      }) do
+  def move_employee(employee_id, %{organization_id: org_id, department_id: dept_id, team_id: team_id}) do
     employee = get_employee_with_preloads!(employee_id)
-
-    update_employee(employee, %{
-      organization_id: org_id,
-      department_id: dept_id,
-      team_id: team_id
-    })
+    update_employee(employee, %{organization_id: org_id, department_id: dept_id, team_id: team_id})
   end
 
-  @doc """
-  Get all available teams for a user to join (based on their current organizations).
-  """
   def get_available_teams_for_user(user_id) do
-    # Get user's current organizations through existing employees
     user_orgs =
-      from(e in Employee,
-        where: e.user_id == ^user_id,
-        select: e.organization_id
-      )
+      from(e in Employee, where: e.user_id == ^user_id, select: e.organization_id)
       |> Repo.all()
 
-    # Get all teams from those organizations
     from(t in Team,
-      join: d in Department,
-      on: t.department_id == d.id,
+      join: d in Department, on: t.department_id == d.id,
       where: d.organization_id in ^user_orgs and t.is_active == true,
       preload: [:department, :organization]
     )
     |> Repo.all()
   end
 
-  @doc """
-  Bulk update employee roles for a team.
-  """
   def update_team_roles(_team_id, role_updates) when is_list(role_updates) do
     Repo.transaction(fn ->
       Enum.each(role_updates, fn %{employee_id: emp_id, role: new_role} ->
@@ -390,9 +365,6 @@ defmodule TrialApp.Orgs do
     end)
   end
 
-  @doc """
-  Get team with department and organization preloaded.
-  """
   def get_team_with_full_hierarchy!(id) do
     Team
     |> where(id: ^id)
@@ -400,28 +372,19 @@ defmodule TrialApp.Orgs do
     |> Repo.one!()
   end
 
-  @doc """
-  Assign team lead and update employee role.
-  """
   def assign_team_lead(team_id, user_id) do
     Repo.transaction(fn ->
       team = get_team!(team_id)
-
-      # Update team with new team lead
       {:ok, team} = update_team(team, %{team_lead_id: user_id})
 
-      # Find or create employee record for team lead
       employee =
-        from(e in Employee,
-          where: e.team_id == ^team_id and e.user_id == ^user_id
-        )
+        from(e in Employee, where: e.team_id == ^team_id and e.user_id == ^user_id)
         |> Repo.one()
 
       if employee do
         update_employee(employee, %{role: "lead"})
       else
         user = TrialApp.Accounts.get_user!(user_id)
-
         employee_attrs = %{
           user_id: user_id,
           team_id: team_id,
@@ -434,7 +397,6 @@ defmodule TrialApp.Orgs do
           is_active: true,
           status: "active"
         }
-
         create_employee(employee_attrs)
       end
 
@@ -442,37 +404,15 @@ defmodule TrialApp.Orgs do
     end)
   end
 
-  @doc """
-  Get statistics for admin dashboard.
-  """
   def get_dashboard_stats do
-    org_count =
-      from(o in Organization, where: o.is_active == true)
-      |> Repo.aggregate(:count, :id)
-
-    dept_count =
-      from(d in Department, where: d.is_active == true)
-      |> Repo.aggregate(:count, :id)
-
-    team_count =
-      from(t in Team, where: t.is_active == true)
-      |> Repo.aggregate(:count, :id)
-
-    employee_count =
-      from(e in Employee, where: e.is_active == true)
-      |> Repo.aggregate(:count, :id)
-
     %{
-      organizations: org_count,
-      departments: dept_count,
-      teams: team_count,
-      employees: employee_count
+      organizations: Repo.aggregate(from(o in Organization, where: o.is_active == true), :count, :id),
+      departments: Repo.aggregate(from(d in Department, where: d.is_active == true), :count, :id),
+      teams: Repo.aggregate(from(t in Team, where: t.is_active == true), :count, :id),
+      employees: Repo.aggregate(from(e in Employee, where: e.is_active == true), :count, :id)
     }
   end
 
-  @doc """
-  Search employees by name, email, or position.
-  """
   def search_employees(search_term) when is_binary(search_term) do
     search_term = "%#{search_term}%"
 
@@ -487,14 +427,10 @@ defmodule TrialApp.Orgs do
     |> Repo.all()
   end
 
-  @doc """
-  Get teams with employee counts for dashboard.
-  """
   def teams_with_employee_counts do
     from(t in Team,
       where: t.is_active == true,
-      left_join: e in Employee,
-      on: e.team_id == t.id and e.is_active == true,
+      left_join: e in Employee, on: e.team_id == t.id and e.is_active == true,
       group_by: t.id,
       preload: [:department, :organization],
       select: {t, fragment("COUNT(?)", e.id)}
