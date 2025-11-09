@@ -38,23 +38,23 @@ defmodule TrialApp.Accounts.Scope do
   def for_user(user, opts \\ [])
 
   def for_user(%User{} = user, opts) do
-    active_role = Keyword.get(opts, :active_role, user.active_role)
+    # User schema has a single :role field, not :active_role or :roles
+    user_role = user.role || "attachee"
+    roles = [user_role]  # Convert single role to list for compatibility
 
-    # Ensure the active role is valid for this user
-    active_role =
-      if active_role in user.roles do
-        active_role
-      else
-        List.first(user.roles) || "attachee"
-      end
+    # Allow override via opts, but default to user's role
+    active_role = Keyword.get(opts, :active_role, user_role)
+
+    # Ensure the active role is valid (should match user's role for now)
+    active_role = if active_role in roles, do: active_role, else: user_role
 
     %__MODULE__{
       user: user,
       active_role: active_role,
-      roles: user.roles || [],
-      is_admin: "admin" in (user.roles || []),
-      is_supervisor: "supervisor" in (user.roles || []),
-      is_attachee: "attachee" in (user.roles || [])
+      roles: roles,
+      is_admin: user_role == "admin",
+      is_supervisor: user_role == "supervisor",
+      is_attachee: user_role == "attachee"
     }
   end
 

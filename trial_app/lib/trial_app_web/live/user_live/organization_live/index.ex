@@ -40,8 +40,10 @@ defmodule TrialAppWeb.OrganizationLive.Index do
        |> assign(:show_dept_form, false)
        |> assign(:show_team_form, false)
        |> assign(:org_form_data, %{name: "", description: ""})
-       |> assign(:dept_form_data, %{name: "", description: ""})
-       |> assign(:team_form_data, %{name: "", description: "", department_id: ""})
+       |> assign(:dept_form_data, %{name: "", description: "", supervisor_id: ""})
+       |> assign(:team_form_data, %{name: "", description: "", department_id: "", team_lead_id: ""})
+       |> assign(:users, TrialApp.Accounts.list_users())
+       |> assign(:team_members, [])
        |> assign(:errors, %{})
        |> assign(:editing_org_id, nil)
        |> assign(:editing_dept_id, nil)
@@ -232,23 +234,31 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
   # Department CRUD Events
   def handle_event("new_department", _params, socket) do
+    users = TrialApp.Accounts.list_users()
     {:noreply,
      assign(socket,
        show_dept_form: true,
        editing_dept_id: nil,
-       dept_form_data: %{name: "", description: ""},
+       dept_form_data: %{name: "", description: "", supervisor_id: ""},
+       users: users,
        errors: %{}
      )}
   end
 
   def handle_event("edit_department", %{"id" => id}, socket) do
-    department = Orgs.get_department!(String.to_integer(id))
+    department = Orgs.get_department!(String.to_integer(id)) |> Repo.preload(:supervisor)
+    users = TrialApp.Accounts.list_users()
 
     {:noreply,
      assign(socket,
        show_dept_form: true,
        editing_dept_id: department.id,
-       dept_form_data: %{name: department.name, description: department.description || ""},
+       dept_form_data: %{
+         name: department.name,
+         description: department.description || "",
+         supervisor_id: if(department.supervisor_id, do: to_string(department.supervisor_id), else: "")
+       },
+       users: users,
        errors: %{}
      )}
   end
@@ -276,17 +286,25 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("save_department", params, socket) do
-    {name, description} =
+    {name, description, supervisor_id} =
       case params do
-        %{"name" => n, "description" => d} -> {n, d}
-        _ -> {"", ""}
+        %{"name" => n, "description" => d, "supervisor_id" => s} -> {n, d, s}
+        %{"name" => n, "description" => d} -> {n, d, ""}
+        _ -> {"", "", ""}
       end
 
     errors = if String.trim(name) == "", do: %{name: "Department name is required"}, else: %{}
 
     if map_size(errors) == 0 do
       org_id = socket.assigns.selected_org.id
-      department_params = %{name: name, description: description, organization_id: org_id}
+      supervisor_id_int = if supervisor_id != "" && supervisor_id != nil, do: String.to_integer(supervisor_id), else: nil
+
+      department_params = %{
+        name: name,
+        description: description,
+        organization_id: org_id,
+        supervisor_id: supervisor_id_int
+      }
 
       if socket.assigns.editing_dept_id do
         department = Orgs.get_department!(socket.assigns.editing_dept_id)
@@ -307,7 +325,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
              |> assign(
                show_dept_form: false,
                editing_dept_id: nil,
-               dept_form_data: %{name: "", description: ""},
+               dept_form_data: %{name: "", description: "", supervisor_id: ""},
                errors: %{}
              )
              |> assign(selected_org_departments: updated_departments)
@@ -407,18 +425,23 @@ defmodule TrialAppWeb.OrganizationLive.Index do
         socket.assigns.selected_org_departments
       end
 
+    # For new teams, no team members exist yet, so show empty list
+    # Team lead can be assigned after team members are added
+    team_members = []
+
     {:noreply,
      assign(socket,
        show_team_form: true,
        editing_team_id: nil,
-       team_form_data: %{name: "", description: "", department_id: dept_id},
+       team_form_data: %{name: "", description: "", department_id: dept_id, team_lead_id: ""},
        selected_org_departments: departments,
+       team_members: team_members,
        errors: %{}
      )}
   end
 
   def handle_event("edit_team", %{"id" => team_id}, socket) do
-    team = Orgs.get_team!(String.to_integer(team_id))
+    team = Orgs.get_team!(String.to_integer(team_id)) |> Repo.preload([:team_lead, :employees])
 
     org_id = socket.assigns.selected_org.id
     departments =
@@ -432,6 +455,13 @@ defmodule TrialAppWeb.OrganizationLive.Index do
         socket.assigns.selected_org_departments
       end
 
+    # Only show users who are members of this team
+    team_members =
+      Orgs.list_employees_by_team(team.id)
+      |> Enum.map(fn employee -> employee.user end)
+      |> Enum.filter(&(!is_nil(&1)))
+      |> Enum.uniq_by(& &1.id)
+
     {:noreply,
      assign(socket,
        show_team_form: true,
@@ -439,9 +469,11 @@ defmodule TrialAppWeb.OrganizationLive.Index do
        team_form_data: %{
          name: team.name,
          description: team.description || "",
-         department_id: to_string(team.department_id)
+         department_id: to_string(team.department_id),
+         team_lead_id: if(team.team_lead_id, do: to_string(team.team_lead_id), else: "")
        },
        selected_org_departments: departments,
+       team_members: team_members,
        errors: %{}
      )}
   end
@@ -451,7 +483,7 @@ defmodule TrialAppWeb.OrganizationLive.Index do
      assign(socket,
        show_team_form: false,
        editing_team_id: nil,
-       team_form_data: %{name: "", description: "", department_id: ""},
+       team_form_data: %{name: "", description: "", department_id: "", team_lead_id: ""},
        errors: %{}
      )}
   end
@@ -469,10 +501,11 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("save_team", params, socket) do
-    {name, description, department_id} =
+    {name, description, department_id, team_lead_id} =
       case params do
-        %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id}
-        _ -> {"", "", ""}
+        %{"name" => n, "description" => d, "department_id" => dept_id, "team_lead_id" => t} -> {n, d, dept_id, t}
+        %{"name" => n, "description" => d, "department_id" => dept_id} -> {n, d, dept_id, ""}
+        _ -> {"", "", "", ""}
       end
 
     errors = %{}
@@ -489,12 +522,14 @@ defmodule TrialAppWeb.OrganizationLive.Index do
 
     if map_size(errors) == 0 do
       department = Orgs.get_department!(String.to_integer(department_id))
+      team_lead_id_int = if team_lead_id != "" && team_lead_id != nil, do: String.to_integer(team_lead_id), else: nil
 
       team_params = %{
         name: name,
         description: description,
         department_id: String.to_integer(department_id),
-        organization_id: department.organization_id
+        organization_id: department.organization_id,
+        team_lead_id: team_lead_id_int
       }
 
       if socket.assigns.editing_team_id do

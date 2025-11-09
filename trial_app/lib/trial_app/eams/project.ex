@@ -1,6 +1,8 @@
 defmodule TrialApp.Eams.Project do
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query
+  alias TrialApp.Repo
 
   schema "projects" do
     field :name, :string
@@ -37,11 +39,38 @@ defmodule TrialApp.Eams.Project do
     |> validate_required([:name, :organization_id, :department_id, :program_id])
     |> validate_length(:code, min: 2, max: 16)
     |> validate_date_range()
+    |> validate_project_dates_within_program()
     |> assoc_constraint(:organization)
     |> assoc_constraint(:department)
     |> assoc_constraint(:program)
     |> assoc_constraint(:supervisor)
     |> unique_constraint(:name, name: :projects_name_program_id_index)
+  end
+
+  defp validate_project_dates_within_program(changeset) do
+    starts_on = get_change(changeset, :starts_on) || get_field(changeset, :starts_on)
+    ends_on = get_change(changeset, :ends_on) || get_field(changeset, :ends_on)
+    program_id = get_change(changeset, :program_id) || get_field(changeset, :program_id)
+
+    if program_id && (starts_on || ends_on) do
+      program = TrialApp.Repo.get(TrialApp.Eams.Program, program_id)
+
+      cond do
+        is_nil(program) ->
+          changeset
+
+        not is_nil(starts_on) and not is_nil(program.starts_on) and Date.compare(starts_on, program.starts_on) == :lt ->
+          add_error(changeset, :starts_on, "must be on or after program start date")
+
+        not is_nil(ends_on) and not is_nil(program.ends_on) and Date.compare(ends_on, program.ends_on) == :gt ->
+          add_error(changeset, :ends_on, "must be on or before program end date")
+
+        true ->
+          changeset
+      end
+    else
+      changeset
+    end
   end
 
   def create_changeset(project, attrs) do

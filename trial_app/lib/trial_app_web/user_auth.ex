@@ -210,7 +210,7 @@ defmodule TrialAppWeb.UserAuth do
   end
 
   def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
+        assigns: %{current_scope: %Scope{active_role: active_role}}
       }) when not is_nil(active_role) do
     case active_role do
       "admin" -> ~p"/admin/dashboard"

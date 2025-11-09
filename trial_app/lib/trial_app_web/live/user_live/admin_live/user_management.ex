@@ -105,12 +105,20 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     user = Accounts.get_user_with_assignments!(user_id)
     current_assignments = get_current_team_assignments(user)
 
+    # Get current supervisor department if user is a supervisor
+    supervisor_dept = if user.role == "supervisor" do
+      Orgs.list_departments_for_supervisor(user.id) |> List.first()
+    else
+      nil
+    end
+
     user_form = %{
       id: user.id,
       email: user.email,
       username: user.username,
       role: user.role,
-      status: user.status
+      status: user.status,
+      supervisor_department_id: if(supervisor_dept, do: supervisor_dept.id, else: nil)
     }
 
     available_teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
@@ -236,6 +244,13 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:available_teams, available_teams)}
   end
 
+  def handle_event("role_changed", %{"role" => role}, socket) do
+    # Update the user_form with the new role
+    updated_form = Map.put(socket.assigns.user_form, :role, role)
+
+    {:noreply, assign(socket, :user_form, updated_form)}
+  end
+
   def handle_event("save_user", params, socket) do
     user = socket.assigns.selected_user
 
@@ -262,13 +277,31 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       "ends_on" => Map.get(params, "attachee_ends_on")
     }
 
+    # Handle supervisor assignment to department
+    supervisor_dept_id = if params["role"] == "supervisor" && params["supervisor_department_id"] do
+      dept_id = String.to_integer(params["supervisor_department_id"])
+      # Remove supervisor from other departments first
+      remove_supervisor_from_other_departments(user.id)
+      # Assign supervisor to selected department
+      case assign_supervisor_to_department(dept_id, user.id) do
+        {:ok, _} -> dept_id
+        {:error, _} -> nil
+      end
+    else
+      # If role is not supervisor, remove from any departments
+      if user.role == "supervisor" && params["role"] != "supervisor" do
+        remove_supervisor_from_other_departments(user.id)
+      end
+      nil
+    end
+
     case Accounts.update_user_with_assignments(user, user_params, team_ids, %{attachee?: attachee?, attachee_dates: attachee_dates}) do
-      {:ok, _updated_user} ->
+      {:ok, updated_user} ->
         users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
 
         {:noreply,
          socket
-         |> put_flash(:info, "User updated successfully!")
+         |> put_flash(:info, "User updated successfully!" <> if(supervisor_dept_id, do: " Supervisor assigned to department.", else: ""))
          |> assign(:users, users)
          |> assign(:show_edit_modal, false)
          |> assign(:selected_user, nil)
@@ -282,6 +315,19 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
          socket
          |> put_flash(:error, "Failed to update user: #{inspect(changeset.errors)}")}
     end
+  end
+
+  # Helper function to assign supervisor to department
+  defp assign_supervisor_to_department(department_id, user_id) do
+    department = Orgs.get_department!(department_id)
+    Orgs.update_department(department, %{supervisor_id: user_id})
+  end
+
+  # Helper function to remove supervisor from all departments
+  defp remove_supervisor_from_other_departments(user_id) do
+    import Ecto.Query
+    from(d in TrialApp.Orgs.Department, where: d.supervisor_id == ^user_id)
+    |> TrialApp.Repo.update_all(set: [supervisor_id: nil])
   end
 
   def handle_event("make_admin", %{"user-id" => user_id}, socket) do

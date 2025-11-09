@@ -209,6 +209,13 @@ defmodule TrialApp.Eams do
   # ──────────────────────────────────────────────────────────────────────
   # TASKS
   # ──────────────────────────────────────────────────────────────────────
+  def list_tasks_for_project(project_id) do
+    Task
+    |> where([t], t.project_id == ^project_id)
+    |> preload([:assignee, :project, :supervisor])
+    |> Repo.all()
+  end
+
   def list_tasks(opts \\ %{}) do
     Task
     |> preload(^Map.get(opts, :preloads, [:project, :assignee]))

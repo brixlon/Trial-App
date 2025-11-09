@@ -41,7 +41,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   @impl true
   def handle_event("view_project_tasks", %{"id" => id}, socket) do
     project = Eams.get_project!(id, preloads: [:program, :department, :organization])
-    tasks = Eams.list_tasks_for_project(id)
+    tasks = Eams.list_tasks_for_project(id) || []
 
     {:noreply,
      socket

@@ -5,8 +5,9 @@ defmodule TrialApp.Orgs do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position}
+  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position, DailyReport}
   alias TrialApp.Accounts.User
+  alias Bcrypt
 
   # ──────────────────────────────────────────────────────────────────────
   # USER → ORG / DEPT (CRITICAL FOR DASHBOARD)
@@ -162,6 +163,20 @@ defmodule TrialApp.Orgs do
     |> Repo.all()
   end
 
+  def list_teams_for_team_lead(team_lead_id) do
+    Team
+    |> where([t], t.team_lead_id == ^team_lead_id and t.is_active == true)
+    |> preload([:department, :organization])
+    |> Repo.all()
+  end
+
+  def list_departments_for_supervisor(supervisor_id) do
+    Department
+    |> where([d], d.supervisor_id == ^supervisor_id and d.is_active == true)
+    |> preload([:organization, :teams])
+    |> Repo.all()
+  end
+
   def get_team!(id), do: Repo.get!(Team, id)
 
   def create_team(attrs) do
@@ -225,6 +240,109 @@ defmodule TrialApp.Orgs do
     |> Repo.insert()
   end
 
+  @doc """
+  Creates an employee and optionally creates an attachee record.
+  Also updates the user status to active and sends onboarding email with credentials.
+  """
+  def create_employee_with_attachee(employee_attrs, attachee_opts \\ %{}) do
+    alias TrialApp.{Eams, Accounts}
+
+    case Repo.transaction(fn ->
+           # Create the employee
+           employee_changeset = Employee.create_changeset(%Employee{}, employee_attrs)
+
+           case Repo.insert(employee_changeset) do
+             {:ok, employee} ->
+               # If attachee is requested, create attachee record
+               if Map.get(attachee_opts, :is_attachee) do
+                 attachee_attrs = %{
+                   user_id: employee.user_id,
+                   organization_id: employee.organization_id,
+                   department_id: employee.department_id,
+                   status: "active",
+                   starts_on: Map.get(attachee_opts, :starts_on),
+                   ends_on: Map.get(attachee_opts, :ends_on)
+                 }
+
+                 # Create attachee (ignore if already exists due to unique constraint)
+                 case Eams.create_attachee(attachee_attrs) do
+                   {:ok, _attachee} -> :ok
+                   {:error, %Ecto.Changeset{errors: [user_id: {"has already been taken", _}]}} -> :ok
+                   {:error, _} -> :ok
+                 end
+               end
+
+               # Update user status to active and generate/send credentials
+               if employee.user_id do
+                 user = Repo.get!(TrialApp.Accounts.User, employee.user_id)
+
+                 # Generate a new random password for onboarding
+                 new_password = generate_random_password()
+
+                 # Update user with new password and active status
+                 updated_user =
+                   user
+                   |> Ecto.Changeset.change(%{
+                     status: "active",
+                     hashed_password: Bcrypt.hash_pwd_salt(new_password)
+                   })
+                   |> Repo.update!()
+
+                 # Send onboarding email with credentials
+                 # Generate login URL - use endpoint config or default
+                 login_url =
+                   case Application.get_env(:trial_app, TrialAppWeb.Endpoint) do
+                     config when is_list(config) ->
+                       url_config = Keyword.get(config, :url, [])
+                       host = Keyword.get(url_config, :host, "localhost")
+                       port = Keyword.get(url_config, :port, 4000)
+                       protocol = if port == 443, do: "https", else: "http"
+                       port_str = if port in [80, 443], do: "", else: ":#{port}"
+                       "#{protocol}://#{host}#{port_str}/users/login"
+                     _ ->
+                       # Fallback to default
+                       "http://localhost:4000/users/login"
+                   end
+
+                 # Send email asynchronously (don't block transaction)
+                 Task.start(fn ->
+                   Accounts.UserNotifier.deliver_onboarding_credentials(
+                     updated_user,
+                     new_password,
+                     login_url
+                   )
+                 end)
+
+                 # Store password temporarily for return (will be sent via email)
+                 {employee, new_password}
+               else
+                 employee
+               end
+
+             {:error, changeset} ->
+               Repo.rollback(changeset)
+           end
+         end) do
+      {:ok, result} ->
+        # Extract employee from result (which may be a tuple with password)
+        employee = if is_tuple(result), do: elem(result, 0), else: result
+        {:ok, employee}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp generate_random_password do
+    # Generate a secure random password
+    :crypto.strong_rand_bytes(12)
+    |> Base.encode64()
+    |> String.slice(0, 12)
+    |> String.replace(~r/[+\/=]/, fn
+      "+" -> "A"
+      "/" -> "B"
+      "=" -> "C"
+    end)
+  end
+
   def update_employee(%Employee{} = employee, attrs) do
     employee
     |> Employee.changeset(attrs)
@@ -273,6 +391,68 @@ defmodule TrialApp.Orgs do
 
   def delete_position(%Position{} = position) do
     update_position(position, %{is_active: false})
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # DAILY REPORTS
+  # ──────────────────────────────────────────────────────────────────────
+  def list_daily_reports(opts \\ %{}) do
+    DailyReport
+    |> preload(^Map.get(opts, :preloads, [:team_lead, :team, :supervisor, :department]))
+    |> order_by([r], desc: r.report_date)
+    |> Repo.all()
+  end
+
+  def list_reports_by_team_lead(team_lead_id, opts \\ %{}) do
+    DailyReport
+    |> where([r], r.team_lead_id == ^team_lead_id)
+    |> preload(^Map.get(opts, :preloads, [:team, :supervisor, :department]))
+    |> order_by([r], desc: r.report_date)
+    |> Repo.all()
+  end
+
+  def list_reports_by_supervisor(supervisor_id, opts \\ %{}) do
+    DailyReport
+    |> where([r], r.supervisor_id == ^supervisor_id)
+    |> preload(^Map.get(opts, :preloads, [:team_lead, :team, :department]))
+    |> order_by([r], desc: r.report_date)
+    |> Repo.all()
+  end
+
+  def list_reports_by_team(team_id, opts \\ %{}) do
+    DailyReport
+    |> where([r], r.team_id == ^team_id)
+    |> preload(^Map.get(opts, :preloads, [:team_lead, :supervisor, :department]))
+    |> order_by([r], desc: r.report_date)
+    |> Repo.all()
+  end
+
+  def get_daily_report!(id, opts \\ %{}) do
+    DailyReport
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:team_lead, :team, :supervisor, :department]))
+  end
+
+  def create_daily_report(attrs) do
+    %DailyReport{}
+    |> DailyReport.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_daily_report(%DailyReport{} = report, attrs) do
+    report
+    |> DailyReport.update_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_daily_report(%DailyReport{} = report) do
+    Repo.delete(report)
+  end
+
+  def submit_daily_report(%DailyReport{} = report) do
+    report
+    |> DailyReport.changeset(%{status: "submitted"})
+    |> Repo.update()
   end
 
   # ──────────────────────────────────────────────────────────────────────

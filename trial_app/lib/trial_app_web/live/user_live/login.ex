@@ -21,7 +21,7 @@ defmodule TrialAppWeb.UserLive.Login do
         cond do
           user.must_change_password ->
             {:noreply,
-             push_redirect(socket,
+             push_navigate(socket,
                to: ~p"/users/force_password_change?user_id=#{user.id}"
              )}
 
@@ -38,7 +38,7 @@ defmodule TrialAppWeb.UserLive.Login do
 
   @impl true
   def handle_event("forgot_password", _params, socket) do
-    {:noreply, push_redirect(socket, to: ~p"/users/reset_password")}
+    {:noreply, push_navigate(socket, to: ~p"/users/reset_password")}
   end
 
   @impl true

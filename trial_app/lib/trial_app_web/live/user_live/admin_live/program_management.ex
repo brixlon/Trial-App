@@ -293,7 +293,8 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   defp load_attachees(nil), do: []
   defp load_attachees(id) do
     try do
-      Eams.list_attachees_by_program(String.to_integer(id), %{preloads: [:user]})
+      # list_attachees_in_program already preloads :user
+      Eams.list_attachees_in_program(String.to_integer(id))
     rescue
       e ->
         Logger.error("Error loading attachees: #{inspect(e)}")

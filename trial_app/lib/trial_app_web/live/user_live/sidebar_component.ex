@@ -22,13 +22,12 @@ defmodule TrialAppWeb.SidebarComponent do
     active_role = Accounts.get_active_role(user)
     available_roles = Accounts.get_user_roles(user)
 
-    # Debug logging (remove these after confirming it works)
-    IO.inspect(active_role, label: "🔍 SIDEBAR ACTIVE ROLE")
-    IO.inspect(available_roles, label: "🔍 SIDEBAR AVAILABLE ROLES")
-
+    # Only assign the specific assigns we need, avoiding reserved assigns like :socket
+    # Note: :myself is automatically provided by LiveView for components and doesn't need to be assigned
     {:ok,
      socket
-     |> assign(assigns)
+     |> assign(:current_scope, assigns.current_scope)
+     |> assign(:id, assigns.id)
      |> assign(:active_role, active_role)
      |> assign(:available_roles, available_roles)}
   end

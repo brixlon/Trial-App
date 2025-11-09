@@ -81,4 +81,38 @@ defmodule TrialApp.Accounts.UserNotifier do
     ==============================
     """)
   end
+
+  @doc """
+  Deliver onboarding credentials to a newly created user.
+  Sends email with login link and system-generated password.
+  """
+  def deliver_onboarding_credentials(user, password, url) do
+    first_name = user.first_name || "User"
+    last_name = user.last_name || ""
+    name = if last_name != "", do: "#{first_name} #{last_name}", else: first_name
+
+    deliver(user.email, "Welcome to the Attachment Program - Your Login Credentials", """
+
+    ==============================
+
+    Dear #{name},
+
+    Your account has been created and you have been enrolled in the attachment program.
+
+    Your login credentials are:
+
+    Email: #{user.email}
+    Password: #{password}
+
+    Please log in using the link below:
+
+    #{url}
+
+    For security reasons, please change your password after your first login.
+
+    If you have any questions, please contact your administrator.
+
+    ==============================
+    """)
+  end
 end

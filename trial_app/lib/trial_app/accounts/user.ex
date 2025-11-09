@@ -11,15 +11,15 @@ defmodule TrialApp.Accounts.User do
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
-    field :roles, {:array, :string}, default: []
-    field :active_role, :string  
     field :first_name, :string
     field :last_name, :string
     field :phone_number, :string
 
+    # ✅ Added fields for forced password change support
     field :must_change_password, :boolean, default: false
     field :password_changed_at, :utc_datetime
 
+    # ✅ Relationships (kept exactly as before)
     has_many :employees, TrialApp.Orgs.Employee
     has_many :teams, through: [:employees, :team]
     has_many :organizations, through: [:employees, :team, :organization]
@@ -30,18 +30,24 @@ defmodule TrialApp.Accounts.User do
 
   @doc """
   A user changeset for registration.
+  Requires: first_name, last_name, email, phone_number (msisdn), password.
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username, :password])
-    |> validate_required([:email, :username, :password])
+    |> cast(attrs, [:email, :username, :password, :first_name, :last_name, :phone_number])
+    |> validate_required([:email, :first_name, :last_name, :phone_number, :password])
     |> validate_length(:username, min: 3, max: 50)
     |> validate_length(:password, min: 8, max: 72)
+    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+      message: "must have the @ sign and no spaces"
+    )
+    |> validate_length(:email, max: 160)
     |> validate_confirmation(:password, message: "does not match password")
     |> unique_constraint(:email)
     |> unique_constraint(:username)
+    |> generate_username_from_name()
     |> put_hashed_password(opts)
-    |> change(status: "pending", role: "user")
+    |> change(status: "pending", role: "attachee")
   end
 
   defp put_hashed_password(changeset, opts) do

@@ -3,10 +3,9 @@ defmodule TrialAppWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    # Get the current user's role
+    # Get the current user's role from scope
     current_scope = socket.assigns.current_scope
-    user = current_scope.user
-    active_role = user.active_role
+    active_role = current_scope.active_role || "attachee"
 
     # Redirect to appropriate dashboard based on role
     case active_role do

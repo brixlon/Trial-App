@@ -58,16 +58,25 @@ defmodule TrialAppWeb.Router do
       # ATTACHEE ROUTES
       # ──────────────────────────────────────────────────────────────────────
       live "/attachee", AttacheeDashboardLive, :index
-      live "/attachee/tasks", AttacheeTasksLive, :index
-      live "/attachee/profile", AttacheeProfileLive, :show
+      # Note: AttacheeTasksLive and AttacheeProfileLive modules need to be created if needed
 
       # ──────────────────────────────────────────────────────────────────────
       # SUPERVISOR ROUTES
       # ──────────────────────────────────────────────────────────────────────
       live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
-      live "/supervisor/team", SupervisorLive.Team, :index
+      # Note: SupervisorLive.Team module needs to be created if needed
       live "/supervisor/attachees", SupervisorLive.Attachees, :index
       live "/supervisor/tasks", SupervisorLive.Tasks, :index
+      live "/supervisor/daily_reports", SupervisorLive.DailyReports, :index
+      live "/supervisor/team_management", SupervisorLive.TeamManagement, :index
+
+      # ──────────────────────────────────────────────────────────────────────
+      # TEAM LEAD ROUTES
+      # ──────────────────────────────────────────────────────────────────────
+      live "/team_lead/daily_reports", TeamLeadLive.DailyReports, :index
+      live "/team_lead/daily_reports/new", TeamLeadLive.DailyReports, :new
+      live "/team_lead/daily_reports/:id", TeamLeadLive.DailyReports, :show
+      live "/team_lead/daily_reports/:id/edit", TeamLeadLive.DailyReports, :edit
 
       # ──────────────────────────────────────────────────────────────────────
       # GENERAL USER ROUTES
@@ -82,6 +91,10 @@ defmodule TrialAppWeb.Router do
       # Settings
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+
+      # Password management
+      live "/users/force_password_change", UserLive.ForcePasswordChange, :edit
+      live "/users/reset_password", UserLive.ResetPassword, :new
     end
   end
 
@@ -103,6 +116,8 @@ defmodule TrialAppWeb.Router do
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
+      live "/employees/:id", AdminLive.EmployeeManagement, :show
+      live "/employees/:id/edit", AdminLive.EmployeeManagement, :edit
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
 
       # EAMS Admin

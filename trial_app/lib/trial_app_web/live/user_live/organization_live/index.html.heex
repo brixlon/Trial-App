@@ -1070,6 +1070,32 @@
                 ><%= @dept_form_data.description %></textarea>
               </div>
 
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                  </svg>
+                  Supervisor
+                </label>
+                <select
+                  name="supervisor_id"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all text-gray-900 font-medium bg-white"
+                >
+                  <option value="">Select a supervisor (optional)</option>
+                  <%= for user <- @users do %>
+                    <option
+                      value={user.id}
+                      selected={to_string(user.id) == @dept_form_data.supervisor_id}
+                    >
+                      <%= "#{user.first_name || ""} #{user.last_name || ""}" |> String.trim() %> (<%= user.email %>)
+                    </option>
+                  <% end %>
+                </select>
+                <p class="mt-2 text-sm text-gray-500">
+                  Assign a supervisor to oversee this department
+                </p>
+              </div>
+
               <div class="flex justify-end gap-4 pt-6 border-t border-gray-100">
                 <button
                   type="button"
@@ -1193,6 +1219,40 @@
                     {@errors[:department_id]}
                   </p>
                 <% end %>
+              </div>
+
+              <div>
+                <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+                  </svg>
+                  Team Lead
+                </label>
+                <select
+                  name="team_lead_id"
+                  class="w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-gray-900 font-medium bg-white"
+                >
+                  <option value="">Select a team lead (optional)</option>
+                  <%= if @editing_team_id && length(@team_members) > 0 do %>
+                    <%= for user <- @team_members do %>
+                      <option
+                        value={user.id}
+                        selected={to_string(user.id) == @team_form_data.team_lead_id}
+                      >
+                        <%= "#{user.first_name || ""} #{user.last_name || ""}" |> String.trim() %> (<%= user.email %>)
+                      </option>
+                    <% end %>
+                  <% else %>
+                    <option value="" disabled>No team members available. Add members to the team first.</option>
+                  <% end %>
+                </select>
+                <p class="mt-2 text-sm text-gray-500">
+                  <%= if @editing_team_id do %>
+                    Team lead must be selected from existing team members
+                  <% else %>
+                    Team lead can be assigned after team members are added to the team
+                  <% end %>
+                </p>
               </div>
 
               <div class="flex justify-end gap-4 pt-6 border-t border-gray-100">

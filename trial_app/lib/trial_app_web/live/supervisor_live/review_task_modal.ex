@@ -14,12 +14,17 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
      |> assign(:uploading?, false)}
   end
 
+  def handle_event("close_modal", _params, socket) do
+    {:noreply, push_event(socket, "close_modal", %{})}
+  end
+
   def handle_event("reject", %{"comment" => comment}, socket) do
     task = socket.assigns.task
 
     case Eams.reject_attachee_task(task.id, comment) do
       {:ok, _} ->
-        Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
+        # TODO: Implement task comments feature if needed
+        # Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
         notify_attachee(task, "rejected", comment)
         send(self(), {:task_updated, task})
         {:noreply, push_event(socket, "close_modal", %{})}
@@ -34,7 +39,8 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
 
     case Eams.approve_attachee_task(task.id) do
       {:ok, _} ->
-        Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
+        # TODO: Implement task comments feature if needed
+        # Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
         notify_attachee(task, "approved", comment)
         send(self(), {:task_updated, task})
         {:noreply, push_event(socket, "close_modal", %{})}
@@ -75,8 +81,10 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
                 <%= Timex.from_now(@task.submitted_at) %>
               </p>
             </div>
-            <button phx-click={JS.push("close_modal") |> JS.hide("#{@id}")} class="text-gray-400 hover:text-gray-600">
-              <Heroicons.x_mark class="w-6 h-6" />
+            <button phx-click="close_modal" phx-target={@myself} class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
             </button>
           </div>
 

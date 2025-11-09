@@ -2,11 +2,14 @@ defmodule TrialApp.Accounts do
   @moduledoc """
   The Accounts context.
   """
+
   import Ecto.Query, warn: false
   alias TrialApp.Repo
+
   alias TrialApp.Accounts.{User, UserToken, UserNotifier}
   alias TrialApp.Orgs.{Department, Team, Employee}
   alias TrialApp.Eams
+  alias Bcrypt
 
   ## Database getters
 
@@ -24,6 +27,7 @@ defmodule TrialApp.Accounts do
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: String.downcase(email))
+
     if user && User.valid_password?(user, password) do
       user
     else
@@ -40,7 +44,9 @@ defmodule TrialApp.Accounts do
       when is_binary(username_or_email) and is_binary(password) do
     field = if String.contains?(username_or_email, "@"), do: :email, else: :username
     lookup_value = if field == :email, do: String.downcase(username_or_email), else: username_or_email
+
     user = Repo.get_by(User, [{field, lookup_value}])
+
     if user && User.valid_password?(user, password) do
       user
     else
@@ -68,9 +74,8 @@ defmodule TrialApp.Accounts do
   Lists all users.
   """
   def list_users do
-    User
-    |> preload(employees: [:organization, :department, :team])
-    |> Repo.all()
+    Repo.all(User)
+    |> Repo.preload(employees: [:organization, :department, :team])
   end
 
   @doc """
@@ -79,8 +84,8 @@ defmodule TrialApp.Accounts do
   def list_users_by_status(status) when is_binary(status) do
     User
     |> where([u], u.status == ^status)
-    |> preload(employees: [:organization, :department, :team])
     |> Repo.all()
+    |> Repo.preload(employees: [:organization, :department, :team])
   end
 
   @doc """
@@ -101,8 +106,8 @@ defmodule TrialApp.Accounts do
   def list_users_by_role(role) when is_binary(role) do
     User
     |> where([u], u.role == ^role)
-    |> preload(employees: [:organization, :department, :team])
     |> Repo.all()
+    |> Repo.preload(employees: [:organization, :department, :team])
   end
 
   @doc """
@@ -111,8 +116,8 @@ defmodule TrialApp.Accounts do
   def list_pending_assignment_users do
     User
     |> where([u], u.status == "pending")
-    |> preload(employees: [:organization, :department, :team])
     |> Repo.all()
+    |> Repo.preload(employees: [:organization, :department, :team])
   end
 
   @doc """
@@ -137,67 +142,90 @@ defmodule TrialApp.Accounts do
   Updates a user with assignments and team assignments.
   """
   def update_user_with_assignments(user, params, team_ids, opts \\ %{}) do
-    Repo.transaction(fn ->
-      user_changeset = User.admin_update_changeset(user, params)
+    case Repo.transaction(fn ->
+           user_changeset = User.admin_update_changeset(user, params)
 
-      case Repo.update(user_changeset) do
-        {:ok, updated_user} ->
-          if Enum.any?(team_ids) do
-            Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
+          case Repo.update(user_changeset) do
+            {:ok, updated_user} ->
+              if Enum.any?(team_ids) do
+                Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
 
-            Enum.each(team_ids, fn team_id ->
-              team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
-              employee_attrs = %{
-                user_id: updated_user.id,
-                name: updated_user.username || updated_user.email,
-                email: updated_user.email,
-                team_id: team_id,
-                department_id: team.department_id,
-                organization_id: team.department.organization_id,
-                role: normalize_employee_role(updated_user.role),
-                position: "Employee",
-                is_active: true,
-                status: "active"
-              }
+                Enum.each(team_ids, fn team_id ->
+                  team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
 
-              %Employee{}
-              |> Employee.changeset(employee_attrs)
-              |> Repo.insert!()
+                  employee_attrs = %{
+                    user_id: updated_user.id,
+                    name: updated_user.username || updated_user.email,
+                    email: updated_user.email,
+                    team_id: team_id,
+                    department_id: team.department_id,
+                    organization_id: team.department.organization_id,
+                    role: normalize_employee_role(updated_user.role),
+                    position: "Employee",
+                    is_active: true,
+                    status: "active"
+                  }
 
-              # Optionally create Attachee
-              if Map.get(opts, :attachee?) do
-                dates = Map.get(opts, :attachee_dates, %{})
-                starts_on = blank_to_nil(Map.get(dates, "starts_on"))
-                ends_on = blank_to_nil(Map.get(dates, "ends_on"))
+                  %Employee{}
+                  |> Employee.changeset(employee_attrs)
+                  |> Repo.insert!()
 
-                attachee_attrs = %{
-                  user_id: updated_user.id,
-                  organization_id: team.department.organization_id,
-                  department_id: team.department_id,
-                  status: "active",
-                  starts_on: starts_on,
-                  ends_on: ends_on
-                }
+                  # Optionally create Attachee records
+                  if Map.get(opts, :attachee?) do
+                    dates = Map.get(opts, :attachee_dates, %{})
+                    starts_on = blank_to_nil(Map.get(dates, "starts_on"))
+                    ends_on = blank_to_nil(Map.get(dates, "ends_on"))
 
-                _ = Eams.create_attachee(attachee_attrs)
+                    attachee_attrs = %{
+                      user_id: updated_user.id,
+                      organization_id: team.department.organization_id,
+                      department_id: team.department_id,
+                      status: "active",
+                      starts_on: starts_on,
+                      ends_on: ends_on
+                    }
+
+                    _ = Eams.create_attachee(attachee_attrs)
+
+                    # Generate new password and send onboarding email
+                    new_password = generate_random_password()
+                    user_with_password =
+                      updated_user
+                      |> Ecto.Changeset.change(%{
+                        hashed_password: Bcrypt.hash_pwd_salt(new_password)
+                      })
+                      |> Repo.update!()
+
+                    # Send onboarding email asynchronously
+                    login_url = get_login_url()
+                    Task.start(fn ->
+                      UserNotifier.deliver_onboarding_credentials(
+                        user_with_password,
+                        new_password,
+                        login_url
+                      )
+                    end)
+                  end
+                end)
+
+                # Mark user as active once they have at least one employee assignment
+                _updated_user =
+                  updated_user
+                  |> Ecto.Changeset.change(%{status: "active"})
+                  |> Repo.update!()
+              else
+                Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
               end
-            end)
 
-            # Mark user as active
-            {:ok, _} =
               updated_user
-              |> Ecto.Changeset.change(%{status: "active"})
-              |> Repo.update()
-          else
-            Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
-          end
 
-          updated_user
-
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
+             {:error, changeset} ->
+               Repo.rollback(changeset)
+           end
+         end) do
+      {:ok, updated_user} -> {:ok, updated_user}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp blank_to_nil(""), do: nil
@@ -230,9 +258,11 @@ defmodule TrialApp.Accounts do
   Checks whether the user is in sudo mode.
   """
   def sudo_mode?(user, minutes \\ -20)
+
   def sudo_mode?(%User{authenticated_at: ts}, minutes) when is_struct(ts, DateTime) do
     DateTime.after?(ts, DateTime.utc_now() |> DateTime.add(minutes, :minute))
   end
+
   def sudo_mode?(_user, _minutes), do: false
 
   @doc """
@@ -252,7 +282,8 @@ defmodule TrialApp.Accounts do
       with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
            %UserToken{sent_to: email} <- Repo.one(query),
            {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
-           {_count, _} <- Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
+           {_count, _result} <-
+             Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
         {:ok, user}
       else
         _ -> {:error, :transaction_aborted}
@@ -287,6 +318,7 @@ defmodule TrialApp.Accounts do
     token
   end
 
+  # FIXED: This function was missing
   @doc """
   Gets the user with the given signed session token.
   Returns {user, token_inserted_at} or nil.
@@ -360,7 +392,8 @@ defmodule TrialApp.Accounts do
     :ok
   end
 
-  ## Department / Team / Employee
+  ## Department / Team / Employee (unchanged)
+  # ... [your existing functions] ...
 
   @doc """
   Lists all departments.
@@ -392,9 +425,8 @@ defmodule TrialApp.Accounts do
   end
 
   def list_teams do
-    Team
-    |> preload([:department])
-    |> Repo.all()
+    Repo.all(Team)
+    |> Repo.preload([:department])
   end
 
   def get_team!(id), do: Repo.get!(Team, id)
@@ -434,8 +466,8 @@ defmodule TrialApp.Accounts do
   def get_employees_by_user_id(user_id) do
     Employee
     |> where(user_id: ^user_id)
-    |> preload([:department, :team, :organization])
     |> Repo.all()
+    |> Repo.preload([:department, :team, :organization])
   end
 
   def create_employee(attrs \\ %{}) do
@@ -464,39 +496,43 @@ defmodule TrialApp.Accounts do
   Creates a user with team assignments.
   """
   def create_user_with_assignments(user_params, team_ids) do
-    Repo.transaction(fn ->
-      user_changeset = User.registration_changeset(%User{}, user_params)
+    case Repo.transaction(fn ->
+           user_changeset = User.registration_changeset(%User{}, user_params)
 
-      case Repo.insert(user_changeset) do
-        {:ok, new_user} ->
-          if Enum.any?(team_ids) do
-            Enum.each(team_ids, fn team_id ->
-              team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
-              employee_attrs = %{
-                user_id: new_user.id,
-                name: new_user.username || new_user.email,
-                email: new_user.email,
-                team_id: team_id,
-                department_id: team.department_id,
-                organization_id: team.department.organization_id,
-                role: normalize_employee_role(new_user.role),
-                position: "Employee",
-                is_active: true,
-                status: "active"
-              }
+           case Repo.insert(user_changeset) do
+             {:ok, new_user} ->
+               if Enum.any?(team_ids) do
+                 Enum.each(team_ids, fn team_id ->
+                   team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
 
-              %Employee{}
-              |> Employee.changeset(employee_attrs)
-              |> Repo.insert!()
-            end)
-          end
+                   employee_attrs = %{
+                     user_id: new_user.id,
+                     name: new_user.username || new_user.email,
+                     email: new_user.email,
+                     team_id: team_id,
+                     department_id: team.department_id,
+                     organization_id: team.department.organization_id,
+                     role: normalize_employee_role(new_user.role),
+                     position: "Employee",
+                     is_active: true,
+                     status: "active"
+                   }
 
-          new_user
+                   %Employee{}
+                   |> Employee.changeset(employee_attrs)
+                   |> Repo.insert!()
+                 end)
+               end
 
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
+               new_user
+
+             {:error, changeset} ->
+               Repo.rollback(changeset)
+           end
+         end) do
+      {:ok, new_user} -> {:ok, new_user}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   @doc """
@@ -506,130 +542,99 @@ defmodule TrialApp.Accounts do
   def must_change_password?(%User{must_change_password: false}), do: false
   def must_change_password?(_), do: false
 
-  ## ROLE SWITCHING FUNCTIONS
+  @doc """
+  Gets the active role for a user.
+  Returns the user's role field as the active role.
+  """
+  def get_active_role(%User{role: role}) when is_binary(role), do: role
+  def get_active_role(_), do: "employee"
 
   @doc """
-  Switches the user's active role.
-  Only allows switching to roles the user actually has.
+  Gets all roles for a user.
+  Returns a list with the user's role.
   """
-  def switch_user_role(user, new_role) do
-    available_roles = get_user_roles(user)
-    if new_role in available_roles do
-      user
-      |> Ecto.Changeset.change(%{active_role: new_role})
-      |> Repo.update()
+  def get_user_roles(%User{role: role}) when is_binary(role), do: [role]
+  def get_user_roles(_), do: ["employee"]
+
+  @doc """
+  Switches a user's role (simplified - just updates the role field).
+  """
+  def switch_user_role(%User{} = user, new_role) do
+    # Validate the role
+    valid_roles = ["admin", "manager", "employee", "attachee", "supervisor"]
+
+    if new_role in valid_roles do
+      case update_user(user, %{"role" => new_role}) do
+        {:ok, updated_user} -> {:ok, updated_user}
+        {:error, changeset} -> {:error, changeset}
+      end
     else
       {:error, :unauthorized_role}
     end
   end
 
   @doc """
-  Gets all roles available to a user.
-  Returns the roles array if populated, otherwise returns single role as list.
+  Deletes a user and all associated data.
   """
-  def get_user_roles(%User{roles: roles, role: single_role}) do
-    if Enum.any?(roles || []) do
-      roles
-    else
-      [single_role]
-    end
-    |> Enum.reject(&is_nil/1)
-  end
+  def delete_user(%User{} = user) do
+    Repo.transaction(fn ->
+      # Delete associated employees
+      Repo.delete_all(from(e in Employee, where: e.user_id == ^user.id))
 
-  @doc """
-  Gets the user's active role.
-  Falls back to first available role if active_role is not set.
-  """
-  def get_active_role(%User{active_role: active_role} = user) when not is_nil(active_role) do
-    active_role
-  end
+      # Delete user tokens
+      Repo.delete_all(from(t in UserToken, where: t.user_id == ^user.id))
 
-  def get_active_role(%User{} = user) do
-    user
-    |> get_user_roles()
-    |> List.first()
-  end
-
-  @doc """
-  Checks if user has a specific role.
-  """
-  def has_role?(%User{} = user, role) do
-    role in get_user_roles(user)
-  end
-
-  @doc """
-  Adds a role to a user's roles array.
-  """
-  def add_role_to_user(%User{} = user, new_role) do
-    current_roles = user.roles || []
-    if new_role not in current_roles do
-      updated_roles = [new_role | current_roles] |> Enum.uniq()
-      user
-      |> Ecto.Changeset.change(%{roles: updated_roles})
-      |> Repo.update()
-    else
-      {:ok, user}
+      # Delete the user
+      Repo.delete(user)
+    end)
+    |> case do
+      {:ok, result} -> {:ok, result}
+      {:error, reason} -> {:error, reason}
     end
   end
 
   @doc """
-  Removes a role from a user's roles array.
+  Ensures a user has an active role set.
+  Returns the user with a valid active_role.
   """
-  def remove_role_from_user(%User{} = user, role_to_remove) do
-    updated_roles = (user.roles || []) |> Enum.reject(&(&1 == role_to_remove))
-
-    changeset =
-      user
-      |> Ecto.Changeset.change(%{roles: updated_roles})
-
-    changeset =
-      if user.active_role == role_to_remove && Enum.any?(updated_roles) do
-        Ecto.Changeset.put_change(changeset, :active_role, List.first(updated_roles))
-      else
-        changeset
-      end
-
-    Repo.update(changeset)
-  end
-
-  @doc """
-  Ensures the user has an active_role set.
-  Call this after login to initialize the active role if it's nil.
-  This is CRITICAL for the sidebar to work correctly on first login.
-  """
-  def ensure_active_role(%User{active_role: nil} = user) do
-    available_roles = get_user_roles(user)
-
-    if Enum.any?(available_roles) do
-      # Determine the appropriate default role based on user's roles
-      default_role = determine_default_role(available_roles)
-
-      IO.inspect(default_role, label: "🔧 Setting active_role for user #{user.id}")
-
-      user
-      |> Ecto.Changeset.change(%{active_role: default_role})
-      |> Repo.update()
-    else
-      # No roles available - this shouldn't happen but handle gracefully
-      {:ok, user}
-    end
-  end
-
   def ensure_active_role(%User{} = user) do
-    # Active role already set
-    {:ok, user}
+    # If user already has a role, return as is
+    if user.role && user.role != "" do
+      {:ok, user}
+    else
+      # Set default role to "employee"
+      case update_user(user, %{"role" => "employee"}) do
+        {:ok, updated_user} -> {:ok, updated_user}
+        {:error, changeset} -> {:error, changeset}
+      end
+    end
   end
 
-  # Helper to determine the best default role based on priority
-  # Attachee gets priority since that's the most specific role
-  defp determine_default_role(roles) do
-    cond do
-      "attachee" in roles -> "attachee"
-      "supervisor" in roles -> "supervisor"
-      "manager" in roles -> "manager"
-      "admin" in roles -> "admin"
-      "employee" in roles -> "employee"
-      true -> List.first(roles)
+  defp generate_random_password do
+    # Generate a secure random password
+    :crypto.strong_rand_bytes(12)
+    |> Base.encode64()
+    |> String.slice(0, 12)
+    |> String.replace(~r/[+\/=]/, fn
+      "+" -> "A"
+      "/" -> "B"
+      "=" -> "C"
+    end)
+  end
+
+  defp get_login_url do
+    # Generate login URL - use endpoint config or default
+    case Application.get_env(:trial_app, TrialAppWeb.Endpoint) do
+      config when is_list(config) ->
+        url_config = Keyword.get(config, :url, [])
+        host = Keyword.get(url_config, :host, "localhost")
+        port = Keyword.get(url_config, :port, 4000)
+        protocol = if port == 443, do: "https", else: "http"
+        port_str = if port in [80, 443], do: "", else: ":#{port}"
+        "#{protocol}://#{host}#{port_str}/users/login"
+      _ ->
+        # Fallback to default
+        "http://localhost:4000/users/login"
     end
   end
 

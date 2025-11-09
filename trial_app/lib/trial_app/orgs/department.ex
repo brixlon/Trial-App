@@ -11,6 +11,7 @@ defmodule TrialApp.Orgs.Department do
     belongs_to :organization, TrialApp.Orgs.Organization
     belongs_to :user, TrialApp.Accounts.User
     belongs_to :manager, TrialApp.Accounts.User
+    belongs_to :supervisor, TrialApp.Accounts.User
 
     has_many :teams, TrialApp.Orgs.Team
     has_many :employees, TrialApp.Orgs.Employee
@@ -32,11 +33,13 @@ defmodule TrialApp.Orgs.Department do
       :is_active,
       :organization_id,
       :user_id,
-      :manager_id
+      :manager_id,
+      :supervisor_id
     ])
     |> validate_required([:name, :organization_id])
     |> validate_length(:code, min: 2, max: 10)
     |> assoc_constraint(:organization)
+    |> assoc_constraint(:supervisor)
     |> unique_constraint(:name, name: :departments_name_organization_id_index)
   end
 

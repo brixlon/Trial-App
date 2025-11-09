@@ -120,8 +120,8 @@
           </div>
 
           <!-- Hidden fields for organization and department -->
-          <.input field={@form[:organization_id]} type="hidden" value={@selected_org_id} />
-          <.input field={@form[:department_id]} type="hidden" value={@selected_dept_id} />
+          <input type="hidden" name="employee[organization_id]" value={@selected_org_id} />
+          <input type="hidden" name="employee[department_id]" value={@selected_dept_id} />
         </div>
       </div>
 
@@ -186,6 +186,30 @@
               label="Attachee"
             />
             <span class="text-xs text-gray-500">Mark this employee as an attachee</span>
+          </div>
+
+          <!-- Attachee Date Fields (shown when is_attachee is checked) -->
+          <div id="attachee-dates" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">
+                Attachee Start Date (optional)
+              </label>
+              <input
+                type="date"
+                name="attachee_starts_on"
+                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none"
+              />
+            </div>
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">
+                Attachee End Date (optional)
+              </label>
+              <input
+                type="date"
+                name="attachee_ends_on"
+                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#6C63FF] focus:outline-none"
+              />
+            </div>
           </div>
 
           <div class="space-y-2">

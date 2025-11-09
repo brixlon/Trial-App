@@ -3,6 +3,7 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
 
   # Import LiveView helpers
   import Phoenix.LiveView, only: [put_flash: 3, push_navigate: 2]
+  import Phoenix.Component
 
   # Import verified routes macro
   use TrialAppWeb, :verified_routes
@@ -18,16 +19,17 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
   def role_switcher(assigns) do
     ~H"""
     <div class={["flex gap-2 flex-wrap", @class]}>
-      <%= for role <- @current_scope.user.roles do %>
+      <%= for role <- @current_scope.roles do %>
         <% active = @current_scope.active_role == role %>
         <button
-          phx-click={JS.push("switch_role", value: %{role: role})}
+          phx-click="switch_role"
+          phx-value-role={role}
           class={"px-3 py-1 text-xs rounded-full font-medium transition-all #{if active, do: "bg-primary text-white", else: "bg-base-300 hover:bg-base-200"}"}
           disabled={active}
         >
           <%= role_display_name(role) %>
           <%= if active do %>
-            <span class="ml-1">Checkmark</span>
+            <span class="ml-1">✓</span>
           <% end %>
         </button>
       <% end %>
@@ -42,7 +44,7 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
     current_scope = socket.assigns.current_scope
     user = current_scope.user
 
-    if new_role in user.roles do
+    if new_role in current_scope.roles do
       case Accounts.switch_user_role(user, new_role) do
         {:ok, updated_user} ->
           updated_scope = %{

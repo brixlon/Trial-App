@@ -98,9 +98,10 @@ defmodule TrialAppWeb.UserSessionController do
   # PRIVATE HELPERS
   # -------------------------------------------------------------------------
 
-  # Get the dashboard path based on user's active role
+  # Get the dashboard path based on user's role
   defp get_dashboard_for_active_role(user) do
-    active_role = user.active_role || Accounts.get_active_role(user)
+    # User schema has a single :role field, not :active_role
+    active_role = Accounts.get_active_role(user)
 
     case active_role do
       "admin" -> ~p"/admin/dashboard"

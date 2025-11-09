@@ -312,10 +312,12 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label class="block text-sm font-semibold text-purple-700">Role</label>
-                <select name="role"
+                <select name="role" id="user_role_select"
+                  phx-change="role_changed"
                   class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
                   <option value="employee" selected={@user_form.role == "employee"}>Employee</option>
                   <option value="manager" selected={@user_form.role == "manager"}>Manager</option>
+                  <option value="supervisor" selected={@user_form.role == "supervisor"}>Supervisor</option>
                   <option value="admin" selected={@user_form.role == "admin"}>Admin</option>
                 </select>
               </div>
@@ -329,6 +331,27 @@
                 </select>
               </div>
             </div>
+
+            <!-- Supervisor Department Assignment (shown when role is supervisor) -->
+            <%= if @user_form.role == "supervisor" do %>
+              <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm">
+                <label class="block text-sm font-semibold text-blue-700 mb-2">
+                  Assign to Department (Supervisor acts as admin for this department)
+                </label>
+                <select name="supervisor_department_id"
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-blue-200 bg-white text-gray-800 focus:ring-2 focus:ring-blue-400 focus:border-transparent shadow-sm">
+                  <option value="">Select Department</option>
+                  <%= for dept <- @available_departments do %>
+                    <option value={dept.id} selected={@user_form.supervisor_department_id == dept.id}>
+                      {dept.name} - {dept.organization.name}
+                    </option>
+                  <% end %>
+                </select>
+                <p class="mt-2 text-xs text-blue-600">
+                  Supervisors have admin-like permissions but only for their assigned department. They can manage teams, employees, and daily reports within their department.
+                </p>
+              </div>
+            <% end %>
 
             <!-- Attachee Enrollment -->
             <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">

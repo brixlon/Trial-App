@@ -1,6 +1,6 @@
 defmodule TrialAppWeb.AdminLive.EmployeeForm do
   use TrialAppWeb, :live_view
-  alias TrialApp.{Orgs, Accounts, Repo}
+  alias TrialApp.{Orgs, Accounts}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -54,12 +54,21 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
   end
 
   @impl true
-  def handle_event("save", %{"employee" => employee_params}, socket) do
-    case Orgs.create_employee(employee_params) do
+  def handle_event("save", %{"employee" => employee_params} = params, socket) do
+    # Extract attachee information
+    is_attachee = Map.get(params, "is_attachee") == "true" || Map.get(employee_params, "is_attachee") == "true"
+    attachee_starts_on = Map.get(params, "attachee_starts_on")
+    attachee_ends_on = Map.get(params, "attachee_ends_on")
+
+    case Orgs.create_employee_with_attachee(employee_params, %{
+           is_attachee: is_attachee,
+           starts_on: blank_to_nil(attachee_starts_on),
+           ends_on: blank_to_nil(attachee_ends_on)
+         }) do
       {:ok, _employee} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Employee created successfully")
+         |> put_flash(:info, "Employee created successfully! An email with login credentials has been sent to the user.")
          |> push_navigate(to: ~p"/admin/employees")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -72,6 +81,10 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
     {:noreply, push_navigate(socket, to: ~p"/admin/employees")}
   end
 
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(val), do: val
+
   defp load_organizations do
     Orgs.list_organizations()
   end
@@ -80,7 +93,6 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
     Accounts.list_users()
   end
 
-  @impl true
   defp safe_int(nil), do: nil
   defp safe_int(""), do: nil
   defp safe_int(val) when is_binary(val) do

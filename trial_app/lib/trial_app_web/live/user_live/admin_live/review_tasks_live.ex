@@ -1,6 +1,5 @@
 defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
   use TrialAppWeb, :live_view
-  use Phoenix.LiveView  # THIS LINE WAS MISSING
 
   alias TrialApp.Eams
   alias TrialApp.Repo

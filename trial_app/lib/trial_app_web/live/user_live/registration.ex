@@ -5,7 +5,9 @@ defmodule TrialAppWeb.UserLive.Registration do
     # Start with empty form
     form_values = %{
       "email" => "",
-      "username" => "",
+      "first_name" => "",
+      "last_name" => "",
+      "phone_number" => "",
       "password" => "",
       "password_confirmation" => ""
     }
@@ -106,31 +108,54 @@ defmodule TrialAppWeb.UserLive.Registration do
           <% end %>
 
           <.form for={@form} phx-submit="save" phx-change="validate" class="space-y-6">
-            <!-- Username Field -->
-            <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">👤 Username</label>
-              <input
-                type="text"
-                name="user[username]"
-                value={@form_values["username"]}
-                required
-                placeholder="your_username"
-                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
-              />
-              <p class="mt-1 text-xs text-gray-500">
-                3-30 characters, letters, numbers, and underscores only
-              </p>
+            <!-- First Name & Last Name -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">First Name <span class="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  name="user[first_name]"
+                  value={@form_values["first_name"]}
+                  required
+                  placeholder="John"
+                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Last Name <span class="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  name="user[last_name]"
+                  value={@form_values["last_name"]}
+                  required
+                  placeholder="Doe"
+                  class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
+                />
+              </div>
             </div>
 
     <!-- Email Field -->
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">📧 Email</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">📧 Email <span class="text-red-500">*</span></label>
               <input
                 type="email"
                 name="user[email]"
                 value={@form_values["email"]}
                 required
                 placeholder="your@email.com"
+                class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
+              />
+            </div>
+
+    <!-- Phone Number (MSISDN) Field -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">📱 Phone Number (MSISDN) <span class="text-red-500">*</span></label>
+              <input
+                type="tel"
+                name="user[phone_number]"
+                value={@form_values["phone_number"]}
+                required
+                placeholder="+254 712 345 678"
                 class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all text-gray-900 bg-white"
               />
             </div>

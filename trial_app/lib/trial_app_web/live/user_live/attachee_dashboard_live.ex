@@ -1,6 +1,5 @@
 defmodule TrialAppWeb.AttacheeDashboardLive do
   use TrialAppWeb, :live_view
-  import Phoenix.LiveView.JS
 
   alias TrialApp.{Accounts, Eams, Repo}
 
@@ -506,13 +505,13 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
         <div
           id="submit-task-modal"
           class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-          phx-click-away={JS.push("close_modal")}
-          phx-window-keydown={JS.push("close_modal")}
+          phx-click="close_modal"
+          phx-window-keydown="close_modal"
           phx-key="escape"
         >
           <div
             class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
-            phx-click={JS.nothing()}
+            phx-click-away="close_modal"
           >
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-bold text-gray-900">
