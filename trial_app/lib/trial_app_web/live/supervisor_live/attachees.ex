@@ -33,7 +33,8 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   defp load_attachee_list(supervisor_id) do
-    query1 = from(a in Eams.Attachee,
+    # Query to get ALL attachees from ALL projects supervised by this supervisor
+    query = from(a in Eams.Attachee,
       join: t in Eams.Task, on: t.assignee_id == a.id,
       join: p in Eams.Project, on: t.project_id == p.id,
       where: p.supervisor_id == ^supervisor_id,
@@ -41,7 +42,8 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       preload: [:user, :department, :organization]
     )
 
-    result = Repo.all(query1)
+    result = Repo.all(query)
+    IO.inspect(length(result), label: "Total Attachees Found via Projects")
     IO.inspect(result, label: "Attachees via Projects with supervisor_id")
 
     if result == [] do
@@ -75,9 +77,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     programs = Eams.list_programs_for_attachee(attachee.id)
     evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
 
-    # FIXED: This is the problematic line 79 - completely avoid Float.round
     avg_score = Eams.get_average_evaluation_score(attachee.id) |> safe_round_decimal()
-
     eval_count = Eams.count_evaluations_for_attachee(attachee.id)
     stats = calculate_attachee_stats(attachee)
 
@@ -110,8 +110,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     attachee = Eams.get_attachee!(attachee_id, %{preloads: [:user, :department, :organization]})
     evaluations = Eams.list_evaluations_for_attachee(attachee_id, %{preloads: [:evaluator]})
 
-    # FIXED: Use decimal_to_float instead of Float.round
-    avg_score = Eams.get_average_evaluation_score(attachee_id) |> decimal_to_float(1)
+    avg_score = Eams.get_average_evaluation_score(attachee_id) |> safe_round_decimal()
     eval_count = Eams.count_evaluations_for_attachee(attachee_id)
 
     {:noreply,
@@ -132,32 +131,24 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     {:noreply, assign(socket, :show_evaluation_form, false)}
   end
 
-  # === NEW: Safe decimal conversion with rounding ===
-  defp decimal_to_float(value, precision) do
-    case value do
-      %Decimal{} = decimal ->
-        decimal
-        |> Decimal.round(precision)
-        |> Decimal.to_float()
-
-      number when is_number(number) ->
-        Float.round(number, precision)
-
-      nil ->
+  defp safe_round_decimal(value) do
+    cond do
+      is_nil(value) ->
         0.0
 
-      _ ->
+      match?(%Decimal{}, value) ->
         value
-        |> to_string()
-        |> Float.parse()
-        |> case do
-          {float, _} -> Float.round(float, precision)
-          :error -> 0.0
-        end
+        |> Decimal.round(1)
+        |> Decimal.to_float()
+
+      is_number(value) ->
+        Float.round(value, 1)
+
+      true ->
+        0.0
     end
   end
 
-  # === FIXED: Safe completion rate (integer math) ===
   defp calculate_attachee_stats(attachee) do
     tasks = Eams.list_tasks_for_attachee(attachee.id)
     total_tasks = length(tasks)
@@ -570,24 +561,5 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       />
     </div>
     """
-
   end
-  defp safe_round_decimal(value) do
-  cond do
-    is_nil(value) ->
-      0.0
-
-    match?(%Decimal{}, value) ->
-      value
-      |> Decimal.round(1)
-      |> Decimal.to_float()
-
-    is_number(value) ->
-      Float.round(value, 1)
-
-    true ->
-      0.0
-  end
-end
-
 end
