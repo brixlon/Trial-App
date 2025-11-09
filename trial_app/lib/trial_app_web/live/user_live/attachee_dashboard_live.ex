@@ -2,8 +2,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   use TrialAppWeb, :live_view
   import Phoenix.LiveView.JS
 
-  alias TrialApp.Eams
-  alias TrialApp.Repo
+  alias TrialApp.{Accounts, Eams, Repo}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -58,6 +57,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   end
 
   # Open modal
+  @impl true
   def handle_event("open_submit_modal", %{"task_id" => task_id}, socket) do
     task = Enum.find(socket.assigns.tasks, &(&1.id == String.to_integer(task_id)))
     {:noreply,
@@ -96,8 +96,40 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   end
 
   @impl true
-  def handle_info({:switch_role, role}, socket) do
-    TrialAppWeb.Live.Helpers.RoleSwitcher.handle_role_switch(socket, role)
+  def handle_info({:switch_role, new_role}, socket) do
+    user = socket.assigns.current_scope.user
+
+    case Accounts.switch_user_role(user, new_role) do
+      {:ok, updated_user} ->
+        # Update the socket with the new user data
+        updated_scope = %{socket.assigns.current_scope | user: updated_user}
+
+        # Redirect to the appropriate dashboard for the new role
+        redirect_path = case new_role do
+          "admin" -> ~p"/admin/dashboard"
+          "supervisor" -> ~p"/supervisor/dashboard"
+          "attachee" -> ~p"/attachee"
+          "manager" -> ~p"/dashboard"
+          "employee" -> ~p"/dashboard"
+          _ -> ~p"/dashboard"
+        end
+
+        {:noreply,
+         socket
+         |> assign(:current_scope, updated_scope)
+         |> put_flash(:info, "Switched to #{new_role} role")
+         |> push_navigate(to: redirect_path)}
+
+      {:error, :unauthorized_role} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "You don't have permission to switch to that role")}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to switch role")}
+    end
   end
 
   @impl true

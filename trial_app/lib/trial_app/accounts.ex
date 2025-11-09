@@ -592,6 +592,47 @@ defmodule TrialApp.Accounts do
     Repo.update(changeset)
   end
 
+  @doc """
+  Ensures the user has an active_role set.
+  Call this after login to initialize the active role if it's nil.
+  This is CRITICAL for the sidebar to work correctly on first login.
+  """
+  def ensure_active_role(%User{active_role: nil} = user) do
+    available_roles = get_user_roles(user)
+
+    if Enum.any?(available_roles) do
+      # Determine the appropriate default role based on user's roles
+      default_role = determine_default_role(available_roles)
+
+      IO.inspect(default_role, label: "🔧 Setting active_role for user #{user.id}")
+
+      user
+      |> Ecto.Changeset.change(%{active_role: default_role})
+      |> Repo.update()
+    else
+      # No roles available - this shouldn't happen but handle gracefully
+      {:ok, user}
+    end
+  end
+
+  def ensure_active_role(%User{} = user) do
+    # Active role already set
+    {:ok, user}
+  end
+
+  # Helper to determine the best default role based on priority
+  # Attachee gets priority since that's the most specific role
+  defp determine_default_role(roles) do
+    cond do
+      "attachee" in roles -> "attachee"
+      "supervisor" in roles -> "supervisor"
+      "manager" in roles -> "manager"
+      "admin" in roles -> "admin"
+      "employee" in roles -> "employee"
+      true -> List.first(roles)
+    end
+  end
+
   # Private helpers
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transact(fn ->

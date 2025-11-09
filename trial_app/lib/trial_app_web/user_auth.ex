@@ -42,9 +42,12 @@ defmodule TrialAppWeb.UserAuth do
   def fetch_current_scope_for_user(conn, _opts) do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
+      # CRITICAL FIX: Ensure active_role is set when fetching user
+      {:ok, user_with_role} = Accounts.ensure_active_role(user)
+
       conn
-      |> assign(:current_scope, Scope.for_user(user))
-      |> maybe_reissue_user_session_token(user, token_inserted_at)
+      |> assign(:current_scope, Scope.for_user(user_with_role))
+      |> maybe_reissue_user_session_token(user_with_role, token_inserted_at)
     else
       nil -> assign(conn, :current_scope, Scope.for_user(nil))
     end
@@ -84,15 +87,11 @@ defmodule TrialAppWeb.UserAuth do
     |> maybe_write_remember_me_cookie(token, params, remember_me)
   end
 
-  # FIXED: Handle nil current_scope safely
   defp renew_session(conn, user) when is_map(user) do
-    # Check if we're already logged in as the same user
     case conn.assigns[:current_scope] do
       %{user: %{id: user_id}} when user_id == user.id ->
-        # Same user, don't renew session
         conn
       _ ->
-        # Different user or not logged in, renew session
         delete_csrf_token()
 
         conn
@@ -187,19 +186,39 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
+  # CRITICAL FIX: Ensure active_role is set when mounting LiveView
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       user =
         case session["user_token"] do
-          nil -> nil
+          nil ->
+            nil
           token ->
             case Accounts.get_user_by_session_token(token) do
-              {u, _} -> u
-              nil -> nil
+              {u, _} ->
+                # Ensure active_role is set
+                case Accounts.ensure_active_role(u) do
+                  {:ok, user_with_role} -> user_with_role
+                  _ -> u
+                end
+              nil ->
+                nil
             end
         end
       Scope.for_user(user)
     end)
+  end
+
+  def signed_in_path(%Plug.Conn{
+        assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
+      }) when not is_nil(active_role) do
+    case active_role do
+      "admin" -> ~p"/admin/dashboard"
+      "supervisor" -> ~p"/supervisor/dashboard"
+      "attachee" -> ~p"/attachee"
+      "manager" -> ~p"/dashboard"
+      _ -> ~p"/dashboard"
+    end
   end
 
   def signed_in_path(%Plug.Conn{
@@ -212,7 +231,7 @@ defmodule TrialAppWeb.UserAuth do
     ~p"/dashboard"
   end
 
-  def signed_in_path(_), do: ~p"/admin/dashboard"
+  def signed_in_path(_), do: ~p"/dashboard"
 
   def require_authenticated_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user do

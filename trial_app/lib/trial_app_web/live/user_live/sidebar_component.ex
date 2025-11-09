@@ -1,13 +1,36 @@
 defmodule TrialAppWeb.SidebarComponent do
   use TrialAppWeb, :live_component
 
+  alias TrialApp.Accounts
+
   def mount(socket) do
     {:ok,
      socket
      |> assign(:sidebar_open, true)
      |> assign(:admin_open, false)
      |> assign(:eams_open, false)
-     |> assign(:show_role_switcher, false)}
+     |> assign(:show_role_switcher, false)
+     |> assign(:active_role, nil)
+     |> assign(:available_roles, [])}
+  end
+
+  # Add update callback to refresh role data whenever component updates
+  def update(assigns, socket) do
+    user = assigns.current_scope.user
+
+    # Get role data directly from the user struct
+    active_role = Accounts.get_active_role(user)
+    available_roles = Accounts.get_user_roles(user)
+
+    # Debug logging (remove these after confirming it works)
+    IO.inspect(active_role, label: "🔍 SIDEBAR ACTIVE ROLE")
+    IO.inspect(available_roles, label: "🔍 SIDEBAR AVAILABLE ROLES")
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign(:active_role, active_role)
+     |> assign(:available_roles, available_roles)}
   end
 
   def handle_event("toggle_sidebar", _params, socket) do
@@ -31,17 +54,6 @@ defmodule TrialAppWeb.SidebarComponent do
     {:noreply, assign(socket, :show_role_switcher, false)}
   end
 
-  defp get_available_roles(user) do
-    # Get roles from the roles array, or fall back to single role field
-    roles = if Enum.any?(user.roles || []), do: user.roles, else: [user.role]
-    Enum.filter(roles, & &1)
-  end
-
-  defp get_active_role(user) do
-    # Use active_role if set, otherwise use the first available role
-    user.active_role || List.first(get_available_roles(user)) || user.role
-  end
-
   defp role_display_name(role) do
     case role do
       "admin" -> "Administrator"
@@ -49,14 +61,12 @@ defmodule TrialAppWeb.SidebarComponent do
       "attachee" -> "Attachee"
       "manager" -> "Manager"
       "employee" -> "Employee"
-      _ -> String.capitalize(role)
+      _ -> String.capitalize(role || "User")
     end
   end
 
   def render(assigns) do
-    assigns = assign(assigns, :active_role, get_active_role(assigns.current_scope.user))
-    assigns = assign(assigns, :available_roles, get_available_roles(assigns.current_scope.user))
-
+    # Remove role assignment from render - it's now in update/2
     ~H"""
     <div>
       <!-- Sidebar -->
@@ -375,7 +385,7 @@ defmodule TrialAppWeb.SidebarComponent do
                       <li>
                         <.link
                           navigate={~p"/admin/eams/tasks"}
-                          class="block py-1.5 px-3 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
+                          class="block py-1.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"
                         >
                           Tasks
                         </.link>
