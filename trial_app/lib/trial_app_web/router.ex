@@ -48,6 +48,9 @@ defmodule TrialAppWeb.Router do
   scope "/", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user]
 
+    # File download route (must be before live_session)
+    get "/uploads/task_submissions/:filename", DownloadController, :download_task_submission
+
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
 

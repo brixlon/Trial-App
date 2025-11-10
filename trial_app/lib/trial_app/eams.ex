@@ -215,10 +215,14 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
+  # FIXED: Handle both map and keyword list opts
   def get_task!(id, opts \\ %{}) do
+    # Convert keyword list to map if needed
+    opts_map = if is_list(opts), do: Enum.into(opts, %{}), else: opts
+
     Task
     |> Repo.get!(id)
-    |> Repo.preload(Map.get(opts, :preloads, [:project, :assignee, [assignee: :user]]))
+    |> Repo.preload(Map.get(opts_map, :preloads, [:project, :assignee, [assignee: :user]]))
   end
 
   def create_task(attrs) do
@@ -238,20 +242,37 @@ defmodule TrialApp.Eams do
   # ──────────────────────────────────────────────────────────────────────
   # TASK SUBMISSION & REJECTION
   # ──────────────────────────────────────────────────────────────────────
-  def submit_attachee_task(task_id, attrs) do
+
+  @doc """
+  Submit a task with comment, links, and files.
+  Accepts attrs as a map with keys: :comment, :links, :files
+  """
+  def submit_attachee_task(task_id, attrs) when is_map(attrs) do
     task = get_task!(task_id, %{preloads: [:project, :assignee]})
 
+    # Extract submission data
+    comment = Map.get(attrs, :comment) || Map.get(attrs, "comment") || ""
+    links = Map.get(attrs, :links) || Map.get(attrs, "links") || []
+    files = Map.get(attrs, :files) || Map.get(attrs, "files") || []
+
+    # Prepare update attributes
+    update_attrs = %{
+      status: "submitted",
+      submitted_at: DateTime.utc_now(),
+      reject_reason: nil,
+      submission_comment: comment,
+      submission_links: links,
+      submission_files: files
+    }
+
     task
-    |> Task.changeset(
-      Map.merge(attrs, %{
-        status: "submitted",
-        submitted_at: DateTime.utc_now(),
-        reject_reason: nil
-      })
-    )
+    |> Task.changeset(update_attrs)
     |> Repo.update()
   end
 
+  @doc """
+  Reject a task with a reason.
+  """
   def reject_attachee_task(task_id, reason) do
     task = get_task!(task_id, %{preloads: [:project, :assignee]})
 
@@ -263,6 +284,9 @@ defmodule TrialApp.Eams do
     |> Repo.update()
   end
 
+  @doc """
+  Approve/complete a task.
+  """
   def approve_attachee_task(task_id) do
     task = get_task!(task_id, %{preloads: [:project, :assignee]})
 
