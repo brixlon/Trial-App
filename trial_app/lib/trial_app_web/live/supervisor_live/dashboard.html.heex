@@ -1,165 +1,234 @@
- def render(assigns) do
-    ~H"""
-    <div class="min-h-screen bg-base-200">
-      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+<div class="min-h-screen bg-white">
+  <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
 
-      <div class="lg:ml-64 p-8">
-        <div class="max-w-7xl mx-auto">
-          <!-- Breadcrumb -->
-          <div class="text-sm breadcrumbs mb-6">
-            <ul>
-              <li><%= @organization.name %></li>
-              <li><%= @department.name %></li>
-              <li><%= hd(@programs).name %></li>
-            </ul>
+  <div class="lg:ml-64 p-8">
+    <div class="max-w-7xl mx-auto space-y-8">
+      <!-- Breadcrumb -->
+      <nav class="flex items-center space-x-2 text-sm text-gray-500 mb-2">
+        <a href="#" class="hover:text-gray-700"><%= @organization.name %></a>
+        <span class="text-gray-300">/</span>
+        <a href="#" class="hover:text-gray-700"><%= @department.name %></a>
+        <span class="text-gray-300">/</span>
+        <span class="text-purple-600 font-medium"><%= hd(@programs).name %></span>
+      </nav>
+
+      <!-- Header -->
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-800">Supervisor Dashboard</h1>
+          <p class="text-gray-600 mt-1">Manage projects, assign tasks, evaluate performance</p>
+        </div>
+        <div class="flex gap-3">
+          <button phx-click="toggle_project_form" class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            New Project
+          </button>
+          <button phx-click="toggle_task_form" :if={@selected_project} class="px-4 py-2 rounded-lg border border-purple-600 text-purple-600 hover:bg-purple-50 transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Assign Task
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+            </div>
+            <span class="text-2xl font-bold text-gray-900"><%= @stats.total_attachees %></span>
           </div>
+          <p class="text-sm text-gray-600">Total Attachees</p>
+        </div>
 
-          <!-- Header -->
-          <div class="flex justify-between items-center mb-8">
-            <div>
-              <h1 class="text-3xl font-bold">Supervisor Dashboard</h1>
-              <p class="text-base-content/70">Manage projects, assign tasks, evaluate performance.</p>
+        <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
             </div>
-            <div class="flex gap-3">
-              <.button phx-click="toggle_project_form">+ New Project</.button>
-              <.button phx-click="toggle_task_form" :if={@selected_project}>+ Assign Task</.button>
+            <span class="text-2xl font-bold text-gray-900"><%= @stats.active_tasks %></span>
+          </div>
+          <p class="text-sm text-gray-600">Active Tasks</p>
+        </div>
+
+        <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-2xl font-bold text-gray-900"><%= @stats.pending_reviews %></span>
+          </div>
+          <p class="text-sm text-gray-600">Pending Reviews</p>
+        </div>
+
+        <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+          <div class="flex items-center justify-between mb-2">
+            <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <span class="text-2xl font-bold text-gray-900"><%= @stats.completed_this_week %></span>
+          </div>
+          <p class="text-sm text-gray-600">Completed</p>
+        </div>
+      </div>
+
+      <!-- Projects & Attachees Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Projects List -->
+        <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
+          <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800">Projects</h2>
+          </div>
+          <div class="p-4 space-y-3">
+            <%= for project <- @projects do %>
+              <div
+                phx-click="select_project"
+                phx-value-id={project.id}
+                class={"p-4 rounded-lg cursor-pointer transition-all border-2 #{if @selected_project && @selected_project.id == project.id, do: "border-purple-500 bg-purple-50", else: "border-gray-100 hover:border-purple-300 hover:bg-gray-50"}"}
+              >
+                <p class="font-medium text-gray-900"><%= project.name %></p>
+                <p class="text-sm text-gray-500 mt-1"><%= project.program.name %></p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Attachees in Project -->
+        <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden" :if={@selected_project}>
+          <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-800">Attachees in <%= @selected_project.name %></h2>
+          </div>
+          <div class="p-4 space-y-3">
+            <%= for att <- @attachees do %>
+              <div
+                phx-click="select_attachee"
+                phx-value-id={att.id}
+                class={"p-4 rounded-lg cursor-pointer transition-all border-2 #{if @selected_attachee && @selected_attachee.id == att.id, do: "border-blue-500 bg-blue-50", else: "border-gray-100 hover:border-blue-300 hover:bg-gray-50"}"}
+              >
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                    <%= String.first(att.user.username || att.user.email) |> String.upcase() %>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900"><%= att.user.username || att.user.email %></p>
+                    <p class="text-sm text-gray-500">Attachee</p>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Attachee Tasks + Evaluation -->
+        <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden" :if={@selected_attachee}>
+          <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-gray-800"><%= @selected_attachee.user.username %>'s Tasks</h2>
+              <button phx-click="toggle_evaluation_form" class="px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition text-sm">
+                Evaluate
+              </button>
             </div>
           </div>
-
-          <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Total Attachees -->
-            <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <p class="text-sm text-base-content/70">Total Attachees</p>
-                <p class="text-3xl font-bold"><%= @stats.total_attachees %></p>
-              </div>
-            </div>
-            <!-- Active Tasks -->
-            <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <p class="text-sm text-base-content/70">Active Tasks</p>
-                <p class="text-3xl font-bold"><%= @stats.active_tasks %></p>
-              </div>
-            </div>
-            <!-- Pending Reviews -->
-            <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <p class="text-sm text-base-content/70">Pending Reviews</p>
-                <p class="text-3xl font-bold"><%= @stats.pending_reviews %></p>
-              </div>
-            </div>
-            <!-- Completed This Week -->
-            <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <p class="text-sm text-base-content/70">Completed</p>
-                <p class="text-3xl font-bold"><%= @stats.completed_this_week %></p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Projects & Attachees -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Projects List -->
-            <div class="card bg-base-100 shadow-xl">
-              <div class="card-body">
-                <h2 class="card-title">Projects</h2>
-                <div class="space-y-2">
-                  <%= for project <- @projects do %>
-                    <div
-                      phx-click="select_project"
-                      phx-value-id={project.id}
-                      class={"p-3 rounded-lg cursor-pointer #{if @selected_project && @selected_project.id == project.id, do: "bg-primary text-white", else: "hover:bg-base-200"}"}
-                    >
-                      <p class="font-medium"><%= project.name %></p>
-                      <p class="text-sm opacity-70"><%= project.program.name %></p>
-                    </div>
+          <div class="p-4 space-y-3">
+            <%= for task <- @attachee_tasks do %>
+              <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="font-medium text-gray-900 text-sm"><%= task.title %></p>
+                <div class="flex items-center justify-between mt-2">
+                  <span class={"inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded-full font-medium #{status_color(task.status)}"}>
+                    <span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+                    <%= String.capitalize(task.status) %>
+                  </span>
+                  <%= if task.due_on do %>
+                    <span class="text-xs text-gray-500">
+                      Due: <%= Calendar.strftime(task.due_on, "%b %d") %>
+                    </span>
                   <% end %>
                 </div>
               </div>
-            </div>
-
-            <!-- Attachees in Project -->
-            <div class="card bg-base-100 shadow-xl" :if={@selected_project}>
-              <div class="card-body">
-                <h2 class="card-title">Attachees in <%= @selected_project.name %></h2>
-                <div class="space-y-2">
-                  <%= for att <- @attachees do %>
-                    <div
-                      phx-click="select_attachee"
-                      phx-value-id={att.id}
-                      class={"p-3 rounded-lg cursor-pointer #{if @selected_attachee && @selected_attachee.id == att.id, do: "bg-info text-white", else: "hover:bg-base-200"}"}
-                    >
-                      <div class="flex items-center gap-3">
-                        <div class="avatar placeholder">
-                          <div class="bg-neutral text-neutral-content rounded-full w-8">
-                            <span class="text-xs"><%= String.first(att.user.username || att.user.email) %></span>
-                          </div>
-                        </div>
-                        <div>
-                          <p class="font-medium"><%= att.user.username || att.user.email %></p>
-                        </div>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            </div>
-
-            <!-- Attachee Tasks + Eval -->
-            <div class="card bg-base-100 shadow-xl" :if={@selected_attachee}>
-              <div class="card-body">
-                <div class="flex justify-between items-center mb-4">
-                  <h2 class="card-title"><%= @selected_attachee.user.username %>'s Tasks</h2>
-                  <.button phx-click="toggle_evaluation_form" size="sm">Evaluate</.button>
-                </div>
-                <div class="space-y-3">
-                  <%= for task <- @attachee_tasks do %>
-                    <div class="p-3 bg-base-200 rounded-lg">
-                      <p class="font-medium"><%= task.title %></p>
-                      <p class="text-sm opacity-70"><%= task.status %></p>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Recent Activities -->
-          <div class="mt-8 card bg-base-100 shadow-xl">
-            <div class="card-body">
-              <h2 class="card-title">Recent Activities</h2>
-              <!-- your table -->
-            </div>
+            <% end %>
           </div>
         </div>
       </div>
 
-      <!-- Modals -->
-      <.live_component
-        :if={@show_project_form}
-        module={ProjectForm}
-        id="project-form"
-        current_user={@current_user}
-        programs={@programs}
-      />
-
-      <.live_component
-        :if={@show_task_form}
-        module={TaskForm}
-        id="task-form"
-        project={@selected_project}
-        attachees={@attachees}
-      />
-
-      <.live_component
-        :if={@show_evaluation_form}
-        module={EvaluationForm}
-        id="eval-form"
-        attachee={@selected_attachee}
-        current_user={@current_user}
-      />
+      <!-- Recent Activities Carousel -->
+      <div class="mt-8">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-800">Recent Activities</h2>
+          <div class="flex gap-2">
+            <button phx-click="prev_activity" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <button phx-click="next_activity" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+              <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div class="relative overflow-hidden">
+          <div class="flex space-x-4 transition-transform duration-300" style={"transform: translateX(-#{@activity_offset}%)"}>
+            <!-- Activity Cards -->
+            <%= for activity <- @recent_activities do %>
+              <div class="flex-shrink-0 w-80 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900 text-sm"><%= activity.user_name %></p>
+                    <p class="text-xs text-gray-500"><%= activity.action %></p>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-700 line-clamp-2"><%= activity.description %></p>
+                <p class="text-xs text-gray-400 mt-2"><%= Calendar.strftime(activity.inserted_at, "%b %d, %H:%M") %></p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
     </div>
-    """
-  end
-end
+  </div>
+
+  <!-- Modals (keep your existing modal components) -->
+  <.live_component
+    :if={@show_project_form}
+    module={ProjectForm}
+    id="project-form"
+    current_user={@current_user}
+    programs={@programs}
+  />
+
+  <.live_component
+    :if={@show_task_form}
+    module={TaskForm}
+    id="task-form"
+    project={@selected_project}
+    attachees={@attachees}
+  />
+
+  <.live_component
+    :if={@show_evaluation_form}
+    module={EvaluationForm}
+    id="eval-form"
+    attachee={@selected_attachee}
+    current_user={@current_user}
+  />
+</div>
