@@ -54,16 +54,32 @@ defmodule TrialAppWeb.UserAuth do
   end
 
   defp ensure_user_token(conn) do
-    if token = get_session(conn, :user_token) do
-      {token, conn}
-    else
-      conn = fetch_cookies(conn, signed: [@remember_me_cookie])
+    cond do
+      # 1. Check session token first
+      token = get_session(conn, :user_token) ->
+        {token, conn}
 
-      if token = conn.cookies[@remember_me_cookie] do
-        {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
-      else
-        nil
-      end
+      # 2. Check URL parameter (Base64 encoded)
+      token = conn.params["user_token"] ->
+        decoded_token = decode_url_token(token)
+        {decoded_token, conn |> put_token_in_session(decoded_token)}
+
+      # 3. Check remember me cookie
+      true ->
+        conn = fetch_cookies(conn, signed: [@remember_me_cookie])
+        if token = conn.cookies[@remember_me_cookie] do
+          {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
+        else
+          nil
+        end
+    end
+  end
+
+  # Decode Base64 URL token
+  defp decode_url_token(token) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded} -> decoded
+      :error -> token  # Fallback to raw token if decode fails
     end
   end
 

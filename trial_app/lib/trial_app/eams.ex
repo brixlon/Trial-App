@@ -192,6 +192,29 @@ defmodule TrialApp.Eams do
     |> Repo.preload(Map.get(opts, :preloads, [:user, :department, :organization]))
   end
 
+  @doc """
+  Creates an attachee and sends welcome email with credentials.
+  Returns {:ok, attachee, :email_sent} or {:ok, attachee, :email_failed}
+  """
+  def create_attachee_with_email(attrs, plain_password) do
+    case create_attachee(attrs) do
+      {:ok, attachee} ->
+        # Preload user to send email
+        attachee = Repo.preload(attachee, :user)
+
+        # Try to send email
+        case Accounts.deliver_attachee_welcome_email(attachee.user, plain_password) do
+          {:ok, :email_sent} ->
+            {:ok, attachee, :email_sent}
+          {:error, _reason} ->
+            {:ok, attachee, :email_failed}
+        end
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
   def create_attachee(attrs) do
     %Attachee{}
     |> Attachee.create_changeset(attrs)

@@ -601,10 +601,10 @@ defmodule TrialApp.Accounts do
     available_roles = get_user_roles(user)
 
     if Enum.any?(available_roles) do
-      # Determine the appropriate default role based on user's roles
+      # Determine the appropriate default role based on priority
       default_role = determine_default_role(available_roles)
 
-      IO.inspect(default_role, label: "🔧 Setting active_role for user #{user.id}")
+      IO.inspect(default_role, label: "Setting active_role for user #{user.id}")
 
       user
       |> Ecto.Changeset.change(%{active_role: default_role})
@@ -633,14 +633,59 @@ defmodule TrialApp.Accounts do
     end
   end
 
+  def generate_password_reset_token(%User{id: user_id}) do
+    Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user_id)
+  end
+# ADD THESE TWO FUNCTIONS TO YOUR accounts.ex
+
+def generate_force_reset_token(user) do
+  Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user.id)
+end
+@doc """
+Verifies a force reset token and returns the user.
+"""
+def verify_force_reset_token(token) do
+  case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
+    {:ok, user_id} ->
+      Repo.get(User, user_id)
+    {:error, _} ->
+      nil
+  end
+end
+def verify_force_reset_token(token) do
+  case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
+    {:ok, user_id} ->
+      Repo.get(User, user_id)
+    {:error, _} ->
+      nil
+  end
+end
   # Private helpers
   defp update_user_and_delete_all_tokens(changeset) do
-    Repo.transact(fn ->
-      with {:ok, user} <- Repo.update(changeset) do
-        tokens_to_expire = Repo.all(from(t in UserToken, where: t.user_id == ^user.id))
-        Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
-        {:ok, {user, tokens_to_expire}}
-      end
-    end)
-  end
+  Repo.transact(fn ->
+    # Sanitize any datetime fields in the changeset to remove microseconds
+    sanitized_changeset =
+      changeset
+      |> Ecto.Changeset.update_change(:password_changed_at, fn
+        nil -> nil
+        dt -> DateTime.truncate(dt, :second)
+      end)
+      |> Ecto.Changeset.update_change(:authenticated_at, fn
+        nil -> nil
+        dt -> DateTime.truncate(dt, :second)
+      end)
+      |> Ecto.Changeset.update_change(:confirmed_at, fn
+        nil -> nil
+        dt -> DateTime.truncate(dt, :second)
+      end)
+
+    with {:ok, user} <- Repo.update(sanitized_changeset) do
+      tokens_to_expire =
+        Repo.all(from(t in UserToken, where: t.user_id == ^user.id))
+
+      Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
+      {:ok, {user, tokens_to_expire}}
+    end
+  end)
+end
 end
