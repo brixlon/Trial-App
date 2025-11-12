@@ -9,7 +9,12 @@ config :trial_app, TrialApp.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+# Configure Swoosh for local development
+config :trial_app, TrialApp.Mailer,
+  adapter: Swoosh.Adapters.Local
 
+# Configure Swoosh API client
+config :swoosh, :api_client, false
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

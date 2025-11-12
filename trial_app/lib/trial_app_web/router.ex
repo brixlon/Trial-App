@@ -23,64 +23,51 @@ defmodule TrialAppWeb.Router do
     plug :require_admin_user
   end
 
-  # Public unauthenticated routes
+  # ──────────────────────────────────────────────────────────────────────
+  # PUBLIC (unauthenticated) ROUTES
+  # ──────────────────────────────────────────────────────────────────────
   scope "/", TrialAppWeb do
     pipe_through [:browser]
 
     get "/home", PageController, :home
-    live "/", UserLive.Login
 
-    # Controller routes BEFORE LiveView to avoid conflicts
+    # BOTH LiveView and Controller login routes
+    live "/", UserLive.Login
     get "/users/login", UserSessionController, :login
     post "/users/login", UserSessionController, :create
+
+    # Keep only necessary controller actions
     get "/users/login/direct", UserSessionController, :direct
     post "/users/update-password", UserSessionController, :update_password
     delete "/users/logout", UserSessionController, :delete
 
-    # Public LiveView routes
+    # ──── PUBLIC LIVEVIEW ROUTES ────
     live_session :current_user,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
       live "/users/register", UserLive.Registration, :new
+      live "/users/force-reset/:token", ForcePasswordResetLive, :show
+      live "/users/reset-password/:token", UserLive.ResetPassword, :show
     end
   end
 
-  # Authenticated routes (all roles)
+  # ──────────────────────────────────────────────────────────────────────
+  # AUTHENTICATED ROUTES (all roles)
+  # ──────────────────────────────────────────────────────────────────────
   scope "/", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user]
+
+    get "/uploads/task_submissions/:filename", DownloadController, :download_task_submission
 
     live_session :require_authenticated_user,
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
 
-      # General Dashboard
       live "/dashboard", DashboardLive, :index
 
-      # ──────────────────────────────────────────────────────────────────────
-      # ATTACHEE ROUTES
-      # ──────────────────────────────────────────────────────────────────────
+      # ATTACHEE
       live "/attachee", AttacheeDashboardLive, :index
       # Note: AttacheeTasksLive and AttacheeProfileLive modules need to be created if needed
 
-      # ──────────────────────────────────────────────────────────────────────
-      # SUPERVISOR ROUTES
-      # ──────────────────────────────────────────────────────────────────────
-      live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
-      # Note: SupervisorLive.Team module needs to be created if needed
-      live "/supervisor/attachees", SupervisorLive.Attachees, :index
-      live "/supervisor/tasks", SupervisorLive.Tasks, :index
-      live "/supervisor/daily_reports", SupervisorLive.DailyReports, :index
-      live "/supervisor/team_management", SupervisorLive.TeamManagement, :index
-
-      # ──────────────────────────────────────────────────────────────────────
-      # TEAM LEAD ROUTES
-      # ──────────────────────────────────────────────────────────────────────
-      live "/team_lead/daily_reports", TeamLeadLive.DailyReports, :index
-      live "/team_lead/daily_reports/new", TeamLeadLive.DailyReports, :new
-      live "/team_lead/daily_reports/:id", TeamLeadLive.DailyReports, :show
-      live "/team_lead/daily_reports/:id/edit", TeamLeadLive.DailyReports, :edit
-
-      # ──────────────────────────────────────────────────────────────────────
-      # GENERAL USER ROUTES
-      # ──────────────────────────────────────────────────────────────────────
+      # GENERAL
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
       live "/departments", DepartmentLive.Index, :index
@@ -88,17 +75,28 @@ defmodule TrialAppWeb.Router do
       live "/employees", EmployeeLive.Index, :index
       live "/positions", PositionLive.Index, :index
 
-      # Settings
+      # SETTINGS
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+    end
 
-      # Password management
-      live "/users/force_password_change", UserLive.ForcePasswordChange, :edit
-      live "/users/reset_password", UserLive.ResetPassword, :new
+    # ✅ SUPERVISOR ROUTES (allows both supervisor AND admin)
+    live_session :supervisor_or_admin,
+      on_mount: [
+        {TrialAppWeb.UserAuth, :require_authenticated},
+        {TrialAppWeb.UserAuth, :require_supervisor_or_admin}
+      ] do
+
+      live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
+      live "/supervisor/team", SupervisorLive.Team, :index
+      live "/supervisor/attachees", SupervisorLive.Attachees, :index
+      live "/supervisor/tasks", SupervisorLive.Tasks, :index
     end
   end
 
-  # Admin-only routes
+  # ──────────────────────────────────────────────────────────────────────
+  # ADMIN-ONLY ROUTES
+  # ──────────────────────────────────────────────────────────────────────
   scope "/admin", TrialAppWeb do
     pipe_through [:browser, :require_authenticated_user, :admin]
 
@@ -109,8 +107,6 @@ defmodule TrialAppWeb.Router do
       ] do
 
       live "/dashboard", AdminLive.Dashboard, :index
-
-      # User & HR Management
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
       live "/positions", AdminLive.PositionManagement, :index
@@ -119,16 +115,17 @@ defmodule TrialAppWeb.Router do
       live "/employees/:id", AdminLive.EmployeeManagement, :show
       live "/employees/:id/edit", AdminLive.EmployeeManagement, :edit
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
-
-      # EAMS Admin
       live "/eams/programs", AdminLive.ProgramManagement, :index
       live "/eams/projects", AdminLive.ProjectManagement, :index
-      live "/eams/attachees", AdminLive.AttacheeManagement, :index
+      # ✅ CHANGED: Now uses SupervisorLive.Attachees instead of AdminLive.AttacheeManagement
+      live "/eams/attachees", SupervisorLive.Attachees, :index
       live "/eams/tasks", AdminLive.TaskManagement, :index
     end
   end
 
-  # Permissions-Policy header
+  # ──────────────────────────────────────────────────────────────────────
+  # PLUGS
+  # ──────────────────────────────────────────────────────────────────────
   def put_custom_permissions_policy(conn, _opts) do
     permissions_policy =
       [
@@ -148,5 +145,15 @@ defmodule TrialAppWeb.Router do
       |> Enum.join(", ")
 
     put_resp_header(conn, "permissions-policy", permissions_policy)
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # DEV MAILBOX
+  # ──────────────────────────────────────────────────────────────────────
+  if Mix.env() == :dev do
+    scope "/dev" do
+      pipe_through :browser
+      forward "/mailbox", Plug.Swoosh.MailboxPreview
+    end
   end
 end

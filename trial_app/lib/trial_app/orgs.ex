@@ -5,7 +5,7 @@ defmodule TrialApp.Orgs do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position, DailyReport}
+  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position, Attachee}
   alias TrialApp.Accounts.User
   alias Bcrypt
 
@@ -355,6 +355,146 @@ defmodule TrialApp.Orgs do
 
   def delete_employee_by_user_and_team(user_id, team_id) do
     Repo.delete_all(from(e in Employee, where: e.user_id == ^user_id and e.team_id == ^team_id))
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # ATTACHEES - NEW
+  # ──────────────────────────────────────────────────────────────────────
+
+  @doc """
+  Creates an attachee with hashed password and associated user account.
+  """
+  # ──────────────────────────────────────────────────────────────────────
+  # ATTACHEES - UPDATED FOR EAMS SCHEMA
+  # ──────────────────────────────────────────────────────────────────────
+
+  alias TrialApp.Eams.Attachee
+
+  @doc """
+  Creates an attachee with user account.
+  Works with existing Eams.Attachee schema (no full_name, email, password_hash fields).
+  """
+  def create_attachee(attrs) do
+    Repo.transaction(fn ->
+      # Generate and hash password
+      plain_password = attrs.password
+
+      # Create user account first
+      user_attrs = %{
+        email: attrs.email,
+        password: plain_password,
+        password_confirmation: plain_password,
+        username: attrs.full_name,
+        user_type: "attachee"
+      }
+
+      case TrialApp.Accounts.register_user(user_attrs) do
+        {:ok, user} ->
+          # Get organization by name (create if doesn't exist)
+          {:ok, organization} =
+            case Repo.get_by(Organization, name: attrs.organization) do
+              nil ->
+                create_organization(%{
+                  name: attrs.organization,
+                  description: "External Organization - #{attrs.organization}",
+                  is_active: true
+                })
+              org ->
+                {:ok, org}
+            end
+
+          # Create attachee record using Eams schema structure
+          attachee_attrs = %{
+            user_id: user.id,
+            organization_id: organization.id,
+            department_id: String.to_integer(attrs.department_id),
+            position: "Attachee - #{attrs.program}",
+            status: "active",
+            starts_on: Date.utc_today(),
+            ends_on: Date.add(Date.utc_today(), 90) # 3 months default
+          }
+
+          case %Attachee{}
+               |> Attachee.changeset(attachee_attrs)
+               |> Repo.insert() do
+            {:ok, attachee} ->
+              # Preload and add plain password for email
+              attachee =
+                attachee
+                |> Repo.preload([:user, :department, :organization])
+                |> Map.put(:plain_password, plain_password)
+                |> Map.put(:program_name, attrs.program)
+
+              attachee
+
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Lists all active attachees.
+  """
+  def list_attachees do
+    Attachee
+    |> where([a], a.status in ["active", "suspended"])
+    |> preload([:user, :department, :organization, :programs])
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a single attachee with preloads.
+  """
+  def get_attachee!(id) do
+    Attachee
+    |> where(id: ^id)
+    |> preload([:user, :department, :organization, :programs])
+    |> Repo.one!()
+  end
+
+  @doc """
+  Updates an attachee.
+  """
+  def update_attachee(%Attachee{} = attachee, attrs) do
+    attachee
+    |> Attachee.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Soft deletes an attachee by setting status to completed.
+  """
+  def delete_attachee(%Attachee{} = attachee) do
+    update_attachee(attachee, %{status: "completed"})
+  end
+
+  @doc """
+  Checks if email exists in employees table.
+  """
+  def email_exists_in_employees?(email) do
+    email = String.downcase(email)
+
+    Employee
+    |> where([e], fragment("LOWER(?)", e.email) == ^email)
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Checks if email exists in attachees (via users table with attachee user_type).
+  """
+  def email_exists_in_attachees?(email) do
+    email = String.downcase(email)
+
+    from(u in User,
+      join: a in Attachee, on: a.user_id == u.id,
+      where: fragment("LOWER(?)", u.email) == ^email
+    )
+    |> Repo.exists?()
   end
 
   # ──────────────────────────────────────────────────────────────────────

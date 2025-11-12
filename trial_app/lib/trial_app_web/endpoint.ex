@@ -35,17 +35,28 @@ defmodule TrialAppWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :trial_app
   end
 
-  plug Phoenix.LiveDashboard.RequestLogger,
-    param_key: "request_logger",
-    cookie_key: "request_logger"
-
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # ADD THIS PLUG to handle invalid query parameters
+  plug TrialAppWeb.Plugs.HandleInvalidQuery
+
+  # Now Plug.Parsers won't encounter invalid UTF-8
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [
+      :urlencoded,
+      :multipart,
+      :json
+    ],
     pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
+    json_decoder: Phoenix.json_library(),
+    urlencoded: [
+      validate_utf8: false  # Double protection
+    ]
+
+  plug Phoenix.LiveDashboard.RequestLogger,
+    param_key: "request_logger",
+    cookie_key: "request_logger"
 
   plug Plug.MethodOverride
   plug Plug.Head

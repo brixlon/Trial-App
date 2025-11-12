@@ -37,8 +37,9 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     {:noreply, assign(socket, :selected_tab, tab)}
   end
 
+  # FIXED: Properly preload the nested user association
   def handle_event("view_task", %{"id" => id}, socket) do
-    task = Eams.get_task!(id, preloads: [:assignee, :project])
+    task = Eams.get_task!(id, %{preloads: [:project, assignee: :user]})
 
     {:noreply,
      socket
@@ -51,6 +52,11 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      socket
      |> assign(:selected_task, nil)
      |> assign(:show_task_modal, false)}
+  end
+
+  # FIXED: Added stop_propagation handler
+  def handle_event("stop_propagation", _params, socket) do
+    {:noreply, socket}
   end
 
   def handle_event("approve_task", %{"id" => id}, socket) do
@@ -518,8 +524,8 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
 
       <%# TASK DETAIL MODAL %>
       <%= if @show_task_modal && @selected_task do %>
-        <div class="modal modal-open">
-          <div class="modal-box max-w-2xl">
+        <div class="modal modal-open" phx-click="close_modal">
+          <div class="modal-box max-w-2xl" phx-click="stop_propagation">
             <h3 class="font-bold text-lg mb-4"><%= @selected_task.title %></h3>
 
             <div class="space-y-4">
@@ -557,8 +563,49 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
 
               <%= if @selected_task.submission_comment do %>
                 <div class="alert alert-info">
-                  <strong>Submission Comment:</strong>
-                  <p><%= @selected_task.submission_comment %></p>
+                  <div>
+                    <strong>Submission Comment:</strong>
+                    <p class="mt-1"><%= @selected_task.submission_comment %></p>
+                  </div>
+                </div>
+              <% end %>
+
+              <%= if @selected_task.submission_links && @selected_task.submission_links != [] do %>
+                <div>
+                  <strong>Submitted Links:</strong>
+                  <div class="space-y-2 mt-2">
+                    <%= for link <- @selected_task.submission_links do %>
+                      <div class="flex items-center gap-2 p-2 bg-base-200 rounded">
+                        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        <a href={link} target="_blank" class="text-blue-600 hover:underline text-sm flex-1 truncate">
+                          <%= link %>
+                        </a>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+
+              <%= if @selected_task.submission_files && @selected_task.submission_files != [] do %>
+                <div>
+                  <strong>Submitted Files:</strong>
+                  <div class="space-y-2 mt-2">
+                    <%= for file <- @selected_task.submission_files do %>
+                      <div class="flex items-center justify-between p-3 bg-base-200 rounded">
+                        <div class="flex items-center gap-2 flex-1">
+                          <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span class="text-sm font-medium truncate"><%= Path.basename(file) %></span>
+                        </div>
+                        <a href={file} target="_blank" download class="btn btn-xs btn-primary">
+                          Download
+                        </a>
+                      </div>
+                    <% end %>
+                  </div>
                 </div>
               <% end %>
 

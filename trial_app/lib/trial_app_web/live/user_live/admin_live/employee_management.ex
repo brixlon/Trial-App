@@ -1,6 +1,6 @@
 defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   use TrialAppWeb, :live_view
-  alias TrialApp.{Orgs, Repo}
+  alias TrialApp.{Orgs, Repo, Emails}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -25,7 +25,13 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      |> assign(:expanded_departments, %{})
      |> assign(:total_employees, length(employees))
      |> assign(:active_count, active_count)
-     |> assign(:teams_count, teams_count)}
+     |> assign(:teams_count, teams_count)
+     # New modal assigns
+     |> assign(:show_create_modal, false)
+     |> assign(:selected_user_type, nil)
+     |> assign(:attachee_form, %{})
+     |> assign(:email_error, nil)
+     |> assign(:creating_attachee, false)}
   end
 
   @impl true
@@ -91,10 +97,175 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     end
   end
 
-  # Private helper functions
+  # ========== NEW MODAL EVENT HANDLERS ==========
+
+  @impl true
+  def handle_event("open_create_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_create_modal, true)
+     |> assign(:selected_user_type, nil)
+     |> assign(:attachee_form, %{})
+     |> assign(:email_error, nil)}
+  end
+
+  @impl true
+  def handle_event("close_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_create_modal, false)
+     |> assign(:selected_user_type, nil)
+     |> assign(:attachee_form, %{})
+     |> assign(:email_error, nil)
+     |> assign(:creating_attachee, false)}
+  end
+
+  @impl true
+  def handle_event("stop_propagation", _params, socket) do
+    # Prevents modal from closing when clicking inside it
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("select_user_type", %{"type" => "employee"}, socket) do
+    # Navigate to existing employee creation page
+    {:noreply, push_navigate(socket, to: ~p"/admin/employees/new")}
+  end
+
+  @impl true
+  def handle_event("select_user_type", %{"type" => "attachee"}, socket) do
+    {:noreply, assign(socket, :selected_user_type, "attachee")}
+  end
+
+  @impl true
+  def handle_event("create_attachee", %{"attachee" => attachee_params}, socket) do
+    # Set creating state to show loading spinner
+    socket = assign(socket, :creating_attachee, true)
+
+    # Validate email uniqueness
+    case validate_unique_email(attachee_params["email"]) do
+      {:error, message} ->
+        {:noreply,
+         socket
+         |> assign(:email_error, message)
+         |> assign(:creating_attachee, false)
+         |> assign(:attachee_form, attachee_params)}
+
+      :ok ->
+        # Generate secure password
+        password = generate_secure_password()
+
+        # Prepare attachee data
+        attachee_data = %{
+          full_name: attachee_params["full_name"],
+          email: attachee_params["email"],
+          organization: attachee_params["organization"],
+          department_id: attachee_params["department_id"],
+          program: attachee_params["program"],
+          password: password,
+          is_active: true
+        }
+
+        # Create attachee
+        case Orgs.create_attachee(attachee_data) do
+          {:ok, attachee} ->
+            # Preload the user association to access email
+            attachee = Repo.preload(attachee, :user)
+
+            # === SEND MAGIC LINK EMAIL (NO PLAIN PASSWORD) ===
+            case Emails.attachee_credentials_email(attachee, password) |> TrialApp.Mailer.deliver() do
+              {:ok, _} ->
+                # Reload data
+                departments = load_departments()
+                employees = Orgs.list_employees()
+                active_count = Enum.count(employees, & &1.is_active)
+
+                {:noreply,
+                 socket
+                 |> assign(:show_create_modal, false)
+                 |> assign(:selected_user_type, nil)
+                 |> assign(:attachee_form, %{})
+                 |> assign(:email_error, nil)
+                 |> assign(:creating_attachee, false)
+                 |> assign(:departments, departments)
+                 |> assign(:total_employees, length(employees))
+                 |> assign(:active_count, active_count)
+                 |> put_flash(:info, "Attachee created! Magic link sent to #{attachee.user.email}. Check mailbox at http://localhost:4000/dev/mailbox")}
+
+              {:error, reason} ->
+                # Reload data even if email failed
+                departments = load_departments()
+                employees = Orgs.list_employees()
+                active_count = Enum.count(employees, & &1.is_active)
+
+                {:noreply,
+                 socket
+                 |> assign(:show_create_modal, false)
+                 |> assign(:selected_user_type, nil)
+                 |> assign(:attachee_form, %{})
+                 |> assign(:email_error, nil)
+                 |> assign(:creating_attachee, false)
+                 |> assign(:departments, departments)
+                 |> assign(:total_employees, length(employees))
+                 |> assign(:active_count, active_count)
+                 |> put_flash(:warning, "Attachee created but failed to send email to #{attachee.user.email}. Error: #{inspect(reason)}")}
+            end
+
+          {:error, changeset} ->
+            error_message = extract_error_message(changeset)
+
+            {:noreply,
+             socket
+             |> assign(:creating_attachee, false)
+             |> assign(:attachee_form, attachee_params)
+             |> put_flash(:error, "Failed to create attachee: #{error_message}")}
+        end
+    end
+  end
+
+  # ========== PRIVATE HELPER FUNCTIONS ==========
+
   defp load_departments do
     Orgs.list_departments()
     |> Repo.preload(employees: [:user, :team])
+  end
+
+  # Validate if email is unique across employees and attachees
+  defp validate_unique_email(email) do
+    email = String.trim(email) |> String.downcase()
+
+    cond do
+      Orgs.email_exists_in_employees?(email) ->
+        {:error, "This email is already registered as an employee"}
+
+      Orgs.email_exists_in_attachees?(email) ->
+        {:error, "This email is already registered as an attachee"}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Generate a secure random password
+  defp generate_secure_password do
+    # Generate 12 character password with mix of characters
+    length = 12
+    chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"
+
+    1..length
+    |> Enum.map(fn _ ->
+      chars
+      |> String.graphemes()
+      |> Enum.random()
+    end)
+    |> Enum.join()
+  end
+
+  # Extract error message from changeset
+  defp extract_error_message(changeset) do
+    changeset.errors
+    |> Enum.map(fn {field, {message, _}} -> "#{field} #{message}" end)
+    |> Enum.join(", ")
   end
 
   # Helper: Check if employee matches search query
@@ -197,6 +368,4 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   def is_department_expanded?(expanded_departments, dept_id) do
     Map.get(expanded_departments, to_string(dept_id), true)
   end
-
-  @impl true
 end
