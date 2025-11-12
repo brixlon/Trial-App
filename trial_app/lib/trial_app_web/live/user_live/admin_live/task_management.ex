@@ -359,3 +359,4 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   defp in_progress_tasks(tasks), do: Enum.count(tasks, &(&1.status == "in_progress"))
   defp completed_tasks(tasks), do: Enum.count(tasks, &(&1.status == "completed"))
 end
+  

@@ -41,9 +41,6 @@ defmodule TrialAppWeb.Router do
     post "/users/update-password", UserSessionController, :update_password
     delete "/users/logout", UserSessionController, :delete
 
-    # ADDED: Force password change route
-   # get "/users/force_password_change", UserSessionController, :update_password
-
     # ──── PUBLIC LIVEVIEW ROUTES ────
     live_session :current_user,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
@@ -71,12 +68,6 @@ defmodule TrialAppWeb.Router do
       live "/attachee/tasks", AttacheeTasksLive, :index
       live "/attachee/profile", AttacheeProfileLive, :show
 
-      # SUPERVISOR
-      live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
-      live "/supervisor/team", SupervisorLive.Team, :index
-      live "/supervisor/attachees", SupervisorLive.Attachees, :index
-      live "/supervisor/tasks", SupervisorLive.Tasks, :index
-
       # GENERAL
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
@@ -88,6 +79,19 @@ defmodule TrialAppWeb.Router do
       # SETTINGS
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+    end
+
+    # ✅ SUPERVISOR ROUTES (allows both supervisor AND admin)
+    live_session :supervisor_or_admin,
+      on_mount: [
+        {TrialAppWeb.UserAuth, :require_authenticated},
+        {TrialAppWeb.UserAuth, :require_supervisor_or_admin}
+      ] do
+
+      live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
+      live "/supervisor/team", SupervisorLive.Team, :index
+      live "/supervisor/attachees", SupervisorLive.Attachees, :index
+      live "/supervisor/tasks", SupervisorLive.Tasks, :index
     end
   end
 
@@ -112,7 +116,8 @@ defmodule TrialAppWeb.Router do
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
       live "/eams/programs", AdminLive.ProgramManagement, :index
       live "/eams/projects", AdminLive.ProjectManagement, :index
-      live "/eams/attachees", AdminLive.AttacheeManagement, :index
+      # ✅ CHANGED: Now uses SupervisorLive.Attachees instead of AdminLive.AttacheeManagement
+      live "/eams/attachees", SupervisorLive.Attachees, :index
       live "/eams/tasks", AdminLive.TaskManagement, :index
     end
   end

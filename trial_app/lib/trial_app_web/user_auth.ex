@@ -42,7 +42,6 @@ defmodule TrialAppWeb.UserAuth do
   def fetch_current_scope_for_user(conn, _opts) do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
-      # CRITICAL FIX: Ensure active_role is set when fetching user
       {:ok, user_with_role} = Accounts.ensure_active_role(user)
 
       conn
@@ -55,16 +54,13 @@ defmodule TrialAppWeb.UserAuth do
 
   defp ensure_user_token(conn) do
     cond do
-      # 1. Check session token first
       token = get_session(conn, :user_token) ->
         {token, conn}
 
-      # 2. Check URL parameter (Base64 encoded)
       token = conn.params["user_token"] ->
         decoded_token = decode_url_token(token)
         {decoded_token, conn |> put_token_in_session(decoded_token)}
 
-      # 3. Check remember me cookie
       true ->
         conn = fetch_cookies(conn, signed: [@remember_me_cookie])
         if token = conn.cookies[@remember_me_cookie] do
@@ -75,11 +71,10 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-  # Decode Base64 URL token
   defp decode_url_token(token) do
     case Base.url_decode64(token, padding: false) do
       {:ok, decoded} -> decoded
-      :error -> token  # Fallback to raw token if decode fails
+      :error -> token
     end
   end
 
@@ -187,6 +182,25 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
+  # Allow both admin AND supervisor to access supervisor pages
+  def on_mount(:require_supervisor_or_admin, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    user = socket.assigns.current_scope.user
+    active_role = if user, do: Accounts.get_active_role(user), else: nil
+
+    if user && active_role in ["admin", "supervisor"] do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You must be a supervisor or admin to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/dashboard")
+
+      {:halt, socket}
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -202,7 +216,6 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-  # CRITICAL FIX: Ensure active_role is set when mounting LiveView
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       user =
@@ -212,7 +225,6 @@ defmodule TrialAppWeb.UserAuth do
           token ->
             case Accounts.get_user_by_session_token(token) do
               {u, _} ->
-                # Ensure active_role is set
                 case Accounts.ensure_active_role(u) do
                   {:ok, user_with_role} -> user_with_role
                   _ -> u
@@ -261,6 +273,7 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
+  # FIXED: Use `conn`, not `socket`
   def require_admin_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user &&
          conn.assigns.current_scope.user.role == "admin" do
