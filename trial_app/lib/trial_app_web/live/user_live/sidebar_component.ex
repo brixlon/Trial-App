@@ -21,7 +21,6 @@ defmodule TrialAppWeb.SidebarComponent do
     active_role = Accounts.get_active_role(user)
     available_roles = Accounts.get_user_roles(user)
 
-    # Get current path from URI if available
     current_path = case assigns[:uri] do
       nil -> nil
       uri -> uri.path
@@ -58,14 +57,22 @@ defmodule TrialAppWeb.SidebarComponent do
   end
 
   defp active_link?(current_path, link_path) do
-    current_path && String.starts_with?(current_path, link_path)
+    current_path && String.starts_with?(current_path || "", link_path)
   end
 
-  defp link_class(current_path, link_path, base_classes \\ "") do
+  defp link_class(current_path, link_path) do
     if active_link?(current_path, link_path) do
-      "block py-2.5 px-4 rounded-xl bg-purple-200 text-purple-900 font-semibold shadow-md #{base_classes}"
+      "block py-2.5 px-4 rounded-xl bg-purple-600 text-white font-bold shadow-md"
     else
-      "block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium #{base_classes}"
+      "block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
+    end
+  end
+
+  defp dropdown_link_class(current_path, link_path) do
+    if active_link?(current_path, link_path) do
+      "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-bold text-sm"
+    else
+      "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm text-gray-700"
     end
   end
 
@@ -145,7 +152,7 @@ defmodule TrialAppWeb.SidebarComponent do
               <% "supervisor" -> %>
                 <li><.link navigate={~p"/supervisor/dashboard"} class={link_class(@current_path, "/supervisor/dashboard")}>Dashboard</.link></li>
                 <li><.link navigate={~p"/supervisor/attachees"} class={link_class(@current_path, "/supervisor/attachees")}>Manage Attachees</.link></li>
-                <li><.link navigate={~p"/supervisor/tasks"} class={link_class(@current_path, "/supervisor/tasks")}>Tasks</.link></li>
+                <li><.link navigate={~p"/supervisor/tasks"} class={link_class(@current_path, "/supervisor/tasks")}>Task Review</.link></li>
                 <li><.link navigate={~p"/users/settings"} class={link_class(@current_path, "/users/settings")}>Settings</.link></li>
                 <li><.link href={~p"/users/logout"} method="delete" class="block py-2.5 px-4 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium text-red-600">Logout</.link></li>
 
@@ -157,7 +164,10 @@ defmodule TrialAppWeb.SidebarComponent do
                 <li>
                   <button phx-click="toggle_admin" phx-target={@myself} type="button" class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-purple-400 shadow-sm">
                     <span class="flex items-center gap-2">
-                      <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
                       Admin
                     </span>
                     <svg class={"w-4 h-4 transition-transform #{if @admin_open, do: "rotate-180", else: ""}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,9 +176,9 @@ defmodule TrialAppWeb.SidebarComponent do
                   </button>
                   <%= if @admin_open do %>
                     <ul class="ml-4 mt-2 space-y-2">
-                      <li><.link navigate={~p"/admin/users"} class={if active_link?(@current_path, "/admin/users"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>User Management</.link></li>
-                      <li><.link navigate={~p"/admin/employees"} class={if active_link?(@current_path, "/admin/employees"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Employees</.link></li>
-                      <li><.link navigate={~p"/admin/positions"} class={if active_link?(@current_path, "/admin/positions"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Positions</.link></li>
+                      <li><.link navigate={~p"/admin/users"} class={dropdown_link_class(@current_path, "/admin/users")}>User Management</.link></li>
+                      <li><.link navigate={~p"/admin/employees"} class={dropdown_link_class(@current_path, "/admin/employees")}>Employees</.link></li>
+                      <li><.link navigate={~p"/admin/positions"} class={dropdown_link_class(@current_path, "/admin/positions")}>Positions</.link></li>
                     </ul>
                   <% end %>
                 </li>
@@ -177,7 +187,9 @@ defmodule TrialAppWeb.SidebarComponent do
                 <li>
                   <button phx-click="toggle_eams" phx-target={@myself} type="button" class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-blue-400 shadow-sm">
                     <span class="flex items-center gap-2">
-                      <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                      <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                      </svg>
                       EAMS
                     </span>
                     <svg class={"w-4 h-4 transition-transform #{if @eams_open, do: "rotate-180", else: ""}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,10 +198,10 @@ defmodule TrialAppWeb.SidebarComponent do
                   </button>
                   <%= if @eams_open do %>
                     <ul class="ml-4 mt-2 space-y-2">
-                      <li><.link navigate={~p"/admin/eams/programs"} class={if active_link?(@current_path, "/admin/eams/programs"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Programs</.link></li>
-                      <li><.link navigate={~p"/admin/eams/projects"} class={if active_link?(@current_path, "/admin/eams/projects"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Projects</.link></li>
-                      <li><.link navigate={~p"/admin/eams/attachees"} class={if active_link?(@current_path, "/admin/eams/attachees"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Attachees</.link></li>
-                      <li><.link navigate={~p"/admin/eams/tasks"} class={if active_link?(@current_path, "/admin/eams/tasks"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Tasks</.link></li>
+                      <li><.link navigate={~p"/admin/eams/programs"} class={dropdown_link_class(@current_path, "/admin/eams/programs")}>Programs</.link></li>
+                      <li><.link navigate={~p"/admin/eams/projects"} class={dropdown_link_class(@current_path, "/admin/eams/projects")}>Projects</.link></li>
+                      <li><.link navigate={~p"/admin/eams/attachees/manage"} class={dropdown_link_class(@current_path, "/admin/eams/attachees/manage")}>Attachees</.link></li>
+                      <li><.link navigate={~p"/admin/eams/tasks"} class={dropdown_link_class(@current_path, "/admin/eams/tasks")}>Tasks</.link></li>
                     </ul>
                   <% end %>
                 </li>
@@ -198,7 +210,9 @@ defmodule TrialAppWeb.SidebarComponent do
                 <li>
                   <button phx-click="toggle_supervision" phx-target={@myself} type="button" class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-indigo-400 shadow-sm">
                     <span class="flex items-center gap-2">
-                      <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                      <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                      </svg>
                       Evaluation
                     </span>
                     <svg class={"w-4 h-4 transition-transform #{if @supervision_open, do: "rotate-180", else: ""}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,8 +221,8 @@ defmodule TrialAppWeb.SidebarComponent do
                   </button>
                   <%= if @supervision_open do %>
                     <ul class="ml-4 mt-2 space-y-2">
-                      <li><.link navigate={~p"/supervisor/attachees"} class={if active_link?(@current_path, "/supervisor/attachees"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Attachee Evaluation</.link></li>
-                      <li><.link navigate={~p"/supervisor/tasks"} class={if active_link?(@current_path, "/supervisor/tasks"), do: "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-sm", else: "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm"}>Task Management</.link></li>
+                      <li><.link navigate={~p"/supervisor/attachees"} class={dropdown_link_class(@current_path, "/supervisor/attachees")}>Attachee Evaluation</.link></li>
+                      <li><.link navigate={~p"/supervisor/tasks"} class={dropdown_link_class(@current_path, "/supervisor/tasks")}>Task Review</.link></li>
                     </ul>
                   <% end %>
                 </li>
@@ -250,9 +264,13 @@ defmodule TrialAppWeb.SidebarComponent do
       <!-- Toggle Button -->
       <button phx-click="toggle_sidebar" phx-target={@myself} type="button" class={"#{if @sidebar_open, do: "left-64", else: "left-0"} fixed top-1/2 -translate-y-1/2 z-50 bg-purple-600 text-white p-1.5 rounded-r-md shadow-md transition-all duration-300 hover:bg-purple-700"}>
         <%= if @sidebar_open do %>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" /></svg>
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+          </svg>
         <% else %>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" /></svg>
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+          </svg>
         <% end %>
       </button>
     </div>

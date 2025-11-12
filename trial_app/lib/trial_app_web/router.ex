@@ -81,7 +81,7 @@ defmodule TrialAppWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
 
-    # ✅ SUPERVISOR ROUTES (allows both supervisor AND admin)
+    # SUPERVISOR ROUTES (allows both supervisor AND admin)
     live_session :supervisor_or_admin,
       on_mount: [
         {TrialAppWeb.UserAuth, :require_authenticated},
@@ -114,11 +114,17 @@ defmodule TrialAppWeb.Router do
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
+
+      # EAMS SECTION
       live "/eams/programs", AdminLive.ProgramManagement, :index
       live "/eams/projects", AdminLive.ProjectManagement, :index
-      # ✅ CHANGED: Now uses SupervisorLive.Attachees instead of AdminLive.AttacheeManagement
-      live "/eams/attachees", SupervisorLive.Attachees, :index
       live "/eams/tasks", AdminLive.TaskManagement, :index
+
+      # ADMIN: View attachees in hierarchy (same as supervisor)
+      live "/eams/attachees", SupervisorLive.Attachees, :index
+
+      # ADMIN: Full CRUD management of attachees
+      live "/eams/attachees/manage", AdminLive.AttacheeManagement, :index
     end
   end
 
