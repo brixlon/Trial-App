@@ -8,51 +8,77 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
     current_scope = socket.assigns.current_scope
     user = current_scope.user
 
-    attachee = Eams.get_attachee_by_user(user.id)
-
-    if attachee do
-      programs = Eams.list_programs_for_attachee(attachee.id)
-      tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
-      projects = Eams.list_projects_for_attachee(attachee.id)
-      team_mates = get_team_mates(attachee.department_id)
-
-      # Get REAL evaluation data
-      evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-      avg_score = Eams.get_average_evaluation_score(attachee.id)
-      eval_count = Eams.count_evaluations_for_attachee(attachee.id)
-      evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
-
-      # Calculate not meeting expectations (scores below 41)
-      not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
+    # Check if user should have access to attachee dashboard
+    if current_scope.is_admin or current_scope.is_supervisor do
+      # Redirect admin/supervisor to their appropriate dashboard
+      redirect_path = cond do
+        current_scope.is_admin -> ~p"/admin/dashboard"
+        current_scope.is_supervisor -> ~p"/supervisor/dashboard"
+        true -> ~p"/dashboard"
+      end
 
       {:ok,
        socket
-       |> assign(:current_scope, current_scope)
-       |> assign(:attachee, attachee)
-       |> assign(:programs, programs)
-       |> assign(:tasks, tasks)
-       |> assign(:projects, projects)
-       |> assign(:team_mates, team_mates)
-       |> assign(:evaluations, evaluations)
-       |> assign(:evaluation_data, evaluation_data)
-       |> assign(:avg_score, avg_score)
-       |> assign(:eval_count, eval_count)
-       |> assign(:not_meeting, not_meeting)
-       |> assign(:show_task_modal, false)
-       |> assign(:selected_task, nil)
-       |> assign(:submission_comment, "")
-       |> assign(:submission_links, [])
-       |> assign(:uploaded_files, [])
-       |> allow_upload(:task_files,
-          accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
-          max_entries: 5,
-          max_file_size: 10_000_000)}  # 10MB
+       |> put_flash(:error, "You don't have access to the attachee dashboard")
+       |> push_navigate(to: redirect_path)}
     else
-      {:ok,
-       socket
-       |> assign(:current_scope, current_scope)
-       |> assign(:attachee, nil)
-       |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
+      # User should be an attachee, try to load their profile
+      attachee = Eams.get_attachee_by_user(user.id)
+
+      if attachee do
+        programs = Eams.list_programs_for_attachee(attachee.id)
+        tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
+        projects = Eams.list_projects_for_attachee(attachee.id)
+        team_mates = get_team_mates(attachee.department_id)
+
+        # Get REAL evaluation data
+        evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
+        avg_score = Eams.get_average_evaluation_score(attachee.id)
+        eval_count = Eams.count_evaluations_for_attachee(attachee.id)
+        evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
+
+        # Calculate not meeting expectations (scores below 41)
+        not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
+
+        {:ok,
+         socket
+         |> assign(:current_scope, current_scope)
+         |> assign(:attachee, attachee)
+         |> assign(:programs, programs)
+         |> assign(:tasks, tasks)
+         |> assign(:projects, projects)
+         |> assign(:team_mates, team_mates)
+         |> assign(:evaluations, evaluations)
+         |> assign(:evaluation_data, evaluation_data)
+         |> assign(:avg_score, avg_score)
+         |> assign(:eval_count, eval_count)
+         |> assign(:not_meeting, not_meeting)
+         |> assign(:show_task_modal, false)
+         |> assign(:selected_task, nil)
+         |> assign(:submission_comment, "")
+         |> assign(:submission_links, [])
+         |> assign(:uploaded_files, [])
+         |> allow_upload(:task_files,
+            accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
+            max_entries: 5,
+            max_file_size: 10_000_000)}
+      else
+        # User is marked as attachee but has no profile
+        {:ok,
+         socket
+         |> assign(:current_scope, current_scope)
+         |> assign(:attachee, nil)
+         |> assign(:tasks, [])
+         |> assign(:projects, [])
+         |> assign(:programs, [])
+         |> assign(:team_mates, [])
+         |> assign(:evaluations, [])
+         |> assign(:evaluation_data, [])
+         |> assign(:avg_score, 0)
+         |> assign(:eval_count, 0)
+         |> assign(:not_meeting, 0)
+         |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
+      end
     end
   end
 
@@ -61,7 +87,6 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
     {:noreply, socket}
   end
 
-  # Open modal
   @impl true
   def handle_event("open_submit_modal", %{"task_id" => task_id}, socket) do
     task = Enum.find(socket.assigns.tasks, &(&1.id == String.to_integer(task_id)))
@@ -74,7 +99,6 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
      |> assign(:uploaded_files, [])}
   end
 
-  # Close modal
   def handle_event("close_modal", _, socket) do
     {:noreply,
      socket
@@ -85,12 +109,10 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
      |> assign(:uploaded_files, [])}
   end
 
-  # Handle stop_propagation event (prevents modal close when clicking inside)
   def handle_event("stop_propagation", _params, socket) do
     {:noreply, socket}
   end
 
-  # Add link
   def handle_event("add_link", %{"link" => link}, socket) do
     if link != "" and valid_url?(link) do
       {:noreply, assign(socket, :submission_links, socket.assigns.submission_links ++ [link])}
@@ -99,47 +121,20 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
     end
   end
 
-  # Remove link
   def handle_event("remove_link", %{"index" => index}, socket) do
     index = String.to_integer(index)
     links = List.delete_at(socket.assigns.submission_links, index)
     {:noreply, assign(socket, :submission_links, links)}
   end
 
-  # Cancel file upload
   def handle_event("cancel_upload", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :task_files, ref)}
   end
 
-  # Validate uploaded files
   def handle_event("validate_upload", _params, socket) do
     {:noreply, socket}
   end
 
-  # Submit task with comment, files, and links
-    # ──────────────────────────────────────────────────────────────
-  # UPLOAD FILES — 100% WORKING, DOWNLOADABLE, NO ERRORS
-  # ──────────────────────────────────────────────────────────────
-  defp upload_files(socket) do
-    consume_uploaded_entries(socket, :task_files, fn %{path: temp_path}, entry ->
-      # This path will be served at http://localhost:4000/uploads/task_submissions/...
-      upload_dir = Path.expand("priv/static/uploads/task_submissions", :code.priv_dir(:trial_app))
-      File.mkdir_p!(upload_dir)
-
-      ext = Path.extname(entry.client_name)
-      unique_name = "#{DateTime.utc_now() |> DateTime.to_unix()}_#{entry.uuid}#{ext}"
-      dest = Path.join(upload_dir, unique_name)
-
-      File.cp!(temp_path, dest)
-
-      # This is the URL that will work in browser
-      {:ok, ~s"/uploads/task_submissions/#{unique_name}"}
-    end)
-  end
-
-  # ──────────────────────────────────────────────────────────────
-  # SUBMIT TASK — FINAL VERSION (YOU ARE USING THIS AND IT WORKS!)
-  # ──────────────────────────────────────────────────────────────
   def handle_event("submit_task", %{"comment" => comment} = params, socket) do
     task = socket.assigns.selected_task
     current_links = socket.assigns.submission_links
@@ -170,7 +165,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
          |> assign(:show_task_modal, false)
          |> assign(:selected_task, nil)
          |> assign(:submission_links, [])
-         |> assign(:uploaded_files, [])  # if you have this assign
+         |> assign(:uploaded_files, [])
          |> put_flash(:info, "Task submitted successfully! Supervisor can download files!")}
 
       {:error, reason} ->
@@ -178,16 +173,15 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
         {:noreply, put_flash(socket, :error, "Failed to submit. Try again.")}
     end
   end
+
   @impl true
   def handle_info({:switch_role, new_role}, socket) do
     user = socket.assigns.current_scope.user
 
     case Accounts.switch_user_role(user, new_role) do
       {:ok, updated_user} ->
-        # Update the socket with the new user data
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
 
-        # Redirect to the appropriate dashboard for the new role
         redirect_path = case new_role do
           "admin" -> ~p"/admin/dashboard"
           "supervisor" -> ~p"/supervisor/dashboard"
@@ -229,358 +223,380 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
 
         <!-- Main content -->
         <main class="ml-64 w-full p-8">
-          <div class="max-w-7xl mx-auto space-y-8">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-              <div>
-                <h1 class="text-2xl font-semibold text-gray-800">Dashboard</h1>
-                <p class="text-gray-600 mt-1">View an overview of your employee information</p>
-              </div>
-              <div class="flex gap-3">
-                <span class="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-semibold">
-                  <%= length(@tasks) %> Active Tasks
-                </span>
-                <span class="px-4 py-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-semibold">
-                  <%= length(@projects) %> Projects
-                </span>
-              </div>
-            </div>
-
-            <!-- Overview Section -->
-            <div class="bg-gray-50 p-6 rounded-xl shadow">
-              <h2 class="text-lg font-semibold text-gray-800 mb-4">Overview</h2>
-
-              <!-- User Info -->
-              <div class="flex items-center space-x-4 mb-6">
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span class="text-purple-700 font-bold text-lg">
-                    <%= String.first(@attachee.user.username || @attachee.user.email) |> String.upcase() %>
+          <%= if @attachee do %>
+            <div class="max-w-7xl mx-auto space-y-8">
+              <!-- Header -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <h1 class="text-2xl font-semibold text-gray-800">Dashboard</h1>
+                  <p class="text-gray-600 mt-1">View an overview of your employee information</p>
+                </div>
+                <div class="flex gap-3">
+                  <span class="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-semibold">
+                    <%= length(@tasks) %> Active Tasks
+                  </span>
+                  <span class="px-4 py-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-semibold">
+                    <%= length(@projects) %> Projects
                   </span>
                 </div>
-                <div>
-                  <div class="font-semibold text-gray-900">
-                    <%= String.upcase(@attachee.user.username || String.split(@attachee.user.email, "@") |> hd()) %>
+              </div>
+
+              <!-- Overview Section -->
+              <div class="bg-gray-50 p-6 rounded-xl shadow">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Overview</h2>
+
+                <!-- User Info -->
+                <div class="flex items-center space-x-4 mb-6">
+                  <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <span class="text-purple-700 font-bold text-lg">
+                      <%= if @attachee.user do %>
+                        <%= String.first(@attachee.user.username || @attachee.user.email) |> String.upcase() %>
+                      <% else %>
+                        U
+                      <% end %>
+                    </span>
                   </div>
-                  <div class="text-sm text-gray-600">Attachee INT<%= String.pad_leading(to_string(@attachee.id), 4, "0") %></div>
-                </div>
-              </div>
-
-              <!-- Position & Job Level Table -->
-              <div class="mb-6">
-                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <table class="min-w-full text-sm">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th class="px-4 py-3 text-left font-medium text-gray-700">Position</th>
-                        <th class="px-4 py-3 text-left font-medium text-gray-700">Job Level</th>
-                        <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract Start Date</th>
-                        <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract End Date</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                      <tr>
-                        <td class="px-4 py-3 text-gray-900"><%= @attachee.position %></td>
-                        <td class="px-4 py-3 text-gray-900">Beginner</td>
-                        <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.starts_on) %></td>
-                        <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.ends_on) %></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- Programs & Projects -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <!-- Enrolled Programs -->
-              <div class="bg-white shadow rounded-xl overflow-hidden">
-                <div class="p-6">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-4">Enrolled Programs</h3>
-                  <%= if @programs == [] do %>
-                    <p class="text-gray-500 text-center py-6">No programs enrolled.</p>
-                  <% else %>
-                    <div class="space-y-3">
-                      <%= for program <- @programs do %>
-                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                          <h4 class="font-medium text-gray-900"><%= program.name %></h4>
-                          <p class="text-sm text-gray-500 mt-1"><%= program.description || "Ongoing training" %></p>
-                        </div>
+                  <div>
+                    <div class="font-semibold text-gray-900">
+                      <%= if @attachee.user do %>
+                        <%= String.upcase(@attachee.user.username || String.split(@attachee.user.email, "@") |> hd()) %>
+                      <% else %>
+                        User
                       <% end %>
                     </div>
-                  <% end %>
+                    <div class="text-sm text-gray-600">Attachee INT<%= String.pad_leading(to_string(@attachee.id), 4, "0") %></div>
+                  </div>
+                </div>
+
+                <!-- Position & Job Level Table -->
+                <div class="mb-6">
+                  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <table class="min-w-full text-sm">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">Position</th>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">Job Level</th>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract Start Date</th>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract End Date</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-200">
+                        <tr>
+                          <td class="px-4 py-3 text-gray-900"><%= @attachee.position %></td>
+                          <td class="px-4 py-3 text-gray-900">Beginner</td>
+                          <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.starts_on) %></td>
+                          <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.ends_on) %></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              <!-- Assigned Projects -->
-              <div class="bg-white shadow rounded-xl overflow-hidden">
-                <div class="p-6">
-                  <h3 class="text-lg font-semibold text-gray-800 mb-4">Assigned Projects</h3>
-                  <%= if @projects == [] do %>
-                    <p class="text-gray-500 text-center py-6">No projects assigned yet.</p>
-                  <% else %>
-                    <div class="space-y-3">
-                      <%= for project <- @projects do %>
-                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                          <div class="flex justify-between items-center">
-                            <div>
-                              <h4 class="font-medium text-gray-900"><%= project.name %></h4>
-                              <p class="text-sm text-gray-500 mt-1"><%= project.description || "No description" %></p>
-                            </div>
-                            <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-700 font-medium">
-                              <%= count_tasks_in_project(@tasks, project.id) %> tasks
-                            </span>
+              <!-- Programs & Projects -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Enrolled Programs -->
+                <div class="bg-white shadow rounded-xl overflow-hidden">
+                  <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Enrolled Programs</h3>
+                    <%= if @programs == [] do %>
+                      <p class="text-gray-500 text-center py-6">No programs enrolled.</p>
+                    <% else %>
+                      <div class="space-y-3">
+                        <%= for program <- @programs do %>
+                          <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                            <h4 class="font-medium text-gray-900"><%= program.name %></h4>
+                            <p class="text-sm text-gray-500 mt-1"><%= program.description || "Ongoing training" %></p>
                           </div>
-                        </div>
-                      <% end %>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <!-- Assigned Projects -->
+                <div class="bg-white shadow rounded-xl overflow-hidden">
+                  <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Assigned Projects</h3>
+                    <%= if @projects == [] do %>
+                      <p class="text-gray-500 text-center py-6">No projects assigned yet.</p>
+                    <% else %>
+                      <div class="space-y-3">
+                        <%= for project <- @projects do %>
+                          <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                            <div class="flex justify-between items-center">
+                              <div>
+                                <h4 class="font-medium text-gray-900"><%= project.name %></h4>
+                                <p class="text-sm text-gray-500 mt-1"><%= project.description || "No description" %></p>
+                              </div>
+                              <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-700 font-medium">
+                                <%= count_tasks_in_project(@tasks, project.id) %> tasks
+                              </span>
+                            </div>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+
+              <!-- My Tasks Table -->
+              <div class="bg-white shadow rounded-xl overflow-hidden">
+                <div class="p-6">
+                  <h2 class="text-xl font-semibold text-gray-800 mb-4">My Tasks</h2>
+                  <%= if @tasks == [] do %>
+                    <div class="text-center py-10 text-gray-500">
+                      <p class="text-lg">No tasks assigned yet.</p>
+                      <p class="text-sm mt-1">Check back later or contact your supervisor.</p>
+                    </div>
+                  <% else %>
+                    <div class="overflow-x-auto">
+                      <table class="min-w-full text-sm text-left text-gray-700">
+                        <thead class="bg-gray-100 text-xs uppercase">
+                          <tr>
+                            <th class="px-4 py-3">Task</th>
+                            <th class="px-4 py-3">Project</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Due Date</th>
+                            <th class="px-4 py-3">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <%= for task <- @tasks do %>
+                            <tr class="border-t hover:bg-gray-50 transition">
+                              <td class="px-4 py-3">
+                                <div class="font-medium text-gray-900"><%= task.title %></div>
+                                <%= if task.description do %>
+                                  <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
+                                <% end %>
+                                <%= if task.reject_reason do %>
+                                  <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                                    <span class="font-medium text-red-800">Feedback:</span>
+                                    <span class="text-red-700"><%= task.reject_reason %></span>
+                                  </div>
+                                <% end %>
+                              </td>
+                              <td class="px-4 py-3">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  <%= task.project && task.project.name %>
+                                </span>
+                              </td>
+                              <td class="px-4 py-3">
+                                <span class={status_badge_class(task.status)}>
+                                  <%= format_status(task.status) %>
+                                </span>
+                              </td>
+                              <td class="px-4 py-3">
+                                <%= if task.due_on do %>
+                                  <div class="font-medium text-gray-900"><%= format_date(task.due_on) %></div>
+                                  <div class={due_date_class(task.due_on)}>
+                                    <%= relative_date(task.due_on) %>
+                                  </div>
+                                <% else %>
+                                  <span class="text-gray-400">—</span>
+                                <% end %>
+                              </td>
+                              <td class="px-4 py-3">
+                                <%= if task.status in ["pending", "in_progress", "rejected"] do %>
+                                  <button
+                                    phx-click="open_submit_modal"
+                                    phx-value-task_id={task.id}
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 text-sm font-medium"
+                                  >
+                                    <%= if task.status == "in_progress", do: "Submit", else: "Submit Work" %>
+                                  </button>
+                                <% else %>
+                                  <span class="text-sm text-gray-500">
+                                    <%= if task.status == "submitted", do: "Under Review", else: "Completed" %>
+                                  </span>
+                                <% end %>
+                              </td>
+                            </tr>
+                          <% end %>
+                        </tbody>
+                      </table>
                     </div>
                   <% end %>
                 </div>
               </div>
-            </div>
 
-            <!-- My Tasks Table -->
-            <div class="bg-white shadow rounded-xl overflow-hidden">
-              <div class="p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">My Tasks</h2>
-                <%= if @tasks == [] do %>
-                  <div class="text-center py-10 text-gray-500">
-                    <p class="text-lg">No tasks assigned yet.</p>
-                    <p class="text-sm mt-1">Check back later or contact your supervisor.</p>
+              <!-- Team Mates Table -->
+              <div class="bg-white shadow rounded-xl overflow-hidden">
+                <div class="p-6">
+                  <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Team Mates</h2>
+                    <span class="text-sm text-gray-500"><%= @attachee.department.name %> Team</span>
                   </div>
-                <% else %>
                   <div class="overflow-x-auto">
                     <table class="min-w-full text-sm text-left text-gray-700">
                       <thead class="bg-gray-100 text-xs uppercase">
                         <tr>
-                          <th class="px-4 py-3">Task</th>
-                          <th class="px-4 py-3">Project</th>
+                          <th class="px-4 py-3">User</th>
+                          <th class="px-4 py-3">Organization</th>
+                          <th class="px-4 py-3">Department</th>
+                          <th class="px-4 py-3">Program(s)</th>
                           <th class="px-4 py-3">Status</th>
-                          <th class="px-4 py-3">Due Date</th>
-                          <th class="px-4 py-3">Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        <%= for task <- @tasks do %>
+                        <%= for mate <- @team_mates do %>
                           <tr class="border-t hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
-                              <div class="font-medium text-gray-900"><%= task.title %></div>
-                              <%= if task.description do %>
-                                <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
-                              <% end %>
-                              <%= if task.reject_reason do %>
-                                <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-                                  <span class="font-medium text-red-800">Feedback:</span>
-                                  <span class="text-red-700"><%= task.reject_reason %></span>
+                              <div class="flex items-center">
+                                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                                  <span class="text-purple-700 font-bold text-xs">
+                                    <%= String.first(mate.user.username || mate.user.email) |> String.upcase() %>
+                                  </span>
                                 </div>
-                              <% end %>
-                            </td>
-                            <td class="px-4 py-3">
-                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <%= task.project && task.project.name %>
-                              </span>
-                            </td>
-                            <td class="px-4 py-3">
-                              <span class={status_badge_class(task.status)}>
-                                <%= format_status(task.status) %>
-                              </span>
-                            </td>
-                            <td class="px-4 py-3">
-                              <%= if task.due_on do %>
-                                <div class="font-medium text-gray-900"><%= format_date(task.due_on) %></div>
-                                <div class={due_date_class(task.due_on)}>
-                                  <%= relative_date(task.due_on) %>
+                                <div>
+                                  <div class="font-medium text-gray-900"><%= mate.user.username || mate.user.email %></div>
+                                  <div class="text-xs text-gray-500">INT<%= String.pad_leading(to_string(mate.id), 4, "0") %></div>
                                 </div>
-                              <% else %>
-                                <span class="text-gray-400">—</span>
-                              <% end %>
+                              </div>
+                            </td>
+                            <td class="px-4 py-3"><%= mate.organization.name %></td>
+                            <td class="px-4 py-3"><%= mate.department.name %></td>
+                            <td class="px-4 py-3">
+                              Attachee <%= format_date(mate.starts_on) %>-<%= format_date(mate.ends_on) %>
                             </td>
                             <td class="px-4 py-3">
-                              <%= if task.status in ["pending", "in_progress", "rejected"] do %>
-                                <button
-                                  phx-click="open_submit_modal"
-                                  phx-value-task_id={task.id}
-                                  class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 text-sm font-medium"
-                                >
-                                  <%= if task.status == "in_progress", do: "Submit", else: "Submit Work" %>
-                                </button>
-                              <% else %>
-                                <span class="text-sm text-gray-500">
-                                  <%= if task.status == "submitted", do: "Under Review", else: "Completed" %>
-                                </span>
-                              <% end %>
+                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                active
+                              </span>
                             </td>
                           </tr>
                         <% end %>
                       </tbody>
                     </table>
                   </div>
+                </div>
+              </div>
+
+              <!-- Account Evaluation Summary -->
+              <div class="bg-gray-50 p-6 rounded-xl shadow">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-md font-semibold text-gray-800">Account Evaluation Summary</h3>
+                  <div class="text-sm">
+                    <span class="text-gray-600">Total Evaluations</span>
+                    <span class="font-bold text-purple-600 ml-2"><%= @eval_count %></span>
+                  </div>
+                </div>
+
+                <%= if @eval_count == 0 do %>
+                  <!-- No Evaluations Yet -->
+                  <div class="text-center py-12">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-2">No Evaluations Yet</h4>
+                    <p class="text-gray-600">Your supervisor will evaluate your performance soon.</p>
+                  </div>
+                <% else %>
+                  <!-- Evaluation Chart -->
+                  <div class="space-y-4">
+                    <%= for eval <- @evaluation_data do %>
+                      <div class="flex items-center justify-between">
+                        <div class="w-1/4">
+                          <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
+                        </div>
+                        <div class="w-2/4">
+                          <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div
+                              class={"h-3 rounded-full #{score_bar_color(eval.score)}"}
+                              style={"width: #{eval.score}%"}
+                            ></div>
+                          </div>
+                        </div>
+                        <div class="w-1/4 text-right">
+                          <span class="text-sm font-semibold text-gray-900">
+                            <%= eval.score %>/<%= eval.max %>
+                          </span>
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
+
+                  <!-- Overall Performance -->
+                  <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="font-semibold text-gray-900">Overall Performance</h4>
+                        <p class="text-sm text-gray-600">Based on <%= @eval_count %> evaluation(s)</p>
+                      </div>
+                      <div class="text-right">
+                        <div class={"text-2xl font-bold #{overall_score_color(@avg_score)}"}>
+                          <%= @avg_score %>%
+                        </div>
+                        <div class={"text-sm font-medium #{overall_label_color(@avg_score)}"}>
+                          <%= overall_label(@avg_score) %>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Recent Evaluations -->
+                  <div class="mt-6">
+                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Recent Evaluations</h4>
+                    <div class="space-y-2">
+                      <%= for evaluation <- Enum.take(@evaluations, 3) do %>
+                        <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                          <div class="flex items-center gap-3">
+                            <div class={"w-10 h-10 rounded-full flex items-center justify-center font-bold #{evaluation_badge_bg(evaluation.score)}"}>
+                              <%= evaluation.score %>
+                            </div>
+                            <div>
+                              <p class="text-sm font-medium text-gray-900">
+                                <%= evaluation.evaluator.username || evaluation.evaluator.email %>
+                              </p>
+                              <p class="text-xs text-gray-500">
+                                <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
+                              </p>
+                            </div>
+                          </div>
+                          <span class={"px-2 py-1 text-xs rounded font-medium #{evaluation_badge_class(evaluation.score)}"}>
+                            <%= evaluation_label(evaluation.score) %>
+                          </span>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+
+                  <!-- Not Meeting Expectations -->
+                  <div class="mt-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <div class="text-sm font-medium text-gray-700 mb-1">Areas Needing Improvement</div>
+                        <div class={"text-2xl font-bold #{if @not_meeting > 0, do: "text-red-600", else: "text-green-600"}"}>
+                          <%= @not_meeting %>/5
+                        </div>
+                      </div>
+                      <%= if @not_meeting == 0 do %>
+                        <div class="flex items-center gap-2 text-green-600">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span class="text-sm font-medium">All areas meeting expectations!</span>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
                 <% end %>
               </div>
             </div>
-
-            <!-- Team Mates Table -->
-            <div class="bg-white shadow rounded-xl overflow-hidden">
-              <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                  <h2 class="text-xl font-semibold text-gray-800">Team Mates</h2>
-                  <span class="text-sm text-gray-500"><%= @attachee.department.name %> Team</span>
-                </div>
-                <div class="overflow-x-auto">
-                  <table class="min-w-full text-sm text-left text-gray-700">
-                    <thead class="bg-gray-100 text-xs uppercase">
-                      <tr>
-                        <th class="px-4 py-3">User</th>
-                        <th class="px-4 py-3">Organization</th>
-                        <th class="px-4 py-3">Department</th>
-                        <th class="px-4 py-3">Program(s)</th>
-                        <th class="px-4 py-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <%= for mate <- @team_mates do %>
-                        <tr class="border-t hover:bg-gray-50 transition">
-                          <td class="px-4 py-3">
-                            <div class="flex items-center">
-                              <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                                <span class="text-purple-700 font-bold text-xs">
-                                  <%= String.first(mate.user.username || mate.user.email) |> String.upcase() %>
-                                </span>
-                              </div>
-                              <div>
-                                <div class="font-medium text-gray-900"><%= mate.user.username || mate.user.email %></div>
-                                <div class="text-xs text-gray-500">INT<%= String.pad_leading(to_string(mate.id), 4, "0") %></div>
-                              </div>
-                            </div>
-                          </td>
-                          <td class="px-4 py-3"><%= mate.organization.name %></td>
-                          <td class="px-4 py-3"><%= mate.department.name %></td>
-                          <td class="px-4 py-3">
-                            Attachee <%= format_date(mate.starts_on) %>-<%= format_date(mate.ends_on) %>
-                          </td>
-                          <td class="px-4 py-3">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              active
-                            </span>
-                          </td>
-                        </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+          <% else %>
+            <!-- No Attachee Profile -->
+            <div class="max-w-2xl mx-auto text-center py-12">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto text-gray-300 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h2 class="text-2xl font-semibold text-gray-900 mb-4">No Attachee Profile Found</h2>
+              <p class="text-gray-600 mb-6">You don't appear to have an attachee profile set up. Please contact your administrator to get started.</p>
+              <.link navigate={~p"/dashboard"} class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+                Go to Dashboard
+              </.link>
             </div>
-
-            <!-- Account Evaluation Summary -->
-            <div class="bg-gray-50 p-6 rounded-xl shadow">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="text-md font-semibold text-gray-800">Account Evaluation Summary</h3>
-                <div class="text-sm">
-                  <span class="text-gray-600">Total Evaluations</span>
-                  <span class="font-bold text-purple-600 ml-2"><%= @eval_count %></span>
-                </div>
-              </div>
-
-              <%= if @eval_count == 0 do %>
-                <!-- No Evaluations Yet -->
-                <div class="text-center py-12">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <h4 class="text-lg font-semibold text-gray-900 mb-2">No Evaluations Yet</h4>
-                  <p class="text-gray-600">Your supervisor will evaluate your performance soon.</p>
-                </div>
-              <% else %>
-                <!-- Evaluation Chart -->
-                <div class="space-y-4">
-                  <%= for eval <- @evaluation_data do %>
-                    <div class="flex items-center justify-between">
-                      <div class="w-1/4">
-                        <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
-                      </div>
-                      <div class="w-2/4">
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                          <div
-                            class={"h-3 rounded-full #{score_bar_color(eval.score)}"}
-                            style={"width: #{eval.score}%"}
-                          ></div>
-                        </div>
-                      </div>
-                      <div class="w-1/4 text-right">
-                        <span class="text-sm font-semibold text-gray-900">
-                          <%= eval.score %>/<%= eval.max %>
-                        </span>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-
-                <!-- Overall Performance -->
-                <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <h4 class="font-semibold text-gray-900">Overall Performance</h4>
-                      <p class="text-sm text-gray-600">Based on <%= @eval_count %> evaluation(s)</p>
-                    </div>
-                    <div class="text-right">
-                      <div class={"text-2xl font-bold #{overall_score_color(@avg_score)}"}>
-                        <%= @avg_score %>%
-                      </div>
-                      <div class={"text-sm font-medium #{overall_label_color(@avg_score)}"}>
-                        <%= overall_label(@avg_score) %>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Recent Evaluations -->
-                <div class="mt-6">
-                  <h4 class="text-sm font-semibold text-gray-800 mb-3">Recent Evaluations</h4>
-                  <div class="space-y-2">
-                    <%= for evaluation <- Enum.take(@evaluations, 3) do %>
-                      <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                        <div class="flex items-center gap-3">
-                          <div class={"w-10 h-10 rounded-full flex items-center justify-center font-bold #{evaluation_badge_bg(evaluation.score)}"}>
-                            <%= evaluation.score %>
-                          </div>
-                          <div>
-                            <p class="text-sm font-medium text-gray-900">
-                              <%= evaluation.evaluator.username || evaluation.evaluator.email %>
-                            </p>
-                            <p class="text-xs text-gray-500">
-                              <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
-                            </p>
-                          </div>
-                        </div>
-                        <span class={"px-2 py-1 text-xs rounded font-medium #{evaluation_badge_class(evaluation.score)}"}>
-                          <%= evaluation_label(evaluation.score) %>
-                        </span>
-                      </div>
-                    <% end %>
-                  </div>
-                </div>
-
-                <!-- Not Meeting Expectations -->
-                <div class="mt-4">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <div class="text-sm font-medium text-gray-700 mb-1">Areas Needing Improvement</div>
-                      <div class={"text-2xl font-bold #{if @not_meeting > 0, do: "text-red-600", else: "text-green-600"}"}>
-                        <%= @not_meeting %>/5
-                      </div>
-                    </div>
-                    <%= if @not_meeting == 0 do %>
-                      <div class="flex items-center gap-2 text-green-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span class="text-sm font-medium">All areas meeting expectations!</span>
-                      </div>
-                    <% end %>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          </div>
+          <% end %>
         </main>
       </div>
 
@@ -592,7 +608,7 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
           phx-click="close_modal"
         >
           <div
-            class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
+          class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
             phx-click="stop_propagation"
           >
             <div class="flex justify-between items-center mb-4">
@@ -756,35 +772,30 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
 
   # === HELPER FUNCTIONS ===
 
-  # File upload helper
- defp upload_files(socket) do
-  consume_uploaded_entries(socket, :task_files, fn %{path: temp_path}, entry ->
-    # CORRECT PATH: priv/static/uploads/task_submissions → served at /uploads/task_submissions/
-    upload_dir = Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
-    File.mkdir_p!(upload_dir)
+  defp upload_files(socket) do
+    consume_uploaded_entries(socket, :task_files, fn %{path: temp_path}, entry ->
+      upload_dir = Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
+      File.mkdir_p!(upload_dir)
 
-    ext = Path.extname(entry.client_name)
-    filename = "#{DateTime.utc_now() |> DateTime.to_unix()}_#{entry.uuid}#{ext}"
-    dest = Path.join(upload_dir, filename)
+      ext = Path.extname(entry.client_name)
+      filename = "#{DateTime.utc_now() |> DateTime.to_unix()}_#{entry.uuid}#{ext}"
+      dest = Path.join(upload_dir, filename)
 
-    File.cp!(temp_path, dest)
+      File.cp!(temp_path, dest)
 
-    # THIS URL WILL WORK 100%
-    {:ok, "/uploads/task_submissions/#{filename}"}
-  end)
-end
-  # URL validation
+      {:ok, "/uploads/task_submissions/#{filename}"}
+    end)
+  end
+
   defp valid_url?(url) do
     uri = URI.parse(url)
     uri.scheme in ["http", "https"] && uri.host != nil
   end
 
-  # Format file size
   defp format_file_size(size) when size < 1024, do: "#{size} B"
   defp format_file_size(size) when size < 1024 * 1024, do: "#{Float.round(size / 1024, 1)} KB"
   defp format_file_size(size), do: "#{Float.round(size / (1024 * 1024), 1)} MB"
 
-  # Upload error messages
   defp error_to_string(:too_large), do: "File is too large (max 10MB)"
   defp error_to_string(:not_accepted), do: "File type not accepted"
   defp error_to_string(:too_many_files), do: "Too many files (max 5)"
@@ -850,7 +861,6 @@ end
     end
   end
 
-  # Evaluation helper functions
   defp score_bar_color(score) when score >= 81, do: "bg-gradient-to-r from-green-400 to-green-600"
   defp score_bar_color(score) when score >= 61, do: "bg-gradient-to-r from-blue-400 to-blue-600"
   defp score_bar_color(score) when score >= 41, do: "bg-gradient-to-r from-yellow-400 to-yellow-600"

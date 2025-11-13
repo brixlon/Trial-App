@@ -280,7 +280,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
                         <div class="space-y-2 text-sm text-gray-500">
                           <div class="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            <span>Starts: <%= Calendar.strftime(project.starts_on, "%b %d, %Y") %></span>
+                            <span>Starts: <%= format_date(project.starts_on) %></span>
                           </div>
                           <div class={"flex items-center gap-2 #{if is_overdue?(project), do: "text-red-600 font-medium"}"}>
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -387,6 +387,8 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   defp status_color("rejected"), do: "bg-red-100 text-red-800"
   defp status_color(_), do: "bg-gray-100 text-gray-800"
 
+  defp format_date(nil), do: "Not set"
+defp format_date(date), do: Calendar.strftime(date, "%b %d, %Y")
   defp status_indicator("pending"), do: "bg-yellow-500"
   defp status_indicator("in_progress"), do: "bg-blue-500"
   defp status_indicator("completed"), do: "bg-green-500"

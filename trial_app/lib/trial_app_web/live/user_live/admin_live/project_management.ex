@@ -4,15 +4,12 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   alias TrialApp.{Eams, Orgs}
   alias TrialApp.Accounts
 
-  # ──────────────────────────────────────────────────────────────────────
-  # MOUNT
-  # ──────────────────────────────────────────────────────────────────────
+  # Mount
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:current_scope, socket.assigns.current_scope)
      |> assign(:projects, list_projects_with_preloads())
-     |> assign(:filter_status, "all")
      |> assign(:show_form, false)
      |> assign(:show_view_modal, false)
      |> assign(:editing_project, nil)
@@ -21,32 +18,22 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:departments, [])
      |> assign(:programs, [])
      |> assign(:supervisors, Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager"))
-     |> assign(:form, to_form(empty_form(), as: :project))
+     |> assign(:form_data, empty_form())
      |> assign(:errors, %{})}
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # EVENTS
-  # ──────────────────────────────────────────────────────────────────────
-
-  # Filter by status
-  def handle_event("filter", %{"status" => status}, socket) do
-    {:noreply, assign(socket, :filter_status, status)}
-  end
-
-  # Open new form
+  # Events - Create
   def handle_event("new", _params, socket) do
     {:noreply,
      socket
      |> assign(:show_form, true)
      |> assign(:editing_project, nil)
-     |> assign(:form, to_form(empty_form(), as: :project))
+     |> assign(:form_data, empty_form())
      |> assign(:departments, [])
      |> assign(:programs, [])
      |> assign(:errors, %{})}
   end
 
-  # Close all modals
   def handle_event("close", _params, socket) do
     {:noreply,
      socket
@@ -54,47 +41,43 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:show_view_modal, false)
      |> assign(:editing_project, nil)
      |> assign(:viewing_project, nil)
-     |> assign(:form, to_form(empty_form(), as: :project))
+     |> assign(:form_data, empty_form())
      |> assign(:departments, [])
      |> assign(:programs, [])
      |> assign(:errors, %{})}
   end
 
-  # Stop modal close when clicking inside
-  def handle_event("stop_propagation", _params, socket) do
-    {:noreply, socket}
-  end
-
-  # Live validation
-  def handle_event("validate", %{"project" => params}, socket) do
-    changeset =
-      %Eams.Project{}
-      |> Eams.Project.changeset(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, assign(socket, :form, to_form(changeset, as: :project))}
-  end
-
-  # Dynamic dropdowns (org → dept → program)
   def handle_event("update", %{"project" => params}, socket) do
-    org_id = safe_int(params["organization_id"])
-    dept_id = safe_int(params["department_id"])
+    org_id = Map.get(params, "organization_id")
+    dept_id = Map.get(params, "department_id")
 
-    departments = if org_id, do: Orgs.list_departments_by_org(org_id), else: []
-    programs = if dept_id, do: Eams.list_programs_by_department(dept_id), else: []
+    org_int = safe_int(org_id)
+    dept_int = safe_int(dept_id)
+
+    departments = if is_integer(org_int), do: Orgs.list_departments_by_org(org_int), else: []
+    programs = if is_integer(dept_int), do: Eams.list_programs_by_department(dept_int), else: []
+
+    # Clear date validation errors when dates change
+    errors = socket.assigns.errors
+    |> Map.delete(:starts_on)
+    |> Map.delete(:ends_on)
+    |> Map.delete(:date_range)
 
     {:noreply,
      socket
-     |> assign(:form, to_form(params, as: :project))
+     |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
      |> assign(:departments, departments)
-     |> assign(:programs, programs)}
+     |> assign(:programs, programs)
+     |> assign(:errors, errors)}
   end
 
-  # Save (create or update)
   def handle_event("save", %{"project" => params}, socket) do
     require Logger
-    Logger.info("Saving project: #{inspect(params)}")
 
+    # Log what we received
+    Logger.info("Attempting to save project with params: #{inspect(params)}")
+
+    # Validate dates first
     case validate_dates(params) do
       {:ok, _} ->
         attrs = %{
@@ -110,20 +93,22 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
           is_active: true
         }
 
-        result =
-          if socket.assigns.editing_project do
-            Eams.update_project(socket.assigns.editing_project, attrs)
-          else
-            Eams.create_project(attrs)
-          end
+        Logger.info("Parsed attributes: #{inspect(attrs)}")
+
+        result = if socket.assigns.editing_project do
+          Eams.update_project(socket.assigns.editing_project, attrs)
+        else
+          Eams.create_project(attrs)
+        end
 
         case result do
-          {:ok, _project} ->
+          {:ok, project} ->
+            Logger.info("Project saved successfully: #{inspect(project)}")
             {:noreply,
              socket
              |> assign(:show_form, false)
              |> assign(:editing_project, nil)
-             |> assign(:form, to_form(empty_form(), as: :project))
+             |> assign(:form_data, empty_form())
              |> assign(:departments, [])
              |> assign(:programs, [])
              |> assign(:projects, list_projects_with_preloads())
@@ -131,28 +116,26 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
              |> put_flash(:info, "Project #{if socket.assigns.editing_project, do: "updated", else: "created"} successfully")}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, assign(socket, :form, to_form(changeset, as: :project))}
+            Logger.error("Failed to save project. Changeset errors: #{inspect(changeset.errors)}")
+            errors = changeset.errors |> Enum.into(%{})
+            Logger.error("Formatted errors: #{inspect(errors)}")
+            {:noreply, assign(socket, errors: errors)}
 
           {:error, reason} ->
+            Logger.error("Failed to save project. Reason: #{inspect(reason)}")
             {:noreply, put_flash(socket, :error, "Failed to save project: #{inspect(reason)}")}
         end
 
       {:error, message} ->
-        changeset =
-          %Eams.Project{}
-          |> Eams.Project.changeset(params)
-          |> Ecto.Changeset.add_error(:date_range, message)
-          |> Map.put(:action, :validate)
-
-        {:noreply, assign(socket, :form, to_form(changeset, as: :project))}
+        Logger.error("Date validation failed: #{message}")
+        {:noreply, assign(socket, errors: %{date_range: message})}
     end
   end
 
-  # View project
+  # Events - View
   def handle_event("view_project", %{"id" => id}, socket) do
-    project =
-      Eams.get_project!(parse_int(id))
-      |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+    project = Eams.get_project!(parse_int(id))
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
 
     {:noreply,
      socket
@@ -160,11 +143,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:show_view_modal, true)}
   end
 
-  # Edit project
+  # Events - Edit
   def handle_event("edit_project", %{"id" => id}, socket) do
-    project =
-      Eams.get_project!(parse_int(id))
-      |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+    project = Eams.get_project!(parse_int(id))
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
 
     org_id = project.organization_id
     dept_id = project.department_id
@@ -188,13 +170,13 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      socket
      |> assign(:editing_project, project)
      |> assign(:show_form, true)
-     |> assign(:form, to_form(form_data, as: :project))
+     |> assign(:form_data, form_data)
      |> assign(:departments, departments)
      |> assign(:programs, programs)
      |> assign(:errors, %{})}
   end
 
-  # Delete project
+  # Events - Delete
   def handle_event("delete_project", %{"id" => id}, socket) do
     project = Eams.get_project!(parse_int(id))
 
@@ -210,10 +192,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     end
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # HELPERS
-  # ──────────────────────────────────────────────────────────────────────
-
+  # Helpers
   defp list_projects_with_preloads do
     Eams.list_projects()
     |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
@@ -233,64 +212,22 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     }
   end
 
-  defp filtered_projects(projects, "all"), do: projects
-  defp filtered_projects(projects, status) do
-    case status do
-      "active" -> Enum.filter(projects, & &1.is_active)
-      "inactive" -> Enum.filter(projects, & !&1.is_active)
-      "completed" -> Enum.filter(projects, &(&1.ends_on && Date.compare(&1.ends_on, Date.utc_today()) == :lt))
-      _ -> projects
-    end
-  end
-
-  defp count_by_status(projects, "all"), do: length(projects)
-  defp count_by_status(projects, "active"), do: Enum.count(projects, & &1.is_active)
-  defp count_by_status(projects, "inactive"), do: Enum.count(projects, & !&1.is_active)
-  defp count_by_status(projects, "completed"), do: Enum.count(projects, &(&1.ends_on && Date.compare(&1.ends_on, Date.utc_today()) == :lt))
-
-  defp get_assoc_name(nil), do: "—"
-  defp get_assoc_name(struct), do: struct.name
-
-  defp get_supervisor_name(nil), do: "Unassigned"
-  defp get_supervisor_name(user), do: user.username || user.email
-
-  defp format_date(nil), do: "Not set"
-  defp format_date(date), do: Calendar.strftime(date, "%b %d, %Y")
-
-  defp status_color(project) do
-    cond do
-      !project.is_active -> "bg-gray-100 text-gray-800"
-      project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt -> "bg-blue-100 text-blue-800"
-      project.starts_on && Date.compare(project.starts_on, Date.utc_today()) == :lt -> "bg-amber-100 text-amber-800"
-      true -> "bg-green-100 text-green-800"
-    end
-  end
-
-  defp status_label(project) do
-    cond do
-      !project.is_active -> "Inactive"
-      project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt -> "Completed"
-      project.starts_on && Date.compare(project.starts_on, Date.utc_today()) == :lt -> "In Progress"
-      true -> "Active"
-    end
-  end
-
-  defp org_options(orgs), do: [{"Select Organization", ""} | Enum.map(orgs, &{&1.name, &1.id})]
-  defp dept_options(depts), do: [{"Select Department", ""} | Enum.map(depts, &{&1.name, &1.id})]
-  defp prog_options(progs), do: [{"Select Program", ""} | Enum.map(progs, &{&1.name, &1.id})]
-  defp sup_options(sups), do: [{"Select Supervisor", ""} | Enum.map(sups, &{(&1.username || &1.email), &1.id})]
-
-  # Date validation
   defp validate_dates(params) do
     starts_on = parse_date(params["starts_on"])
     ends_on = parse_date(params["ends_on"])
 
     cond do
-      is_nil(starts_on) && is_nil(ends_on) -> {:ok, nil}
-      is_nil(starts_on) && !is_nil(ends_on) -> {:error, "Start date is required when end date is provided"}
-      !is_nil(starts_on) && !is_nil(ends_on) && Date.compare(ends_on, starts_on) == :lt ->
+      is_nil(starts_on) and is_nil(ends_on) ->
+        {:ok, nil}
+
+      is_nil(starts_on) and not is_nil(ends_on) ->
+        {:error, "Start date is required when end date is provided"}
+
+      not is_nil(starts_on) and not is_nil(ends_on) and Date.compare(ends_on, starts_on) == :lt ->
         {:error, "End date must be after start date"}
-      true -> {:ok, nil}
+
+      true ->
+        {:ok, nil}
     end
   end
 
@@ -311,21 +248,42 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   defp parse_date(nil), do: nil
   defp parse_date(""), do: nil
+
+  # Handle multiple date formats
   defp parse_date(date_string) when is_binary(date_string) do
     date_string = String.trim(date_string)
 
     cond do
-      String.match?(date_string, ~r/^\d{4}-\d{2}-\d{2}$/) -> parse_iso_date(date_string)
-      String.match?(date_string, ~r/^\d{1,2}\/\d{1,2}\/\d{4}$/) -> parse_us_date(date_string)
-      String.match?(date_string, ~r/^\d{1,2}\.\d{1,2}\.\d{4}$/) -> parse_dotted_date(date_string)
-      true -> nil
+      # ISO format: YYYY-MM-DD
+      String.match?(date_string, ~r/^\d{4}-\d{2}-\d{2}$/) ->
+        parse_iso_date(date_string)
+
+      # US format: MM/DD/YYYY
+      String.match?(date_string, ~r/^\d{1,2}\/\d{1,2}\/\d{4}$/) ->
+        parse_us_date(date_string)
+
+      # European format: DD/MM/YYYY
+      String.match?(date_string, ~r/^\d{1,2}\/\d{1,2}\/\d{4}$/) ->
+        parse_european_date(date_string)
+
+      # Dotted format: DD.MM.YYYY
+      String.match?(date_string, ~r/^\d{1,2}\.\d{1,2}\.\d{4}$/) ->
+        parse_dotted_date(date_string)
+
+      true ->
+        nil
     end
   end
+
   defp parse_date(_), do: nil
 
-  defp parse_iso_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>), do: create_date(y, m, d)
+  # Parse ISO format: YYYY-MM-DD
+  defp parse_iso_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>) do
+    create_date(y, m, d)
+  end
   defp parse_iso_date(_), do: nil
 
+  # Parse US format: MM/DD/YYYY
   defp parse_us_date(date_string) do
     case String.split(date_string, "/") do
       [m, d, y] -> create_date(y, m, d)
@@ -333,6 +291,15 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     end
   end
 
+  # Parse European format: DD/MM/YYYY
+  defp parse_european_date(date_string) do
+    case String.split(date_string, "/") do
+      [d, m, y] -> create_date(y, m, d)
+      _ -> nil
+    end
+  end
+
+  # Parse dotted format: DD.MM.YYYY
   defp parse_dotted_date(date_string) do
     case String.split(date_string, ".") do
       [d, m, y] -> create_date(y, m, d)
@@ -340,6 +307,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     end
   end
 
+  # Helper to safely create a date
   defp create_date(year, month, day) do
     with {y, ""} <- Integer.parse(to_string(year)),
          {m, ""} <- Integer.parse(to_string(month)),
