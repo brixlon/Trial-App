@@ -8,22 +8,19 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     organizations = Orgs.list_organizations()
     users = Accounts.list_users()
     attachees = Eams.list_attachees(%{preloads: [:user, :organization, :department, :programs]})
-
-    # Create a changeset for a new attachee
     changeset = Attachee.changeset(%Attachee{}, %{})
 
-    {:ok,
-     assign(socket,
-       form: to_form(changeset),
-       organizations: organizations,
-       departments: [],
-       programs: [],
-       users: users,
-       attachees: attachees,
-       show_modal: false,
-       editing_attachee: nil,
-       filter_status: "all"
-     )}
+    socket =
+      socket
+      |> assign(:organizations, organizations)
+      |> assign(:users, users)
+      |> assign(:attachees, attachees)
+      |> assign(:changeset, changeset)
+      |> assign(:show_modal, false)
+      |> assign(:programs, [])
+      |> assign(:filter_status, "all")
+
+    {:ok, socket}
   end
 
   # Render template
@@ -346,13 +343,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
   # Open modal for new attachee
   def handle_event("open_modal", _params, socket) do
     changeset = Attachee.changeset(%Attachee{}, %{})
-    {:noreply,
-     socket
-     |> assign(:show_modal, true)
-     |> assign(:editing_attachee, nil)
-     |> assign(:form, to_form(changeset))
-     |> assign(:departments, [])
-     |> assign(:programs, [])}
+    {:noreply, assign(socket, %{show_modal: true, changeset: changeset, programs: []})}
   end
 
   # Close modal
@@ -374,39 +365,14 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
   def handle_event("edit_attachee", %{"id" => id}, socket) do
     attachee = Eams.get_attachee!(id) |> Repo.preload([:user, :organization, :department, :programs])
 
-    # Load departments for the organization
-    departments = if attachee.organization_id do
-      Orgs.list_departments_by_org(attachee.organization_id)
-    else
-      []
-    end
+    departments = if attachee.organization_id, do: Orgs.list_departments_by_org(attachee.organization_id), else: []
+    programs = if attachee.department_id, do: Eams.list_programs_by_department(attachee.department_id), else: []
 
-    # Load programs for the department
-    programs = if attachee.department_id do
-      Eams.list_programs_by_department(attachee.department_id)
-    else
-      []
-    end
+    program_id = if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [], do: hd(attachee.programs).id, else: nil
 
-    # Get the first program ID if any programs are enrolled
-    program_id = if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [] do
-      hd(attachee.programs).id
-    else
-      nil
-    end
+    changeset = Attachee.changeset(attachee, %{"program_id" => program_id})
 
-    # Create changeset with current attachee data
-    changeset = Attachee.changeset(attachee, %{
-      "program_id" => program_id
-    })
-
-    {:noreply,
-     socket
-     |> assign(:show_modal, true)
-     |> assign(:editing_attachee, attachee)
-     |> assign(:form, to_form(changeset))
-     |> assign(:departments, departments)
-     |> assign(:programs, programs)}
+    {:noreply, assign(socket, %{editing_attachee: attachee, changeset: changeset, programs: programs, show_modal: true})}
   end
 
   # Delete attachee
@@ -553,7 +519,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
   defp parse_date(str) when is_binary(str) do
     case Date.from_iso8601(str) do
       {:ok, date} -> date
-      {:error, _} -> nil
+      _ -> nil
     end
   end
   defp parse_date(%Date{} = date), do: date

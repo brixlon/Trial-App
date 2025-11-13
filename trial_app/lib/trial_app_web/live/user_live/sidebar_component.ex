@@ -7,41 +7,21 @@ defmodule TrialAppWeb.SidebarComponent do
   # No mount – we only need data that comes from the parent
   # ----------------------------------------------------------------------
   def update(assigns, socket) do
-    # ------------------------------------------------------------------
-    # 1. Pull the **safe** user from the parent LiveView
-    # ------------------------------------------------------------------
-    user = assigns.current_user
-
-    # ------------------------------------------------------------------
-    # 2. Compute role info (same as before)
-    # ------------------------------------------------------------------
+    current_scope = Map.get(assigns, :current_scope)
+    user = Map.get(assigns, :current_user) || (current_scope && Map.get(current_scope, :user))
     active_role = if user, do: Accounts.get_active_role(user), else: nil
-    available_roles = if user, do: Accounts.get_user_roles(user), else: []
 
-    # ------------------------------------------------------------------
-    # 3. Current path – parent can pass it, otherwise fall back to nil
-    # ------------------------------------------------------------------
-    current_path =
-      case assigns[:current_path] do
-        nil -> nil
-        path -> path
-      end
-
-    # ------------------------------------------------------------------
-    # 4. Merge everything into the socket
-    # ------------------------------------------------------------------
-    {:ok,
-     socket
-     |> assign(assigns)                     # keep anything the parent sent
-     |> assign(:current_user, user)
-     |> assign(:active_role, active_role)
-     |> assign(:available_roles, available_roles)
-     |> assign(:current_path, current_path)
-     |> assign(:sidebar_open, true)
-     |> assign(:admin_open, false)
-     |> assign(:eams_open, false)
-     |> assign(:supervision_open, false)
-     |> assign(:show_role_switcher, false)}
+    socket
+      |> assign(:current_user, user)
+      |> assign(:active_role, active_role)
+      |> assign_new(:sidebar_open, fn -> false end)
+      |> assign_new(:available_roles, fn -> user && user.roles || [] end)
+      |> assign_new(:show_role_switcher, fn -> false end)
+      |> assign_new(:current_path, fn -> "/" end)
+      |> assign_new(:current_organization, fn -> nil end)
+      |> assign_new(:organizations, fn -> [] end)
+      |> assign_new(:page_title, fn -> Map.get(assigns, :page_title) end)
+      |> then(&{:ok, &1})
   end
 
   # ----------------------------------------------------------------------

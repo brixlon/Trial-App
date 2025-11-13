@@ -166,24 +166,30 @@ defmodule TrialAppWeb.UserAuth do
   # ──────────────────────────────────────────────────────────────────────
 
   defp mount_current_user(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_user, fn ->
-      case session["user_token"] do
-        nil ->
-          nil
+    socket =
+      Phoenix.Component.assign_new(socket, :current_user, fn ->
+        case session["user_token"] do
+          nil -> nil
+          token ->
+            case Accounts.get_user_by_session_token(token) do
+              {user, _inserted_at} ->
+                case Accounts.ensure_active_role(user) do
+                  {:ok, user_with_role} -> user_with_role
+                  _ -> user
+                end
+              _ -> nil
+            end
+        end
+      end)
 
-        token ->
-          case Accounts.get_user_by_session_token(token) do
-            {user, _inserted_at} ->
-              case Accounts.ensure_active_role(user) do
-                {:ok, user_with_role} -> user_with_role
-                _ -> user
-              end
+    socket =
+      Phoenix.Component.assign_new(socket, :current_scope, fn ->
+        Scope.for_user(Map.get(socket.assigns, :current_user))
+      end)
 
-            nil ->
-              nil
-          end
-      end
-    end)
+    # Guarantee :current_user for older templates/components that expect it
+    current_user = Map.get(socket.assigns, :current_user) || (socket.assigns.current_scope && socket.assigns.current_scope.user)
+    Phoenix.Component.assign(socket, :current_user, current_user)
   end
 
   defp ensure_user_token(conn) do

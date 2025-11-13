@@ -21,7 +21,7 @@ defmodule TrialAppWeb.Layouts do
       </head>
 
       <body class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 text-gray-800 font-inter">
-        <%= if @current_scope && @current_scope.user && @current_user.role == "admin" do %>
+        <%= if @current_scope && @current_scope.user && @current_scope.user.role == "admin" do %>
           <.admin_layout flash={@flash} current_user={@current_scope.user}>
             <%= render_slot(@inner_block) %>
           </.admin_layout>
