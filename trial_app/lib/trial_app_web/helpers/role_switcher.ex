@@ -18,7 +18,7 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
   def role_switcher(assigns) do
     ~H"""
     <div class={["flex gap-2 flex-wrap", @class]}>
-      <%= for role <- @current_scope.user.roles do %>
+      <%= for role <- @current_user.roles do %>
         <% active = @current_scope.active_role == role %>
         <button
           phx-click={JS.push("switch_role", value: %{role: role})}

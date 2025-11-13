@@ -17,12 +17,16 @@ defmodule TrialAppWeb.UserAuth do
 
   @session_reissue_age_in_days 7
 
+  # ──────────────────────────────────────────────────────────────────────
+  # PUBLIC: Login / Logout
+  # ──────────────────────────────────────────────────────────────────────
+
   def log_in_user(conn, user, params \\ %{}) do
     user_return_to = get_session(conn, :user_return_to)
 
     conn
     |> create_or_extend_session(user, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> Phoenix.Controller.redirect(to: user_return_to || signed_in_path(conn))
   end
 
   def log_out_user(conn) do
@@ -36,8 +40,12 @@ defmodule TrialAppWeb.UserAuth do
     conn
     |> renew_session(nil)
     |> delete_resp_cookie(@remember_me_cookie)
-    |> redirect(to: ~p"/")
+    |> Phoenix.Controller.redirect(to: ~p"/")
   end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PLUGS (safe to use Plug.Conn here)
+  # ──────────────────────────────────────────────────────────────────────
 
   def fetch_current_scope_for_user(conn, _opts) do
     with {token, conn} <- ensure_user_token(conn),
@@ -48,8 +56,134 @@ defmodule TrialAppWeb.UserAuth do
       |> assign(:current_scope, Scope.for_user(user_with_role))
       |> maybe_reissue_user_session_token(user_with_role, token_inserted_at)
     else
-      nil -> assign(conn, :current_scope, Scope.for_user(nil))
+      _ ->
+        assign(conn, :current_scope, Scope.for_user(nil))
     end
+  end
+
+  def require_authenticated_user(conn, _opts) do
+    if conn.assigns.current_scope && conn.assigns.current_scope.user do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You must log in to access this page.")
+      |> maybe_store_return_to()
+      |> Phoenix.Controller.redirect(to: ~p"/users/login")
+      |> halt()
+    end
+  end
+
+  def require_admin_user(conn, _opts) do
+    if conn.assigns.current_scope && conn.assigns.current_scope.user &&
+         conn.assigns.current_scope.user.role == "admin" do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You must be an administrator to access this page.")
+      |> Phoenix.Controller.redirect(to: ~p"/dashboard")
+      |> halt()
+    end
+  end
+
+  def require_supervisor_or_admin(conn, _opts) do
+    user = conn.assigns.current_scope && conn.assigns.current_scope.user
+    active_role = user && Accounts.get_active_role(user)
+
+    if user && active_role in ["admin", "supervisor"] do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You must be a supervisor or admin to access this page.")
+      |> Phoenix.Controller.redirect(to: ~p"/dashboard")
+      |> halt()
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # LIVEVIEW ON_MOUNT HOOKS (only safe assigns)
+  # ──────────────────────────────────────────────────────────────────────
+
+  def on_mount(:mount_current_user, _params, session, socket) do
+    {:cont, mount_current_user(socket, session)}
+  end
+
+  def on_mount(:require_authenticated, _params, session, socket) do
+    socket = mount_current_user(socket, session)
+
+    if socket.assigns.current_user do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+       |> Phoenix.LiveView.push_navigate(to: ~p"/users/login")}
+    end
+  end
+
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_user(socket, session)
+
+    if socket.assigns.current_user && socket.assigns.current_user.role == "admin" do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "You must be an administrator to access this page.")
+       |> Phoenix.LiveView.push_navigate(to: ~p"/dashboard")}
+    end
+  end
+
+  def on_mount(:require_supervisor_or_admin, _params, session, socket) do
+    socket = mount_current_user(socket, session)
+    user = socket.assigns.current_user
+    active_role = user && Accounts.get_active_role(user)
+
+    if user && active_role in ["admin", "supervisor"] do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "You must be a supervisor or admin to access this page.")
+       |> Phoenix.LiveView.push_navigate(to: ~p"/dashboard")}
+    end
+  end
+
+  def on_mount(:require_sudo_mode, _params, session, socket) do
+    socket = mount_current_user(socket, session)
+
+    if Accounts.sudo_mode?(socket.assigns.current_user, -10) do
+      {:cont, socket}
+    else
+      {:halt,
+       socket
+       |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
+       |> Phoenix.LiveView.push_navigate(to: ~p"/users/login")}
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────────
+  # PRIVATE HELPERS
+  # ──────────────────────────────────────────────────────────────────────
+
+  defp mount_current_user(socket, session) do
+    Phoenix.Component.assign_new(socket, :current_user, fn ->
+      case session["user_token"] do
+        nil ->
+          nil
+
+        token ->
+          case Accounts.get_user_by_session_token(token) do
+            {user, _inserted_at} ->
+              case Accounts.ensure_active_role(user) do
+                {:ok, user_with_role} -> user_with_role
+                _ -> user
+              end
+
+            nil ->
+              nil
+          end
+      end
+    end)
   end
 
   defp ensure_user_token(conn) do
@@ -59,12 +193,12 @@ defmodule TrialAppWeb.UserAuth do
 
       token = conn.params["user_token"] ->
         decoded_token = decode_url_token(token)
-        {decoded_token, conn |> put_token_in_session(decoded_token)}
+        {decoded_token, put_token_in_session(conn, decoded_token)}
 
       true ->
         conn = fetch_cookies(conn, signed: [@remember_me_cookie])
         if token = conn.cookies[@remember_me_cookie] do
-          {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
+          {token, put_token_in_session(conn, token) |> put_session(:user_remember_me, true)}
         else
           nil
         end
@@ -99,21 +233,20 @@ defmodule TrialAppWeb.UserAuth do
   end
 
   defp renew_session(conn, user) when is_map(user) do
-    case conn.assigns[:current_scope] do
-      %{user: %{id: user_id}} when user_id == user.id ->
-        conn
-      _ ->
-        delete_csrf_token()
+    current_user_id = conn.assigns.current_scope && conn.assigns.current_scope.user && conn.assigns.current_scope.user.id
 
-        conn
-        |> configure_session(renew: true)
-        |> clear_session()
+    if current_user_id == user.id do
+      conn
+    else
+      delete_csrf_token()
+      conn
+      |> configure_session(renew: true)
+      |> clear_session()
     end
   end
 
   defp renew_session(conn, nil) do
     delete_csrf_token()
-
     conn
     |> configure_session(renew: true)
     |> clear_session()
@@ -128,9 +261,7 @@ defmodule TrialAppWeb.UserAuth do
   defp maybe_write_remember_me_cookie(conn, _token, _params, _), do: conn
 
   defp write_remember_me_cookie(conn, token) do
-    conn
-    |> put_session(:user_remember_me, true)
-    |> put_resp_cookie(@remember_me_cookie, token, @remember_me_options)
+    put_resp_cookie(conn, @remember_me_cookie, token, @remember_me_options)
   end
 
   defp put_token_in_session(conn, token) do
@@ -147,100 +278,13 @@ defmodule TrialAppWeb.UserAuth do
 
   defp user_session_topic(token), do: "users_sessions:#{Base.url_encode64(token)}"
 
-  def on_mount(:mount_current_scope, _params, session, socket) do
-    {:cont, mount_current_scope(socket, session)}
-  end
+  # ──────────────────────────────────────────────────────────────────────
+  # ROUTING HELPERS
+  # ──────────────────────────────────────────────────────────────────────
 
-  def on_mount(:require_authenticated, _params, session, socket) do
-    socket = mount_current_scope(socket, session)
-
-    if socket.assigns.current_scope && socket.assigns.current_scope.user do
-      {:cont, socket}
-    else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/login")
-
-      {:halt, socket}
-    end
-  end
-
-  def on_mount(:require_admin, _params, session, socket) do
-    socket = mount_current_scope(socket, session)
-
-    if socket.assigns.current_scope && socket.assigns.current_scope.user &&
-         socket.assigns.current_scope.user.role == "admin" do
-      {:cont, socket}
-    else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(:error, "You must be an administrator to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/dashboard")
-
-      {:halt, socket}
-    end
-  end
-
-  # Allow both admin AND supervisor to access supervisor pages
-  def on_mount(:require_supervisor_or_admin, _params, session, socket) do
-    socket = mount_current_scope(socket, session)
-
-    user = socket.assigns.current_scope.user
-    active_role = if user, do: Accounts.get_active_role(user), else: nil
-
-    if user && active_role in ["admin", "supervisor"] do
-      {:cont, socket}
-    else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(:error, "You must be a supervisor or admin to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/dashboard")
-
-      {:halt, socket}
-    end
-  end
-
-  def on_mount(:require_sudo_mode, _params, session, socket) do
-    socket = mount_current_scope(socket, session)
-
-    if Accounts.sudo_mode?(socket.assigns.current_scope.user, -10) do
-      {:cont, socket}
-    else
-      socket =
-        socket
-        |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/login")
-
-      {:halt, socket}
-    end
-  end
-
-  defp mount_current_scope(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      user =
-        case session["user_token"] do
-          nil ->
-            nil
-          token ->
-            case Accounts.get_user_by_session_token(token) do
-              {u, _} ->
-                case Accounts.ensure_active_role(u) do
-                  {:ok, user_with_role} -> user_with_role
-                  _ -> u
-                end
-              nil ->
-                nil
-            end
-        end
-      Scope.for_user(user)
-    end)
-  end
-
-  def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
-      }) when not is_nil(active_role) do
-    case active_role do
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: role}}}})
+      when not is_nil(role) do
+    case role do
       "admin" -> ~p"/admin/dashboard"
       "supervisor" -> ~p"/supervisor/dashboard"
       "attachee" -> ~p"/attachee"
@@ -249,9 +293,7 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-  def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{role: "admin"}}}
-      }) do
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{role: "admin"}}}}) do
     ~p"/admin/dashboard"
   end
 
@@ -260,31 +302,6 @@ defmodule TrialAppWeb.UserAuth do
   end
 
   def signed_in_path(_), do: ~p"/dashboard"
-
-  def require_authenticated_user(conn, _opts) do
-    if conn.assigns.current_scope && conn.assigns.current_scope.user do
-      conn
-    else
-      conn
-      |> put_flash(:error, "You must log in to access this page.")
-      |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/login")
-      |> halt()
-    end
-  end
-
-  # FIXED: Use `conn`, not `socket`
-  def require_admin_user(conn, _opts) do
-    if conn.assigns.current_scope && conn.assigns.current_scope.user &&
-         conn.assigns.current_scope.user.role == "admin" do
-      conn
-    else
-      conn
-      |> put_flash(:error, "You must be an administrator to access this page.")
-      |> redirect(to: ~p"/dashboard")
-      |> halt()
-    end
-  end
 
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))

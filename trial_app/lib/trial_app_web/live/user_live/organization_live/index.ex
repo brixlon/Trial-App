@@ -5,55 +5,61 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   import Ecto.Query
 
   @impl true
-  def mount(_params, _session, socket) do
-    IO.puts("===== MOUNT CALLED - CODE IS LOADED =====")
-    current_user = socket.assigns.current_scope.user
+@impl true
+@impl true
+def mount(_params, _session, socket) do
+  IO.puts("===== MOUNT CALLED - CODE IS LOADED =====")
+  current_user = socket.assigns.current_user
 
-    if current_user.status == "pending" do
-      {:ok, socket |> assign(:user_status, "pending") |> assign(:has_assignments, false)}
-    else
-      # Load organizations with preloaded departments and teams
-      organizations = load_organizations_with_counts()
-      IO.inspect(Enum.count(organizations), label: "ORGANIZATIONS COUNT ON MOUNT")
+  if current_user.status == "pending" do
+    {:ok, socket
+     |> assign(:user_status, "pending")
+     |> assign(:has_assignments, false)
+     |> assign(:current_path, "/organizations")}  # Add this line
+  else
+    # Load organizations with preloaded departments and teams
+    organizations = load_organizations_with_counts()
+    IO.inspect(Enum.count(organizations), label: "ORGANIZATIONS COUNT ON MOUNT")
 
-      # Calculate total counts
-      total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
-      total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
+    # Calculate total counts
+    total_departments = Repo.aggregate(from(d in TrialApp.Orgs.Department), :count)
+    total_teams = Repo.aggregate(from(t in TrialApp.Orgs.Team), :count)
 
-      {:ok,
-       socket
-       |> assign(:user_status, "active")
-       |> assign(:has_assignments, true)
-       |> assign(:view, :list)
-       |> assign(:selected_org, nil)
-       |> assign(:selected_org_departments, [])
-       |> assign(:selected_org_teams, [])
-       |> assign(:selected_department, nil)
-       |> assign(:selected_team, nil)
-       |> assign(:department_employees, [])
-       |> assign(:team_employees, [])
-       |> assign(:show_departments, false)
-       |> assign(:show_teams, false)
-       |> assign(:show_department_detail, false)
-       |> assign(:show_team_detail, false)
-       |> assign(:show_org_form, false)
-       |> assign(:show_dept_form, false)
-       |> assign(:show_team_form, false)
-       |> assign(:org_form_data, %{name: "", description: ""})
-       |> assign(:dept_form_data, %{name: "", description: ""})
-       |> assign(:team_form_data, %{name: "", description: "", department_id: ""})
-       |> assign(:errors, %{})
-       |> assign(:editing_org_id, nil)
-       |> assign(:editing_dept_id, nil)
-       |> assign(:editing_team_id, nil)
-       |> assign(:show_add_user_modal, false)
-       |> assign(:current_team_id, nil)
-       |> assign(:available_users, [])
-       |> assign(:total_departments, total_departments)
-       |> assign(:total_teams, total_teams)
-       |> assign(:organizations, organizations)}
-    end
+    {:ok,
+     socket
+     |> assign(:current_path, "/organizations")  # Add this line at the top
+     |> assign(:user_status, "active")
+     |> assign(:has_assignments, true)
+     |> assign(:view, :list)
+     |> assign(:selected_org, nil)
+     |> assign(:selected_org_departments, [])
+     |> assign(:selected_org_teams, [])
+     |> assign(:selected_department, nil)
+     |> assign(:selected_team, nil)
+     |> assign(:department_employees, [])
+     |> assign(:team_employees, [])
+     |> assign(:show_departments, false)
+     |> assign(:show_teams, false)
+     |> assign(:show_department_detail, false)
+     |> assign(:show_team_detail, false)
+     |> assign(:show_org_form, false)
+     |> assign(:show_dept_form, false)
+     |> assign(:show_team_form, false)
+     |> assign(:org_form_data, %{name: "", description: ""})
+     |> assign(:dept_form_data, %{name: "", description: ""})
+     |> assign(:team_form_data, %{name: "", description: "", department_id: ""})
+     |> assign(:errors, %{})
+     |> assign(:editing_org_id, nil)
+     |> assign(:editing_dept_id, nil)
+     |> assign(:editing_team_id, nil)
+     |> assign(:show_add_user_modal, false)
+     |> assign(:current_team_id, nil)
+     |> assign(:available_users, [])
+     |> assign(:total_departments, total_departments)
+     |> assign(:total_teams, total_teams)
+     |> assign(:organizations, organizations)}
   end
+end
 
   # Helper function to load organizations with all necessary counts
   defp load_organizations_with_counts do
@@ -616,14 +622,25 @@ defmodule TrialAppWeb.OrganizationLive.Index do
   end
 
   def handle_event("back_to_list", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:view, :list)
-     |> assign(:selected_org, nil)
-     |> assign(:show_departments, false)
-     |> assign(:show_teams, false)
-     |> assign(:show_department_detail, false)
-     |> assign(:show_team_detail, false)}
+    # If we're in departments or teams view, go back to org detail view
+    # Otherwise, go back to the organization list
+    if socket.assigns.show_departments or socket.assigns.show_teams do
+      {:noreply,
+       socket
+       |> assign(:show_departments, false)
+       |> assign(:show_teams, false)
+       |> assign(:show_department_detail, false)
+       |> assign(:show_team_detail, false)}
+    else
+      {:noreply,
+       socket
+       |> assign(:view, :list)
+       |> assign(:selected_org, nil)
+       |> assign(:show_departments, false)
+       |> assign(:show_teams, false)
+       |> assign(:show_department_detail, false)
+       |> assign(:show_team_detail, false)}
+    end
   end
 
   def handle_event("show_departments", _params, socket) do

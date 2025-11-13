@@ -3,48 +3,73 @@ defmodule TrialAppWeb.SidebarComponent do
 
   alias TrialApp.Accounts
 
-  def mount(socket) do
+  # ----------------------------------------------------------------------
+  # No mount – we only need data that comes from the parent
+  # ----------------------------------------------------------------------
+  def update(assigns, socket) do
+    # ------------------------------------------------------------------
+    # 1. Pull the **safe** user from the parent LiveView
+    # ------------------------------------------------------------------
+    user = assigns.current_user
+
+    # ------------------------------------------------------------------
+    # 2. Compute role info (same as before)
+    # ------------------------------------------------------------------
+    active_role = if user, do: Accounts.get_active_role(user), else: nil
+    available_roles = if user, do: Accounts.get_user_roles(user), else: []
+
+    # ------------------------------------------------------------------
+    # 3. Current path – parent can pass it, otherwise fall back to nil
+    # ------------------------------------------------------------------
+    current_path =
+      case assigns[:current_path] do
+        nil -> nil
+        path -> path
+      end
+
+    # ------------------------------------------------------------------
+    # 4. Merge everything into the socket
+    # ------------------------------------------------------------------
     {:ok,
      socket
+     |> assign(assigns)                     # keep anything the parent sent
+     |> assign(:current_user, user)
+     |> assign(:active_role, active_role)
+     |> assign(:available_roles, available_roles)
+     |> assign(:current_path, current_path)
      |> assign(:sidebar_open, true)
      |> assign(:admin_open, false)
      |> assign(:eams_open, false)
      |> assign(:supervision_open, false)
-     |> assign(:show_role_switcher, false)
-     |> assign(:active_role, nil)
-     |> assign(:available_roles, [])
-     |> assign(:current_path, nil)}
+     |> assign(:show_role_switcher, false)}
   end
 
-  def update(assigns, socket) do
-    user = assigns.current_scope.user
-    active_role = Accounts.get_active_role(user)
-    available_roles = Accounts.get_user_roles(user)
+  # ----------------------------------------------------------------------
+  # Event handlers (unchanged)
+  # ----------------------------------------------------------------------
+  def handle_event("toggle_sidebar", _params, socket),
+    do: {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
 
-    current_path = case assigns[:uri] do
-      nil -> nil
-      uri -> uri.path
-    end
+  def handle_event("toggle_admin", _params, socket),
+    do: {:noreply, assign(socket, :admin_open, !socket.assigns.admin_open)}
 
-    {:ok,
-     socket
-     |> assign(assigns)
-     |> assign(:active_role, active_role)
-     |> assign(:available_roles, available_roles)
-     |> assign(:current_path, current_path)}
-  end
+  def handle_event("toggle_eams", _params, socket),
+    do: {:noreply, assign(socket, :eams_open, !socket.assigns.eams_open)}
 
-  def handle_event("toggle_sidebar", _params, socket), do: {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
-  def handle_event("toggle_admin", _params, socket), do: {:noreply, assign(socket, :admin_open, !socket.assigns.admin_open)}
-  def handle_event("toggle_eams", _params, socket), do: {:noreply, assign(socket, :eams_open, !socket.assigns.eams_open)}
-  def handle_event("toggle_supervision", _params, socket), do: {:noreply, assign(socket, :supervision_open, !socket.assigns.supervision_open)}
-  def handle_event("toggle_role_switcher", _params, socket), do: {:noreply, assign(socket, :show_role_switcher, !socket.assigns.show_role_switcher)}
+  def handle_event("toggle_supervision", _params, socket),
+    do: {:noreply, assign(socket, :supervision_open, !socket.assigns.supervision_open)}
+
+  def handle_event("toggle_role_switcher", _params, socket),
+    do: {:noreply, assign(socket, :show_role_switcher, !socket.assigns.show_role_switcher)}
 
   def handle_event("switch_role", %{"role" => role}, socket) do
     send(self(), {:switch_role, role})
     {:noreply, assign(socket, :show_role_switcher, false)}
   end
 
+  # ----------------------------------------------------------------------
+  # Helper functions (unchanged)
+  # ----------------------------------------------------------------------
   defp role_display_name(role) do
     case role do
       "admin" -> "Administrator"
@@ -76,12 +101,17 @@ defmodule TrialAppWeb.SidebarComponent do
     end
   end
 
+  # ----------------------------------------------------------------------
+  # Render – now uses `@current_user` and `@active_role`
+  # ----------------------------------------------------------------------
   def render(assigns) do
     ~H"""
     <div>
       <!-- Sidebar -->
       <aside
-        class={"#{if @sidebar_open, do: "translate-x-0", else: "-translate-x-full"} w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-xl border-r border-purple-200 z-40 transition-transform duration-300"}
+        class={
+          "#{if @sidebar_open, do: "translate-x-0", else: "-translate-x-full"} w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 h-screen fixed top-0 left-0 p-6 shadow-xl border-r border-purple-200 z-40 transition-transform duration-300"
+        }
       >
         <!-- Logo -->
         <div class="mb-6 text-center">
@@ -246,12 +276,20 @@ defmodule TrialAppWeb.SidebarComponent do
           <div class="flex items-center space-x-3">
             <div class="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center">
               <span class="text-purple-700 font-bold text-sm">
-                {String.at(@current_scope.user.username || @current_scope.user.email, 0) |> String.upcase()}
+                <%= if @current_user do %>
+                  {String.at(@current_user.username || @current_user.email, 0) |> String.upcase()}
+                <% else %>
+                  ?
+                <% end %>
               </span>
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-gray-800 truncate">
-                {@current_scope.user.username || @current_scope.user.email}
+                <%= if @current_user do %>
+                  <%= @current_user.username || @current_user.email %>
+                <% else %>
+                  Guest
+                <% end %>
               </p>
               <p class="text-xs text-purple-600 truncate">
                 {role_display_name(@active_role)}

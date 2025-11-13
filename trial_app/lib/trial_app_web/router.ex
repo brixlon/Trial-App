@@ -12,7 +12,7 @@ defmodule TrialAppWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :put_custom_permissions_policy
-    plug :fetch_current_scope_for_user
+    plug :fetch_current_scope_for_user  # Safe: only for Plugs (conn.assigns)
   end
 
   pipeline :api do
@@ -43,7 +43,7 @@ defmodule TrialAppWeb.Router do
 
     # ──── PUBLIC LIVEVIEW ROUTES ────
     live_session :current_user,
-      on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
+      on_mount: [{TrialAppWeb.UserAuth, :mount_current_user}] do
       live "/users/register", UserLive.Registration, :new
       live "/users/force-reset/:token", ForcePasswordResetLive, :show
       live "/users/reset-password/:token", UserLive.ResetPassword, :show
@@ -59,7 +59,10 @@ defmodule TrialAppWeb.Router do
     get "/uploads/task_submissions/:filename", DownloadController, :download_task_submission
 
     live_session :require_authenticated_user,
-      on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
+      on_mount: [
+        {TrialAppWeb.UserAuth, :mount_current_user},
+        {TrialAppWeb.UserAuth, :require_authenticated}
+      ] do
 
       live "/dashboard", DashboardLive, :index
 
@@ -84,6 +87,7 @@ defmodule TrialAppWeb.Router do
     # SUPERVISOR ROUTES (allows both supervisor AND admin)
     live_session :supervisor_or_admin,
       on_mount: [
+        {TrialAppWeb.UserAuth, :mount_current_user},
         {TrialAppWeb.UserAuth, :require_authenticated},
         {TrialAppWeb.UserAuth, :require_supervisor_or_admin}
       ] do
@@ -103,6 +107,7 @@ defmodule TrialAppWeb.Router do
 
     live_session :admin,
       on_mount: [
+        {TrialAppWeb.UserAuth, :mount_current_user},
         {TrialAppWeb.UserAuth, :require_authenticated},
         {TrialAppWeb.UserAuth, :require_admin}
       ] do
