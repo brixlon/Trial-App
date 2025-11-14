@@ -583,6 +583,14 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
                   </div>
                 <% end %>
               </div>
+
+              <!-- Announcements Widget -->
+              <.live_component
+                module={TrialAppWeb.AnnouncementsWidget}
+                id="attachee-announcements"
+                current_user={@current_scope.user}
+                active_role={TrialApp.Accounts.get_active_role(@current_scope.user)}
+              />
             </div>
           <% else %>
             <!-- No Attachee Profile -->

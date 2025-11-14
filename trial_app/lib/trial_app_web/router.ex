@@ -68,6 +68,9 @@ defmodule TrialAppWeb.Router do
       live "/attachee/tasks", AttacheeTasksLive, :index
       live "/attachee/profile", AttacheeProfileLive, :show
 
+      # ANNOUNCEMENTS - Available to admin, supervisor, and attachee roles
+      live "/announcements", AnnouncementLive.Index, :index
+
       # GENERAL
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
@@ -92,6 +95,7 @@ defmodule TrialAppWeb.Router do
       live "/supervisor/team", SupervisorLive.Team, :index
       live "/supervisor/attachees", SupervisorLive.Attachees, :index
       live "/supervisor/tasks", SupervisorLive.Tasks, :index
+      live "/supervisor/projects", SupervisorLive.Projects, :index
     end
   end
 

@@ -347,6 +347,14 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
               <% end %>
             </div>
           </div>
+
+          <!-- Announcements Widget -->
+          <.live_component
+            module={TrialAppWeb.AnnouncementsWidget}
+            id="supervisor-announcements"
+            current_user={@current_user}
+            active_role={@active_role}
+          />
         </div>
       </div>
 
@@ -388,7 +396,8 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   defp status_color(_), do: "bg-gray-100 text-gray-800"
 
   defp format_date(nil), do: "Not set"
-defp format_date(date), do: Calendar.strftime(date, "%b %d, %Y")
+  defp format_date(date), do: Calendar.strftime(date, "%b %d, %Y")
+
   defp status_indicator("pending"), do: "bg-yellow-500"
   defp status_indicator("in_progress"), do: "bg-blue-500"
   defp status_indicator("completed"), do: "bg-green-500"
