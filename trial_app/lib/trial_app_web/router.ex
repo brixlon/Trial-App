@@ -73,6 +73,9 @@ defmodule TrialAppWeb.Router do
       # ANNOUNCEMENTS - Available to admin, supervisor, and attachee roles
       live "/announcements", AnnouncementLive.Index, :index
 
+      # ANNOUNCEMENTS - Available to admin, supervisor, and attachee roles
+      live "/announcements", AnnouncementLive.Index, :index
+
       # GENERAL
       live "/organizations", OrganizationLive.Index, :index
       live "/organizations/:id", OrganizationLive.Index, :show
