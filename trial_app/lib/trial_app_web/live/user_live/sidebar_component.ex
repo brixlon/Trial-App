@@ -39,12 +39,7 @@ defmodule TrialAppWeb.SidebarComponent do
 
     {:ok,
      socket
-<<<<<<< HEAD
-     |> assign(:current_scope, assigns.current_scope)
-     |> assign(:id, assigns.id)
-=======
      |> assign(safe_assigns)
->>>>>>> main
      |> assign(:active_role, active_role)
      |> assign(:available_roles, available_roles)
      |> assign(:current_path, current_path)
