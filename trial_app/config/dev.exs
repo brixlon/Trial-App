@@ -3,7 +3,7 @@ import Config
 # Configure your database
 config :trial_app, TrialApp.Repo,
   username: "postgres",
-  password: "developer",
+  password: "postgres",
   hostname: "localhost",
   database: "trial_app_dev",
   stacktrace: true,
@@ -65,4 +65,3 @@ config :phoenix_live_view,
   debug_heex_annotations: true,
   debug_attributes: true,
   enable_expensive_runtime_checks: true
-  
