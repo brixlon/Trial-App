@@ -6,7 +6,16 @@ import Config
 # and secrets from environment variables or elsewhere. Do not define
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
+import Config
 
+# Configure Swoosh for production (using environment variable)
+if config_env() == :prod do
+  config :trial_app, TrialApp.Mailer,
+    adapter: Swoosh.Adapters.Resend,
+    api_key: System.get_env("RESEND_API_KEY")
+
+  config :swoosh, :api_client, Swoosh.ApiClient.Hackney
+end
 # ## Using releases
 #
 # If you use `mix release`, you need to explicitly enable the server
