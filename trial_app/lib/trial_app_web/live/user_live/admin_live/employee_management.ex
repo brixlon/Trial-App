@@ -1,6 +1,6 @@
 defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   use TrialAppWeb, :live_view
-  alias TrialApp.{Orgs, Repo, Emails}
+  alias TrialApp.{Orgs, Repo, Emails, Accounts}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -20,18 +20,38 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      |> assign(:page_title, "Employee Management")
      |> assign(:departments, departments)
      |> assign(:search, "")
-     |> assign(:selected_department, "")
+     |> assign(:selected_department, nil)
      |> assign(:view_mode, "department")
      |> assign(:expanded_departments, %{})
      |> assign(:total_employees, length(employees))
      |> assign(:active_count, active_count)
      |> assign(:teams_count, teams_count)
-     # New modal assigns
+     # Modal assigns for creating
      |> assign(:show_create_modal, false)
      |> assign(:selected_user_type, nil)
-     |> assign(:attachee_form, %{})
+     |> assign(:attachee_form, init_attachee_form())
+     |> assign(:available_users, [])
      |> assign(:email_error, nil)
-     |> assign(:creating_attachee, false)}
+     |> assign(:creating_attachee, false)
+     # Modal assigns for editing
+     |> assign(:show_modal, false)
+     |> assign(:editing_employee, nil)
+     |> assign(:changeset, nil)}
+  end
+
+  # Initialize empty attachee form
+  defp init_attachee_form do
+    %{
+      user_id: nil,
+      full_name: "",
+      email: "",
+      organization: "",
+      department_id: nil,
+      program: "",
+      start_date: Date.utc_today() |> Date.to_string(),
+      end_date: Date.utc_today() |> Date.add(90) |> Date.to_string(),
+      errors: %{}
+    }
   end
 
   @impl true
@@ -41,6 +61,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
   @impl true
   def handle_event("filter_department", %{"filter" => %{"department_id" => dept_id}}, socket) do
+    dept_id = if dept_id == "", do: nil, else: dept_id
     {:noreply, assign(socket, :selected_department, dept_id)}
   end
 
@@ -59,53 +80,111 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   end
 
   @impl true
+  def handle_event("clear_search", _params, socket) do
+    {:noreply, assign(socket, :search, "")}
+  end
+
+  @impl true
+  def handle_event("clear_department_filter", _params, socket) do
+    {:noreply, assign(socket, :selected_department, nil)}
+  end
+
+  @impl true
+  def handle_event("clear_all_filters", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:search, "")
+     |> assign(:selected_department, nil)}
+  end
+
+  @impl true
   def handle_event("view_employee", %{"id" => id}, socket) do
     {:noreply, push_navigate(socket, to: ~p"/admin/employees/#{id}")}
   end
 
   @impl true
   def handle_event("edit_employee", %{"id" => id}, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/admin/employees/#{id}/edit")}
+    employee = Orgs.get_employee!(id) |> Repo.preload([:user, :team, :department, :organization])
+    changeset = Orgs.change_employee(employee)
+
+    {:noreply,
+     socket
+     |> assign(:show_modal, true)
+     |> assign(:editing_employee, employee)
+     |> assign(:changeset, changeset)}
+  end
+
+  @impl true
+  def handle_event("save_employee", %{"employee" => employee_params}, socket) do
+    employee = socket.assigns.editing_employee
+
+    case Orgs.update_employee(employee, employee_params) do
+      {:ok, _employee} ->
+        {:noreply,
+         socket
+         |> assign(:show_modal, false)
+         |> assign(:editing_employee, nil)
+         |> assign(:changeset, nil)
+         |> reload_statistics()
+         |> put_flash(:info, "Employee updated successfully")}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :changeset, changeset)}
+    end
+  end
+
+  @impl true
+  def handle_event("close_edit_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_modal, false)
+     |> assign(:editing_employee, nil)
+     |> assign(:changeset, nil)}
   end
 
   @impl true
   def handle_event("delete_employee", %{"id" => id}, socket) do
     employee = Orgs.get_employee!(id)
 
-    case Orgs.delete_employee(employee) do
+    case Orgs.permanently_delete_employee(employee) do
       {:ok, _employee} ->
-        # Reload data to reflect changes
-        departments = load_departments()
-        employees = Orgs.list_employees()
-        active_count = Enum.count(employees, & &1.is_active)
-        teams_count =
-          departments
-          |> Enum.flat_map(& &1.teams)
-          |> Enum.uniq_by(& &1.id)
-          |> length()
-
         {:noreply,
          socket
-         |> assign(:departments, departments)
-         |> assign(:total_employees, length(employees))
-         |> assign(:active_count, active_count)
-         |> assign(:teams_count, teams_count)
-         |> put_flash(:info, "Employee removed successfully")}
+         |> reload_statistics()
+         |> put_flash(:info, "Employee permanently deleted")}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to remove employee")}
+      {:error, changeset} ->
+        error_msg = extract_error_message(changeset)
+        {:noreply, put_flash(socket, :error, error_msg)}
     end
   end
 
-  # ========== NEW MODAL EVENT HANDLERS ==========
+  @impl true
+  def handle_event("toggle_employee_status", %{"id" => id}, socket) do
+    employee = Orgs.get_employee!(id)
 
+    case Orgs.toggle_employee_status(employee) do
+      {:ok, updated_employee} ->
+        status = if updated_employee.is_active, do: "activated", else: "deactivated"
+
+        {:noreply,
+         socket
+         |> reload_statistics()
+         |> put_flash(:info, "Employee #{status} successfully")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to update employee status")}
+    end
+  end
+
+  # Modal Events for Creating
   @impl true
   def handle_event("open_create_modal", _params, socket) do
     {:noreply,
      socket
      |> assign(:show_create_modal, true)
      |> assign(:selected_user_type, nil)
-     |> assign(:attachee_form, %{})
+     |> assign(:attachee_form, init_attachee_form())
      |> assign(:email_error, nil)}
   end
 
@@ -115,11 +194,12 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      socket
      |> assign(:show_create_modal, false)
      |> assign(:selected_user_type, nil)
-     |> assign(:attachee_form, %{})
+     |> assign(:attachee_form, init_attachee_form())
      |> assign(:email_error, nil)
      |> assign(:creating_attachee, false)}
   end
 
+  # Handle click propagation stop (no-op, just prevents event bubbling)
   @impl true
   def handle_event("stop_propagation", _params, socket) do
     # Prevents modal from closing when clicking inside it
@@ -127,114 +207,204 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   end
 
   @impl true
-  def handle_event("select_user_type", %{"type" => "employee"}, socket) do
-    # Navigate to existing employee creation page
-    {:noreply, push_navigate(socket, to: ~p"/admin/employees/new")}
-  end
+  def handle_event("select_user_type", %{"type" => type}, socket) do
+    case type do
+      "employee" ->
+        {:noreply, push_navigate(socket, to: ~p"/admin/employees/new")}
 
-  @impl true
-  def handle_event("select_user_type", %{"type" => "attachee"}, socket) do
-    {:noreply, assign(socket, :selected_user_type, "attachee")}
-  end
+      "attachee" ->
+        # Load available users when showing attachee form
+        available_users = load_available_users()
 
-  @impl true
-  def handle_event("create_attachee", %{"attachee" => attachee_params}, socket) do
-    # Set creating state to show loading spinner
-    socket = assign(socket, :creating_attachee, true)
-
-    # Validate email uniqueness
-    case validate_unique_email(attachee_params["email"]) do
-      {:error, message} ->
         {:noreply,
          socket
-         |> assign(:email_error, message)
-         |> assign(:creating_attachee, false)
-         |> assign(:attachee_form, attachee_params)}
+         |> assign(:selected_user_type, type)
+         |> assign(:available_users, available_users)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  # Handle user selection in attachee form
+  @impl true
+  def handle_event("attachee_user_selected", %{"attachee" => %{"user_id" => user_id}}, socket) do
+    form = socket.assigns.attachee_form
+
+    updated_form =
+      if user_id == "new" do
+        # Clear user-related fields for new user
+        form
+        |> Map.put(:user_id, "new")
+        |> Map.put(:full_name, "")
+        |> Map.put(:email, "")
+      else
+        # Load selected user data
+        case Accounts.get_user(user_id) do
+          nil ->
+            form |> Map.put(:user_id, user_id)
+
+          user ->
+            form
+            |> Map.put(:user_id, user_id)
+            |> Map.put(:full_name, user.full_name || "")
+            |> Map.put(:email, user.email || "")
+        end
+      end
+
+    {:noreply,
+     socket
+     |> assign(:attachee_form, updated_form)
+     |> assign(:email_error, nil)}
+  end
+
+  # Validate attachee form on change
+  @impl true
+  def handle_event("validate_attachee", %{"attachee" => params}, socket) do
+    form = socket.assigns.attachee_form
+
+    # Update form with new values
+    updated_form = Map.merge(form, %{
+      user_id: params["user_id"],
+      full_name: params["full_name"] || "",
+      email: params["email"] || "",
+      organization: params["organization"] || "",
+      department_id: params["department_id"],
+      program: params["program"] || "",
+      start_date: params["start_date"] || form.start_date,
+      end_date: params["end_date"] || form.end_date
+    })
+
+    # Validate email if provided and creating new user
+    email_error =
+      if updated_form.user_id == "new" && updated_form.email != "" do
+        case validate_unique_email(updated_form.email) do
+          {:error, message} -> message
+          :ok -> nil
+        end
+      else
+        nil
+      end
+
+    # Basic field validations
+    errors = validate_attachee_fields(updated_form)
+
+    {:noreply,
+     socket
+     |> assign(:attachee_form, Map.put(updated_form, :errors, errors))
+     |> assign(:email_error, email_error)}
+  end
+
+  @impl true
+  def handle_event("create_attachee", %{"attachee" => params}, socket) do
+    # Final validation
+    case validate_attachee_submission(params) do
+      {:error, message} ->
+        {:noreply, assign(socket, :email_error, message)}
 
       :ok ->
-        # Generate secure password
+        socket = assign(socket, :creating_attachee, true)
         password = generate_secure_password()
 
-        # Prepare attachee data
-        attachee_data = %{
-          full_name: attachee_params["full_name"],
-          email: attachee_params["email"],
-          organization: attachee_params["organization"],
-          department_id: attachee_params["department_id"],
-          program: attachee_params["program"],
-          password: password,
-          is_active: true
-        }
+        # Convert string keys to atom keys and add password
+        attachee_params =
+          params
+          |> atomize_keys()
+          |> Map.put(:password, password)
 
-        # Create attachee
-        case Orgs.create_attachee(attachee_data) do
+        case Orgs.create_attachee(attachee_params) do
           {:ok, attachee} ->
-            # Preload the user association to access email
-            attachee = Repo.preload(attachee, :user)
-
-            # === SEND MAGIC LINK EMAIL (NO PLAIN PASSWORD) ===
-            case Emails.attachee_credentials_email(attachee, password) |> TrialApp.Mailer.deliver() do
-              {:ok, _} ->
-                # Reload data
-                departments = load_departments()
-                employees = Orgs.list_employees()
-                active_count = Enum.count(employees, & &1.is_active)
-
-                {:noreply,
-                 socket
-                 |> assign(:show_create_modal, false)
-                 |> assign(:selected_user_type, nil)
-                 |> assign(:attachee_form, %{})
-                 |> assign(:email_error, nil)
-                 |> assign(:creating_attachee, false)
-                 |> assign(:departments, departments)
-                 |> assign(:total_employees, length(employees))
-                 |> assign(:active_count, active_count)
-                 |> put_flash(:info, "Attachee created! Magic link sent to #{attachee.user.email}. Check mailbox at http://localhost:4000/dev/mailbox")}
-
-              {:error, reason} ->
-                # Reload data even if email failed
-                departments = load_departments()
-                employees = Orgs.list_employees()
-                active_count = Enum.count(employees, & &1.is_active)
-
-                {:noreply,
-                 socket
-                 |> assign(:show_create_modal, false)
-                 |> assign(:selected_user_type, nil)
-                 |> assign(:attachee_form, %{})
-                 |> assign(:email_error, nil)
-                 |> assign(:creating_attachee, false)
-                 |> assign(:departments, departments)
-                 |> assign(:total_employees, length(employees))
-                 |> assign(:active_count, active_count)
-                 |> put_flash(:warning, "Attachee created but failed to send email to #{attachee.user.email}. Error: #{inspect(reason)}")}
-            end
+            handle_attachee_creation_success(socket, attachee, password)
 
           {:error, changeset} ->
-            error_message = extract_error_message(changeset)
-
             {:noreply,
              socket
              |> assign(:creating_attachee, false)
-             |> assign(:attachee_form, attachee_params)
-             |> put_flash(:error, "Failed to create attachee: #{error_message}")}
+             |> assign(:email_error, extract_error_message(changeset))}
         end
     end
   end
 
-  # ========== PRIVATE HELPER FUNCTIONS ==========
+  # Private helper functions
+
+  # Convert string keys to atom keys for Ecto
+  defp atomize_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
+      {key, value} -> {key, value}
+    end)
+  rescue
+    ArgumentError ->
+      # If atom doesn't exist, fall back to creating it
+      Map.new(map, fn
+        {key, value} when is_binary(key) -> {String.to_atom(key), value}
+        {key, value} -> {key, value}
+      end)
+  end
 
   defp load_departments do
     Orgs.list_departments()
     |> Repo.preload(employees: [:user, :team])
   end
 
-  # Validate if email is unique across employees and attachees
+  # Load all users from database for selection
+  defp load_available_users do
+    # Load all users from the database
+    # You can filter this later if needed (e.g., only active users, users without attachee records, etc.)
+    Accounts.list_users()
+  end
+
+  # Validate attachee form fields
+  defp validate_attachee_fields(form) do
+    errors = %{}
+
+    errors = if String.trim(form.full_name || "") == "",
+      do: Map.put(errors, :full_name, "Full name is required"),
+      else: errors
+
+    errors = if String.trim(form.email || "") == "",
+      do: Map.put(errors, :email, "Email is required"),
+      else: errors
+
+    errors = if String.trim(form.organization || "") == "",
+      do: Map.put(errors, :organization, "Organization is required"),
+      else: errors
+
+    errors = if is_nil(form.department_id) || form.department_id == "",
+      do: Map.put(errors, :department_id, "Department is required"),
+      else: errors
+
+    errors = if String.trim(form.program || "") == "",
+      do: Map.put(errors, :program, "Program is required"),
+      else: errors
+
+    errors
+  end
+
+  # Validate attachee submission
+  defp validate_attachee_submission(params) do
+    email = params["email"] |> String.trim() |> String.downcase()
+
+    cond do
+      params["user_id"] == "new" && Orgs.email_exists_in_employees?(email) ->
+        {:error, "This email is already registered as an employee"}
+
+      params["user_id"] == "new" && Orgs.email_exists_in_attachees?(email) ->
+        {:error, "This email is already registered as an attachee"}
+
+      true ->
+        :ok
+    end
+  end
+
+  # Validate if email is unique
   defp validate_unique_email(email) do
     email = String.trim(email) |> String.downcase()
 
     cond do
+      email == "" ->
+        :ok
+
       Orgs.email_exists_in_employees?(email) ->
         {:error, "This email is already registered as an employee"}
 
@@ -246,9 +416,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     end
   end
 
-  # Generate a secure random password
   defp generate_secure_password do
-    # Generate 12 character password with mix of characters
     length = 12
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"
 
@@ -261,14 +429,40 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     |> Enum.join()
   end
 
-  # Extract error message from changeset
   defp extract_error_message(changeset) do
-    changeset.errors
-    |> Enum.map(fn {field, {message, _}} -> "#{field} #{message}" end)
-    |> Enum.join(", ")
+    case changeset.errors do
+      [] ->
+        "Failed to process request"
+      errors ->
+        errors
+        |> Enum.map(fn {field, {message, _}} -> "#{field} #{message}" end)
+        |> Enum.join(", ")
+    end
   end
 
-  # Helper: Check if employee matches search query
+  defp handle_attachee_creation_success(socket, attachee, password) do
+    case Emails.send_attachee_welcome_email(attachee, password) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:show_create_modal, false)
+         |> assign(:selected_user_type, nil)
+         |> assign(:attachee_form, init_attachee_form())
+         |> assign(:creating_attachee, false)
+         |> reload_statistics()
+         |> put_flash(:info, "Attachee created and welcome email sent successfully!")}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> assign(:show_create_modal, false)
+         |> assign(:selected_user_type, nil)
+         |> assign(:creating_attachee, false)
+         |> reload_statistics()
+         |> put_flash(:warning, "Attachee created but failed to send email. Please contact them manually.")}
+    end
+  end
+
   defp matches_search?(_employee, ""), do: true
   defp matches_search?(_employee, nil), do: true
 
@@ -288,30 +482,28 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     end)
   end
 
-  # Helper: Check if department should be shown based on filters
   def should_show_department?(department, selected_dept, search) do
-    dept_matches = selected_dept == "" || to_string(department.id) == selected_dept
+    dept_matches = is_nil(selected_dept) || selected_dept == "" || to_string(department.id) == selected_dept
     has_matching_employees = Enum.any?(department.employees, &matches_search?(&1, search))
 
     dept_matches && has_matching_employees
   end
 
-  # Helper: Get filtered employees for list view
   def get_filtered_employees(departments, selected_dept, search) do
     departments
     |> Enum.filter(fn dept ->
-      selected_dept == "" || to_string(dept.id) == selected_dept
+      is_nil(selected_dept) || selected_dept == "" || to_string(dept.id) == selected_dept
     end)
     |> Enum.flat_map(fn dept ->
       dept.employees
       |> Enum.filter(&matches_search?(&1, search))
       |> Enum.map(&Map.put(&1, :department_name, dept.name))
     end)
+    |> Enum.sort_by(& &1.name)
   end
 
-  # Helper: Get CSS classes for role badges
   def get_role_badge_class(role) do
-    base_class = "px-3 py-1.5 text-sm rounded-full font-medium inline-block "
+    base_class = "px-3 py-1.5 text-xs rounded-full font-medium inline-block whitespace-nowrap "
 
     case String.downcase(role || "") do
       "admin" -> base_class <> "bg-purple-100 text-purple-700"
@@ -327,45 +519,21 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     end
   end
 
-  # Helper: Format employee count text
-  def format_employee_count(count) do
-    case count do
-      0 -> "No members"
-      1 -> "1 member"
-      n -> "#{n} members"
-    end
-  end
+  defp reload_statistics(socket) do
+    departments = load_departments()
+    employees = Orgs.list_employees()
+    active_count = Enum.count(employees, & &1.is_active)
 
-  # Helper: Get status badge class
-  def get_status_badge_class(is_active) do
-    if is_active do
-      "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-emerald-50 text-emerald-700"
-    else
-      "inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full font-medium bg-gray-100 text-gray-500"
-    end
-  end
+    teams_count =
+      departments
+      |> Enum.flat_map(& &1.teams)
+      |> Enum.uniq_by(& &1.id)
+      |> length()
 
-  # Helper: Get status dot class
-  def get_status_dot_class(is_active) do
-    if is_active do
-      "w-1.5 h-1.5 rounded-full bg-emerald-500"
-    else
-      "w-1.5 h-1.5 rounded-full bg-gray-400"
-    end
-  end
-
-  # Helper: Get employee initials
-  def get_employee_initials(name) do
-    name
-    |> String.split(" ")
-    |> Enum.take(2)
-    |> Enum.map(&String.first/1)
-    |> Enum.join("")
-    |> String.upcase()
-  end
-
-  # Helper: Check if department is expanded
-  def is_department_expanded?(expanded_departments, dept_id) do
-    Map.get(expanded_departments, to_string(dept_id), true)
+    socket
+    |> assign(:departments, departments)
+    |> assign(:total_employees, length(employees))
+    |> assign(:active_count, active_count)
+    |> assign(:teams_count, teams_count)
   end
 end

@@ -13,7 +13,7 @@ defmodule TrialApp.Emails do
   Sends a secure welcome email to a newly created attachee with a force-reset password link.
   This function will send to the attachee's ACTUAL email address.
   """
-  def attachee_credentials_email(attachee, _plain_password) do
+  def send_attachee_welcome_email(attachee, _plain_password) do
     user = Repo.preload(attachee, :user).user
     email = user.email
     full_name = user.username || user.email
@@ -225,8 +225,8 @@ defmodule TrialApp.Emails do
   # TEXT BODY
   # ——————————————————————————————————————————————————————
   defp attachee_text_body(full_name, reset_url, organization, department, attachee) do
-    start_date_text = if attachee.starts_on, do: "Start Date: #{attachee.starts_on}\\n", else: ""
-    end_date_text = if attachee.ends_on, do: "End Date: #{attachee.ends_on}\\n", else: ""
+    start_date_text = if attachee.starts_on, do: "Start Date: #{attachee.starts_on}\n", else: ""
+    end_date_text = if attachee.ends_on, do: "End Date: #{attachee.ends_on}\n", else: ""
 
     """
     Welcome to valu8 EAMS!

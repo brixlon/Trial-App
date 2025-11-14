@@ -30,20 +30,25 @@ defmodule TrialAppWeb.SidebarComponent do
   # ----------------------------------------------------------------------
   # Event handlers (unchanged)
   # ----------------------------------------------------------------------
-  def handle_event("toggle_sidebar", _params, socket),
-    do: {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
+  def handle_event("toggle_admin", _params, socket) do
+    {:noreply, update(socket, :admin_open, &(!&1))}
+  end
 
-  def handle_event("toggle_admin", _params, socket),
-    do: {:noreply, assign(socket, :admin_open, !socket.assigns.admin_open)}
+  def handle_event("toggle_eams", _params, socket) do
+    {:noreply, update(socket, :eams_open, &(!&1))}
+  end
 
-  def handle_event("toggle_eams", _params, socket),
-    do: {:noreply, assign(socket, :eams_open, !socket.assigns.eams_open)}
+  def handle_event("toggle_supervision", _params, socket) do
+    {:noreply, update(socket, :supervision_open, &(!&1))}
+  end
 
-  def handle_event("toggle_supervision", _params, socket),
-    do: {:noreply, assign(socket, :supervision_open, !socket.assigns.supervision_open)}
+  def handle_event("toggle_sidebar", _params, socket) do
+    {:noreply, update(socket, :sidebar_open, &(!&1))}
+  end
 
-  def handle_event("toggle_role_switcher", _params, socket),
-    do: {:noreply, assign(socket, :show_role_switcher, !socket.assigns.show_role_switcher)}
+  def handle_event("toggle_role_switcher", _params, socket) do
+    {:noreply, assign(socket, :show_role_switcher, !socket.assigns.show_role_switcher)}
+  end
 
   def handle_event("switch_role", %{"role" => role}, socket) do
     send(self(), {:switch_role, role})
