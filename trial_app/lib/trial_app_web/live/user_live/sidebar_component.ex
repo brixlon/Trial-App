@@ -14,7 +14,7 @@ defmodule TrialAppWeb.SidebarComponent do
     socket
       |> assign(:current_user, user)
       |> assign(:active_role, active_role)
-      |> assign_new(:sidebar_open, fn -> false end)
+      |> assign_new(:sidebar_open, fn -> true end)  # Changed from false to true
       |> assign_new(:admin_open, fn -> false end)
       |> assign_new(:eams_open, fn -> false end)
       |> assign_new(:supervision_open, fn -> false end)

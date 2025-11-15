@@ -7,7 +7,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
   def mount(_params, _session, socket) do
     organizations = Orgs.list_organizations()
     users = Accounts.list_users()
-    attachees = Eams.list_attachees(%{preloads: [:user, :organization, :department, :programs]})
+    attachees = list_attachees_with_auto_status()
     changeset = Attachee.changeset(%Attachee{}, %{})
 
     socket =
@@ -15,340 +15,50 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
       |> assign(:organizations, organizations)
       |> assign(:users, users)
       |> assign(:attachees, attachees)
-      |> assign(:changeset, changeset)
+      |> assign(:form, to_form(changeset))
       |> assign(:show_modal, false)
+      |> assign(:editing_attachee, nil)
+      |> assign(:departments, [])
       |> assign(:programs, [])
       |> assign(:filter_status, "all")
+
+    # Schedule periodic status checks (every hour)
+    if connected?(socket) do
+      Process.send_after(self(), :update_statuses, :timer.hours(1))
+    end
 
     {:ok, socket}
   end
 
-  # Render template
-  def render(assigns) do
-    ~H"""
-    <div class="min-h-screen bg-white text-gray-900">
-      <div class="flex">
-        <!-- Sidebar -->
-        <.live_component
-          module={TrialAppWeb.SidebarComponent}
-          id="sidebar"
-          current_scope={@current_scope}
-        />
+  # Handle periodic status updates
+  def handle_info(:update_statuses, socket) do
+    attachees = list_attachees_with_auto_status()
 
-        <!-- Main content -->
-        <main class="ml-64 w-full p-8">
-          <div class="max-w-7xl mx-auto space-y-8">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-              <div>
-                <h1 class="text-2xl font-semibold text-gray-800">Attachee Management</h1>
-                <p class="text-sm text-gray-500 mt-1">Manage attachees and their enrollments</p>
-              </div>
-              <button
-                phx-click="open_modal"
-                class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 transition"
-              >
-                Add Attachee
-              </button>
-            </div>
+    # Schedule next update
+    Process.send_after(self(), :update_statuses, :timer.hours(1))
 
-            <!-- Filter Tabs -->
-            <div class="flex gap-2 border-b border-gray-200">
-              <%= for {label, status} <- [
-                    {"All", "all"},
-                    {"Active", "active"},
-                    {"Inactive", "inactive"},
-                    {"Completed", "completed"}
-                  ] do %>
-                <button
-                  phx-click="filter"
-                  phx-value-status={status}
-                  class={"px-4 py-2 text-sm font-medium border-b-2 transition #{if @filter_status == status, do: "border-purple-600 text-purple-600", else: "border-transparent text-gray-500 hover:text-gray-700"}"}
-                >
-                  <%= label %>
-                  <span class="ml-1 text-xs bg-gray-100 px-2 py-0.5 rounded-full">
-                    <%= count_by_status(@attachees, status) %>
-                  </span>
-                </button>
-              <% end %>
-            </div>
-
-            <!-- Stats Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
-                <div class="text-sm text-purple-600 font-medium">Total</div>
-                <div class="text-2xl font-bold text-purple-700 mt-1"><%= length(@attachees) %></div>
-              </div>
-              <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                <div class="text-sm text-green-600 font-medium">Active</div>
-                <div class="text-2xl font-bold text-green-700 mt-1">
-                  <%= Enum.count(@attachees, &(&1.status == "active")) %>
-                </div>
-              </div>
-              <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
-                <div class="text-sm text-amber-600 font-medium">Inactive</div>
-                <div class="text-2xl font-bold text-amber-700 mt-1">
-                  <%= Enum.count(@attachees, &(&1.status == "inactive")) %>
-                </div>
-              </div>
-              <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-sm text-blue-600 font-medium">Completed</div>
-                <div class="text-2xl font-bold text-blue-700 mt-1">
-                  <%= Enum.count(@attachees, &(&1.status == "completed")) %>
-                </div>
-              </div>
-            </div>
-
-            <!-- Attachee List -->
-            <div class="bg-white shadow rounded-xl overflow-hidden">
-              <%= if filtered_attachees(@attachees, @filter_status) == [] do %>
-                <div class="py-12 text-center">
-                  <p class="text-gray-500 text-lg mb-2">No attachees found</p>
-                  <p class="text-sm text-gray-400">
-                    <%= if @filter_status == "all" do %>
-                      Get started by adding your first attachee
-                    <% else %>
-                      Try changing the filter or add a new attachee
-                    <% end %>
-                  </p>
-                </div>
-              <% else %>
-                <table class="min-w-full text-sm text-left text-gray-700">
-                  <thead class="bg-gray-100 text-xs uppercase">
-                    <tr>
-                      <th class="px-4 py-3">User</th>
-                      <th class="px-4 py-3">Organization</th>
-                      <th class="px-4 py-3">Department</th>
-                      <th class="px-4 py-3">Program(s)</th>
-                      <th class="px-4 py-3">Duration</th>
-                      <th class="px-4 py-3">Status</th>
-                      <th class="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for attachee <- filtered_attachees(@attachees, @filter_status) do %>
-                      <tr class="border-t hover:bg-gray-50 transition">
-                        <td class="px-4 py-3">
-                          <div class="font-medium text-gray-900"><%= attachee.user.username %></div>
-                          <div class="text-xs text-gray-500"><%= attachee.user.email %></div>
-                        </td>
-                        <td class="px-4 py-3"><%= attachee.organization.name %></td>
-                        <td class="px-4 py-3">
-                          <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
-                            <%= attachee.department.name %>
-                          </span>
-                        </td>
-                        <td class="px-4 py-3">
-                          <%= if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [] do %>
-                            <div class="flex flex-wrap gap-1">
-                              <%= for program <- Enum.take(attachee.programs, 2) do %>
-                                <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                                  <%= program.name %>
-                                </span>
-                              <% end %>
-                              <%= if length(attachee.programs) > 2 do %>
-                                <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
-                                  +<%= length(attachee.programs) - 2 %>
-                                </span>
-                              <% end %>
-                            </div>
-                          <% else %>
-                            <span class="text-gray-400">N/A</span>
-                          <% end %>
-                        </td>
-                        <td class="px-4 py-3">
-                          <%= if attachee.starts_on do %>
-                            <div class="text-sm">
-                              <%= Calendar.strftime(attachee.starts_on, "%b %d, %Y") %>
-                              <%= if attachee.ends_on do %>
-                                <div class="text-xs text-gray-500">
-                                  to <%= Calendar.strftime(attachee.ends_on, "%b %d, %Y") %>
-                                </div>
-                              <% end %>
-                            </div>
-                          <% else %>
-                            <span class="text-gray-400">Not set</span>
-                          <% end %>
-                        </td>
-                        <td class="px-4 py-3">
-                          <span class={"inline-flex items-center px-2 py-1 text-xs rounded-full font-medium #{status_color(attachee.status)}"}>
-                            <%= String.capitalize(attachee.status) %>
-                          </span>
-                        </td>
-                        <td class="px-4 py-3">
-                          <div class="flex items-center justify-end gap-2">
-                            <button
-                              phx-click="edit_attachee"
-                              phx-value-id={attachee.id}
-                              class="p-1.5 hover:bg-purple-50 rounded text-purple-600"
-                              title="Edit"
-                            >
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                              </svg>
-                            </button>
-                            <button
-                              phx-click="delete_attachee"
-                              phx-value-id={attachee.id}
-                              data-confirm="Are you sure you want to delete this attachee?"
-                              class="p-1.5 hover:bg-red-50 rounded text-red-600"
-                              title="Delete"
-                            >
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                              </svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                </table>
-              <% end %>
-            </div>
-          </div>
-        </main>
-      </div>
-
-      <!-- Modal -->
-      <%= if @show_modal do %>
-        <div class="fixed inset-0 z-50 overflow-y-auto" phx-click="close_modal">
-          <!-- Backdrop -->
-          <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-
-          <!-- Modal content -->
-          <div class="flex min-h-full items-center justify-center p-4">
-            <div
-              class="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              phx-click="stop_propagation"
-            >
-              <!-- Modal Header -->
-              <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
-                <h2 class="text-xl font-semibold text-gray-800">
-                  <%= if @editing_attachee, do: "Edit Attachee", else: "Add New Attachee" %>
-                </h2>
-                <button
-                  phx-click="close_modal"
-                  class="text-gray-400 hover:text-gray-600 transition"
-                >
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Modal Body -->
-              <div class="px-6 py-4">
-                <.form for={@form} phx-submit="save" phx-change="validate">
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <.input
-                        field={@form[:user_id]}
-                        type="select"
-                        label="User"
-                        options={[{"Select User", ""} | Enum.map(@users, &{user_display(&1), &1.id})]}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:organization_id]}
-                        type="select"
-                        label="Organization"
-                        options={[{"Select Organization", ""} | Enum.map(@organizations, &{&1.name, &1.id})]}
-                        phx-change="organization_changed"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:department_id]}
-                        type="select"
-                        label="Department"
-                        options={department_options(@departments)}
-                        phx-change="department_changed"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:program_id]}
-                        type="select"
-                        label="Program"
-                        options={program_options(@programs)}
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:starts_on]}
-                        type="date"
-                        label="Start Date"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <.input
-                        field={@form[:ends_on]}
-                        type="date"
-                        label="End Date"
-                      />
-                    </div>
-
-                    <%= if @editing_attachee do %>
-                      <div>
-                        <.input
-                          field={@form[:status]}
-                          type="select"
-                          label="Status"
-                          options={[
-                            {"Active", "active"},
-                            {"Inactive", "inactive"},
-                            {"Completed", "completed"}
-                          ]}
-                        />
-                      </div>
-                    <% end %>
-                  </div>
-
-                  <div class="mt-6 flex justify-end gap-3">
-                    <button
-                      type="button"
-                      phx-click="close_modal"
-                      class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition"
-                    >
-                      <%= if @editing_attachee, do: "Update Attachee", else: "Save Attachee" %>
-                    </button>
-                  </div>
-                </.form>
-              </div>
-            </div>
-          </div>
-        </div>
-      <% end %>
-    </div>
-    """
+    {:noreply, assign(socket, :attachees, attachees)}
   end
 
   # Open modal for new attachee
   def handle_event("open_modal", _params, socket) do
     changeset = Attachee.changeset(%Attachee{}, %{})
-    {:noreply, assign(socket, %{show_modal: true, changeset: changeset, programs: []})}
+
+    {:noreply,
+     socket
+     |> assign(:show_modal, true)
+     |> assign(:form, to_form(changeset))
+     |> assign(:editing_attachee, nil)
+     |> assign(:departments, [])
+     |> assign(:programs, [])}
   end
 
   # Close modal
   def handle_event("close_modal", _params, socket) do
-    {:noreply, assign(socket, :show_modal, false)}
+    {:noreply,
+     socket
+     |> assign(:show_modal, false)
+     |> assign(:editing_attachee, nil)}
   end
 
   # Prevent modal from closing when clicking inside
@@ -361,18 +71,51 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     {:noreply, assign(socket, :filter_status, status)}
   end
 
-  # Edit attachee
+  # Edit attachee - FIXED VERSION
   def handle_event("edit_attachee", %{"id" => id}, socket) do
     attachee = Eams.get_attachee!(id) |> Repo.preload([:user, :organization, :department, :programs])
 
-    departments = if attachee.organization_id, do: Orgs.list_departments_by_org(attachee.organization_id), else: []
-    programs = if attachee.department_id, do: Eams.list_programs_by_department(attachee.department_id), else: []
+    # Load departments for the attachee's organization
+    departments = if attachee.organization_id do
+      Orgs.list_departments_by_org(attachee.organization_id)
+    else
+      []
+    end
 
-    program_id = if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [], do: hd(attachee.programs).id, else: nil
+    # Load programs for the attachee's department
+    programs = if attachee.department_id do
+      Eams.list_programs_by_department(attachee.department_id)
+    else
+      []
+    end
 
-    changeset = Attachee.changeset(attachee, %{"program_id" => program_id})
+    # Get the first program ID if attachee has programs
+    program_id = if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [] do
+      hd(attachee.programs).id
+    else
+      nil
+    end
 
-    {:noreply, assign(socket, %{editing_attachee: attachee, changeset: changeset, programs: programs, show_modal: true})}
+    # Create changeset with all the data including program_id
+    changeset_data = %{
+      "user_id" => attachee.user_id,
+      "organization_id" => attachee.organization_id,
+      "department_id" => attachee.department_id,
+      "program_id" => program_id,
+      "starts_on" => attachee.starts_on,
+      "ends_on" => attachee.ends_on,
+      "status" => attachee.status
+    }
+
+    changeset = Attachee.changeset(attachee, changeset_data)
+
+    {:noreply,
+     socket
+     |> assign(:editing_attachee, attachee)
+     |> assign(:form, to_form(changeset))
+     |> assign(:departments, departments)
+     |> assign(:programs, programs)
+     |> assign(:show_modal, true)}
   end
 
   # Delete attachee
@@ -381,7 +124,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
 
     case Eams.delete_attachee(attachee) do
       {:ok, _} ->
-        updated_attachees = Eams.list_attachees(%{preloads: [:user, :organization, :department, :programs]})
+        updated_attachees = list_attachees_with_auto_status()
         {:noreply,
          socket
          |> assign(:attachees, updated_attachees)
@@ -392,9 +135,12 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     end
   end
 
-  # Validate form on change
+  # Validate form on change with auto-calculation
   def handle_event("validate", %{"attachee" => params}, socket) do
     attachee = socket.assigns.editing_attachee || %Attachee{}
+
+    # Auto-calculate end date (3 months from start)
+    params = auto_calculate_end_date(params)
 
     changeset =
       attachee
@@ -418,6 +164,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     params = params
       |> Map.put("department_id", "")
       |> Map.put("program_id", "")
+      |> auto_calculate_end_date()
 
     attachee = socket.assigns.editing_attachee || %Attachee{}
     changeset =
@@ -443,7 +190,9 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     end
 
     # Reset program when department changes
-    params = Map.put(params, "program_id", "")
+    params = params
+      |> Map.put("program_id", "")
+      |> auto_calculate_end_date()
 
     attachee = socket.assigns.editing_attachee || %Attachee{}
     changeset =
@@ -457,8 +206,11 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
      |> assign(:programs, programs)}
   end
 
-  # Save new or update attachee
+  # Save new or update attachee with auto-calculations
   def handle_event("save", %{"attachee" => params}, socket) do
+    # Auto-calculate end date (3 months from start)
+    params = auto_calculate_end_date(params)
+
     # Convert string IDs to integers and parse dates
     attrs = %{
       user_id: safe_int(params["user_id"]),
@@ -466,7 +218,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
       department_id: safe_int(params["department_id"]),
       starts_on: parse_date(params["starts_on"]),
       ends_on: parse_date(params["ends_on"]),
-      status: params["status"] || "active"
+      status: calculate_status_from_dates(params)
     }
 
     program_id = safe_int(params["program_id"])
@@ -484,9 +236,8 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
           Eams.enroll_attachee_in_program(attachee.id, program_id)
         end
 
-        # Reload attachees list
-        updated_attachees =
-          Eams.list_attachees(%{preloads: [:user, :organization, :department, :programs]})
+        # Reload attachees list with auto-status
+        updated_attachees = list_attachees_with_auto_status()
 
         # Reset form
         changeset = Attachee.changeset(%Attachee{}, %{})
@@ -506,6 +257,82 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
          socket
          |> assign(:form, to_form(changeset))
          |> put_flash(:error, "Failed to save attachee. Please check the errors.")}
+    end
+  end
+
+  # Auto-calculate end date (3 months/90 days from start date)
+  defp auto_calculate_end_date(%{"starts_on" => starts_on} = params) when starts_on not in [nil, ""] do
+    start_date = parse_date(starts_on)
+
+    if start_date do
+      # Calculate 3 months (90 days) from start date
+      end_date = Date.add(start_date, 90)
+      Map.put(params, "ends_on", Date.to_iso8601(end_date))
+    else
+      params
+    end
+  end
+  defp auto_calculate_end_date(params), do: params
+
+  # Calculate status based on dates
+  defp calculate_status_from_dates(%{"starts_on" => starts_on, "ends_on" => ends_on, "status" => manual_status})
+       when manual_status not in [nil, ""] do
+    # If user manually set a status while editing, use it
+    manual_status
+  end
+  defp calculate_status_from_dates(%{"starts_on" => starts_on, "ends_on" => ends_on}) do
+    today = Date.utc_today()
+    start_date = parse_date(starts_on)
+    end_date = parse_date(ends_on)
+
+    cond do
+      is_nil(start_date) -> "inactive"
+      is_nil(end_date) -> "active"
+      Date.compare(today, end_date) == :gt -> "completed"
+      Date.compare(today, start_date) == :lt -> "inactive"
+      true -> "active"
+    end
+  end
+  defp calculate_status_from_dates(_), do: "active"
+
+  # Fetch attachees and update their status based on dates
+  defp list_attachees_with_auto_status do
+    attachees = Eams.list_attachees(%{preloads: [:user, :organization, :department, :programs]})
+    today = Date.utc_today()
+
+    Enum.map(attachees, fn attachee ->
+      auto_status = calculate_attachee_status(attachee, today)
+
+      # Update in database if status changed
+      if auto_status != attachee.status do
+        case Eams.update_attachee(attachee, %{status: auto_status}) do
+          {:ok, updated_attachee} ->
+            updated_attachee |> Repo.preload([:user, :organization, :department, :programs])
+          {:error, _} ->
+            attachee
+        end
+      else
+        attachee
+      end
+    end)
+  end
+
+  defp calculate_attachee_status(attachee, today) do
+    cond do
+      is_nil(attachee.starts_on) ->
+        attachee.status
+
+      is_nil(attachee.ends_on) ->
+        attachee.status
+
+      Date.compare(today, attachee.ends_on) == :gt ->
+        "completed"
+
+      Date.compare(today, attachee.starts_on) == :lt ->
+        "inactive"
+
+      true ->
+        "active"
     end
   end
 
