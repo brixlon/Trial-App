@@ -21,6 +21,11 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
       |> assign(:departments, [])
       |> assign(:programs, [])
       |> assign(:filter_status, "all")
+      |> assign(:search_query, "")
+      |> assign(:upcoming_completions, get_upcoming_completions(attachees))
+      |> assign(:show_progress_modal, false)
+      |> assign(:selected_attachee_for_progress, nil)
+      |> assign(:milestones, [])
 
     # Schedule periodic status checks (every hour)
     if connected?(socket) do
@@ -37,7 +42,10 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     # Schedule next update
     Process.send_after(self(), :update_statuses, :timer.hours(1))
 
-    {:noreply, assign(socket, :attachees, attachees)}
+    {:noreply,
+     socket
+     |> assign(:attachees, attachees)
+     |> assign(:upcoming_completions, get_upcoming_completions(attachees))}
   end
 
   # Open modal for new attachee
@@ -218,7 +226,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
       department_id: safe_int(params["department_id"]),
       starts_on: parse_date(params["starts_on"]),
       ends_on: parse_date(params["ends_on"]),
-      status: calculate_status_from_dates(params)
+      status: params["status"] || "active"
     }
 
     program_id = safe_int(params["program_id"])
@@ -250,6 +258,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
          |> assign(:attachees, updated_attachees)
          |> assign(:departments, [])
          |> assign(:programs, [])
+         |> assign(:upcoming_completions, get_upcoming_completions(updated_attachees))
          |> put_flash(:info, "Attachee #{if socket.assigns.editing_attachee, do: "updated", else: "created"} successfully")}
 
       {:error, changeset} ->
@@ -273,27 +282,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
     end
   end
   defp auto_calculate_end_date(params), do: params
-
-  # Calculate status based on dates
-  defp calculate_status_from_dates(%{"starts_on" => starts_on, "ends_on" => ends_on, "status" => manual_status})
-       when manual_status not in [nil, ""] do
-    # If user manually set a status while editing, use it
-    manual_status
-  end
-  defp calculate_status_from_dates(%{"starts_on" => starts_on, "ends_on" => ends_on}) do
-    today = Date.utc_today()
-    start_date = parse_date(starts_on)
-    end_date = parse_date(ends_on)
-
-    cond do
-      is_nil(start_date) -> "inactive"
-      is_nil(end_date) -> "active"
-      Date.compare(today, end_date) == :gt -> "completed"
-      Date.compare(today, start_date) == :lt -> "inactive"
-      true -> "active"
-    end
-  end
-  defp calculate_status_from_dates(_), do: "active"
 
   # Fetch attachees and update their status based on dates
   defp list_attachees_with_auto_status do
@@ -374,4 +362,215 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
 
   defp count_by_status(attachees, "all"), do: length(attachees)
   defp count_by_status(attachees, status), do: Enum.count(attachees, &(&1.status == status))
+
+  defp filtered_attachees(attachees, "all"), do: attachees
+  defp filtered_attachees(attachees, status), do: Enum.filter(attachees, &(&1.status == status))
+
+  # Get attachees completing soon
+  defp get_upcoming_completions(attachees) do
+    today = Date.utc_today()
+    thirty_days = Date.add(today, 30)
+
+    attachees
+    |> Enum.filter(fn attachee ->
+      attachee.ends_on != nil and
+      attachee.status == "active" and
+      Date.compare(attachee.ends_on, today) in [:gt, :eq] and
+      Date.compare(attachee.ends_on, thirty_days) in [:lt, :eq]
+    end)
+    |> Enum.sort_by(& &1.ends_on, Date)
+  end
+
+  # Search functionality
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply, assign(socket, :search_query, query)}
+  end
+
+  # Export to CSV
+  @impl true
+  def handle_event("export_csv", _params, socket) do
+    attachees = filtered_and_searched_attachees(
+      socket.assigns.attachees,
+      socket.assigns.filter_status,
+      socket.assigns.search_query
+    )
+
+    csv_content = generate_csv(attachees)
+
+    # In a real implementation, you'd send this as a download
+    # For now, we'll just show a flash message
+    {:noreply, put_flash(socket, :info, "CSV export ready with #{length(attachees)} records")}
+  end
+
+  # Send email notification
+  @impl true
+  def handle_event("send_notification", %{"id" => id, "type" => type}, socket) do
+    attachee = Enum.find(socket.assigns.attachees, &(&1.id == String.to_integer(id)))
+
+    # In a real implementation, you'd call your email service here
+    # For now, we'll just simulate it
+    message = case type do
+      "completion_reminder" -> "Completion reminder sent to #{attachee.user.email}"
+      "status_update" -> "Status update notification sent"
+      _ -> "Notification sent"
+    end
+
+    {:noreply, put_flash(socket, :info, message)}
+  end
+
+  # Open progress tracking modal
+  @impl true
+  def handle_event("open_progress_modal", %{"id" => id}, socket) do
+    attachee = Enum.find(socket.assigns.attachees, &(&1.id == String.to_integer(id)))
+    milestones = get_milestones_for_attachee(attachee)
+
+    {:noreply,
+     socket
+     |> assign(:show_progress_modal, true)
+     |> assign(:selected_attachee_for_progress, attachee)
+     |> assign(:milestones, milestones)}
+  end
+
+  @impl true
+  def handle_event("close_progress_modal", _params, socket) do
+    {:noreply, assign(socket, :show_progress_modal, false)}
+  end
+
+  # Toggle milestone completion
+  @impl true
+  def handle_event("toggle_milestone", %{"milestone_id" => milestone_id}, socket) do
+    milestones = socket.assigns.milestones
+
+    updated_milestones = Enum.map(milestones, fn milestone ->
+      if milestone.id == milestone_id do
+        %{milestone | completed: !milestone.completed}
+      else
+        milestone
+      end
+    end)
+
+    # In a real implementation, you'd save this to the database
+    {:noreply, assign(socket, :milestones, updated_milestones)}
+  end
+
+  # Helper to get milestones for an attachee
+  defp get_milestones_for_attachee(attachee) do
+    # In a real implementation, you'd fetch from database
+    # For now, calculate based on attachment dates
+    if attachee.starts_on do
+      start_date = attachee.starts_on
+      today = Date.utc_today()
+
+      # Calculate progress based on dates
+      orientation_date = Date.add(start_date, 5)
+      intro_date = Date.add(start_date, 7)
+      first_project_date = Date.add(start_date, 15)
+      midterm_date = Date.add(start_date, 45)
+      final_project_date = Date.add(start_date, 80)
+      final_eval_date = Date.add(start_date, 85)
+
+      [
+        %{
+          id: "1",
+          title: "Orientation Completed",
+          completed: Date.compare(today, orientation_date) != :lt,
+          due_date: orientation_date
+        },
+        %{
+          id: "2",
+          title: "Department Introduction",
+          completed: Date.compare(today, intro_date) != :lt,
+          due_date: intro_date
+        },
+        %{
+          id: "3",
+          title: "First Project Assignment",
+          completed: Date.compare(today, first_project_date) != :lt,
+          due_date: first_project_date
+        },
+        %{
+          id: "4",
+          title: "Mid-term Evaluation",
+          completed: Date.compare(today, midterm_date) != :lt,
+          due_date: midterm_date
+        },
+        %{
+          id: "5",
+          title: "Final Project Submission",
+          completed: Date.compare(today, final_project_date) != :lt,
+          due_date: final_project_date
+        },
+        %{
+          id: "6",
+          title: "Final Evaluation",
+          completed: Date.compare(today, final_eval_date) != :lt,
+          due_date: final_eval_date
+        },
+      ]
+    else
+      # Default milestones if no start date
+      [
+        %{id: "1", title: "Orientation Completed", completed: false, due_date: Date.utc_today()},
+        %{id: "2", title: "Department Introduction", completed: false, due_date: Date.utc_today()},
+        %{id: "3", title: "First Project Assignment", completed: false, due_date: Date.utc_today()},
+        %{id: "4", title: "Mid-term Evaluation", completed: false, due_date: Date.utc_today()},
+        %{id: "5", title: "Final Project Submission", completed: false, due_date: Date.utc_today()},
+        %{id: "6", title: "Final Evaluation", completed: false, due_date: Date.utc_today()},
+      ]
+    end
+  end
+
+  # Calculate progress percentage for an attachee
+  defp calculate_progress_percentage(attachee) do
+    milestones = get_milestones_for_attachee(attachee)
+    total = length(milestones)
+
+    if total > 0 do
+      completed = Enum.count(milestones, & &1.completed)
+      trunc(completed / total * 100)
+    else
+      0
+    end
+  end
+
+  # Generate CSV content
+  defp generate_csv(attachees) do
+    headers = "Name,Email,Organization,Department,Start Date,End Date,Status\n"
+
+    rows = Enum.map(attachees, fn attachee ->
+      [
+        attachee.user.username,
+        attachee.user.email,
+        attachee.organization.name,
+        attachee.department.name,
+        attachee.starts_on,
+        attachee.ends_on,
+        attachee.status
+      ]
+      |> Enum.join(",")
+    end)
+    |> Enum.join("\n")
+
+    headers <> rows
+  end
+
+  # Combined filter and search
+  defp filtered_and_searched_attachees(attachees, filter_status, search_query) do
+    attachees
+    |> filtered_attachees(filter_status)
+    |> search_attachees(search_query)
+  end
+
+  defp search_attachees(attachees, ""), do: attachees
+  defp search_attachees(attachees, query) do
+    query_lower = String.downcase(query)
+
+    Enum.filter(attachees, fn attachee ->
+      String.contains?(String.downcase(attachee.user.username), query_lower) or
+      String.contains?(String.downcase(attachee.user.email), query_lower) or
+      String.contains?(String.downcase(attachee.organization.name), query_lower) or
+      String.contains?(String.downcase(attachee.department.name), query_lower)
+    end)
+  end
 end

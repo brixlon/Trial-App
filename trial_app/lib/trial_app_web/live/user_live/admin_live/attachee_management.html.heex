@@ -1,4 +1,4 @@
-<div class="min-h-screen bg-white text-gray-900">
+<div class="min-h-screen bg-gray-50 text-gray-900">
   <div class="flex">
     <!-- Sidebar -->
     <.live_component
@@ -9,12 +9,102 @@
 
     <!-- Main content -->
     <main class="ml-64 w-full p-8">
-      <div class="max-w-7xl mx-auto space-y-8">
-        <!-- Header -->
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800">Attachee Management</h1>
-          <p class="text-sm text-gray-500 mt-1">Manage attachees and their enrollments</p>
+      <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header with Search -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-semibold text-gray-800">Attachee Management</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage attachees and their enrollments</p>
+          </div>
+          
+          <!-- Search Bar -->
+          <div class="flex gap-2">
+            <form phx-change="search" class="relative">
+              <input
+                type="text"
+                name="query"
+                value={@search_query}
+                placeholder="Search by name, email, org..."
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent w-80"
+              />
+              <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </form>
+            
+            <button
+              phx-click="export_csv"
+              class="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700 transition flex items-center gap-2"
+              title="Export to CSV"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Export
+            </button>
+          </div>
         </div>
+
+        <!-- Upcoming Completions Widget -->
+        <%= if @upcoming_completions != [] do %>
+          <div class="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-sm">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-amber-900">
+                  Upcoming Completions (<%= length(@upcoming_completions) %>)
+                </h3>
+                <p class="text-xs text-amber-800 mt-1">Attachees completing within the next 30 days</p>
+                <div class="mt-3 space-y-2">
+                  <%= for attachee <- Enum.take(@upcoming_completions, 3) do %>
+                    <div class="flex items-center justify-between bg-white p-2 rounded border border-amber-200">
+                      <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 font-semibold text-xs">
+                          <%= String.first(attachee.user.username) %>
+                        </div>
+                        <div>
+                          <p class="text-sm font-medium text-gray-900"><%= attachee.user.username %></p>
+                          <p class="text-xs text-gray-500"><%= attachee.department.name %></p>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <div class="text-right">
+                          <p class="text-xs text-gray-500">Ends on</p>
+                          <p class="text-sm font-semibold text-amber-700">
+                            <%= Calendar.strftime(attachee.ends_on, "%b %d") %>
+                          </p>
+                          <p class="text-xs text-amber-600">
+                            <%= Date.diff(attachee.ends_on, Date.utc_today()) %> days
+                          </p>
+                        </div>
+                        <button
+                          phx-click="send_notification"
+                          phx-value-id={attachee.id}
+                          phx-value-type="completion_reminder"
+                          class="p-2 hover:bg-amber-100 rounded-lg text-amber-600 transition"
+                          title="Send reminder"
+                        >
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  <% end %>
+                  <%= if length(@upcoming_completions) > 3 do %>
+                    <p class="text-xs text-amber-700 text-center">
+                      + <%= length(@upcoming_completions) - 3 %> more completing soon
+                    </p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
 
         <!-- Filter Tabs -->
         <div class="flex gap-2 border-b border-gray-200">
@@ -65,128 +155,230 @@
 
         <!-- Attachee List -->
         <div class="bg-white shadow rounded-xl overflow-hidden">
-          <%= if filtered_attachees(@attachees, @filter_status) == [] do %>
+          <%= if filtered_and_searched_attachees(@attachees, @filter_status, @search_query) == [] do %>
             <div class="py-12 text-center">
+              <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
               <p class="text-gray-500 text-lg mb-2">No attachees found</p>
               <p class="text-sm text-gray-400">
-                <%= if @filter_status == "all" do %>
-                  Get started by adding your first attachee
+                <%= if @search_query != "" do %>
+                  Try a different search term
                 <% else %>
-                  Try changing the filter or add a new attachee
+                  Try changing the filter
                 <% end %>
               </p>
             </div>
           <% else %>
-            <table class="min-w-full text-sm text-left text-gray-700">
-              <thead class="bg-gray-100 text-xs uppercase">
-                <tr>
-                  <th class="px-4 py-3">User</th>
-                  <th class="px-4 py-3">Organization</th>
-                  <th class="px-4 py-3">Department</th>
-                  <th class="px-4 py-3">Program(s)</th>
-                  <th class="px-4 py-3">Duration</th>
-                  <th class="px-4 py-3">Status</th>
-                  <th class="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for attachee <- filtered_attachees(@attachees, @filter_status) do %>
-                  <tr class="border-t hover:bg-gray-50 transition">
-                    <td class="px-4 py-3">
-                      <div class="font-medium text-gray-900"><%= attachee.user.username %></div>
-                      <div class="text-xs text-gray-500"><%= attachee.user.email %></div>
-                    </td>
-                    <td class="px-4 py-3"><%= attachee.organization.name %></td>
-                    <td class="px-4 py-3">
-                      <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
-                        <%= attachee.department.name %>
-                      </span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <%= if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [] do %>
-                        <div class="flex flex-wrap gap-1">
-                          <%= for program <- Enum.take(attachee.programs, 2) do %>
-                            <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                              <%= program.name %>
-                            </span>
-                          <% end %>
-                          <%= if length(attachee.programs) > 2 do %>
-                            <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
-                              +<%= length(attachee.programs) - 2 %>
-                            </span>
-                          <% end %>
-                        </div>
-                      <% else %>
-                        <span class="text-gray-400">N/A</span>
-                      <% end %>
-                    </td>
-                    <td class="px-4 py-3">
-                      <%= if attachee.starts_on do %>
-                        <div class="text-sm">
-                          <%= Calendar.strftime(attachee.starts_on, "%b %d, %Y") %>
-                          <%= if attachee.ends_on do %>
-                            <div class="text-xs text-gray-500">
-                              to <%= Calendar.strftime(attachee.ends_on, "%b %d, %Y") %>
-                            </div>
-                          <% end %>
-                        </div>
-                      <% else %>
-                        <span class="text-gray-400">Not set</span>
-                      <% end %>
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class={"inline-flex items-center px-2 py-1 text-xs rounded-full font-medium #{status_color(attachee.status)}"}>
-                        <%= String.capitalize(attachee.status) %>
-                      </span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="flex items-center justify-end gap-2">
-                        <button
-                          phx-click="edit_attachee"
-                          phx-value-id={attachee.id}
-                          class="p-1.5 hover:bg-purple-50 rounded text-purple-600"
-                          title="Edit"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                          </svg>
-                        </button>
-                        <button
-                          phx-click="delete_attachee"
-                          phx-value-id={attachee.id}
-                          data-confirm="Are you sure you want to delete this attachee?"
-                          class="p-1.5 hover:bg-red-50 rounded text-red-600"
-                          title="Delete"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm text-left text-gray-700">
+                <thead class="bg-gray-50 text-xs uppercase">
+                  <tr>
+                    <th class="px-4 py-3">User</th>
+                    <th class="px-4 py-3">Organization</th>
+                    <th class="px-4 py-3">Department</th>
+                    <th class="px-4 py-3">Program(s)</th>
+                    <th class="px-4 py-3">Duration</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">Progress</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
                   </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <%= for attachee <- filtered_and_searched_attachees(@attachees, @filter_status, @search_query) do %>
+                    <tr class="border-t hover:bg-gray-50 transition">
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                          <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-semibold text-xs">
+                            <%= String.first(attachee.user.username) %>
+                          </div>
+                          <div>
+                            <div class="font-medium text-gray-900"><%= attachee.user.username %></div>
+                            <div class="text-xs text-gray-500"><%= attachee.user.email %></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-4 py-3"><%= attachee.organization.name %></td>
+                      <td class="px-4 py-3">
+                        <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
+                          <%= attachee.department.name %>
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <%= if Ecto.assoc_loaded?(attachee.programs) and attachee.programs != [] do %>
+                          <div class="flex flex-wrap gap-1">
+                            <%= for program <- Enum.take(attachee.programs, 2) do %>
+                              <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                                <%= program.name %>
+                              </span>
+                            <% end %>
+                            <%= if length(attachee.programs) > 2 do %>
+                              <span class="inline-flex items-center px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">
+                                +<%= length(attachee.programs) - 2 %>
+                              </span>
+                            <% end %>
+                          </div>
+                        <% else %>
+                          <span class="text-gray-400">N/A</span>
+                        <% end %>
+                      </td>
+                      <td class="px-4 py-3">
+                        <%= if attachee.starts_on do %>
+                          <div class="text-sm">
+                            <%= Calendar.strftime(attachee.starts_on, "%b %d, %Y") %>
+                            <%= if attachee.ends_on do %>
+                              <div class="text-xs text-gray-500">
+                                to <%= Calendar.strftime(attachee.ends_on, "%b %d, %Y") %>
+                              </div>
+                            <% end %>
+                          </div>
+                        <% else %>
+                          <span class="text-gray-400">Not set</span>
+                        <% end %>
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class={"inline-flex items-center px-2 py-1 text-xs rounded-full font-medium #{status_color(attachee.status)}"}>
+                          <%= String.capitalize(attachee.status) %>
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <button
+                          phx-click="open_progress_modal"
+                          phx-value-id={attachee.id}
+                          class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800"
+                        >
+                          <div class="w-16 bg-gray-200 rounded-full h-2">
+                            <div class="bg-purple-600 h-2 rounded-full transition-all duration-300" style={"width: #{calculate_progress_percentage(attachee)}%"}></div>
+                          </div>
+                          <span class="font-medium"><%= calculate_progress_percentage(attachee) %>%</span>
+                        </button>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center justify-end gap-2">
+                          <button
+                            phx-click="send_notification"
+                            phx-value-id={attachee.id}
+                            phx-value-type="status_update"
+                            class="p-1.5 hover:bg-blue-50 rounded text-blue-600"
+                            title="Send Notification"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                            </svg>
+                          </button>
+                          <button
+                            phx-click="edit_attachee"
+                            phx-value-id={attachee.id}
+                            class="p-1.5 hover:bg-purple-50 rounded text-purple-600"
+                            title="Edit"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                          </button>
+                          <button
+                            phx-click="delete_attachee"
+                            phx-value-id={attachee.id}
+                            data-confirm="Are you sure you want to delete this attachee?"
+                            class="p-1.5 hover:bg-red-50 rounded text-red-600"
+                            title="Delete"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
           <% end %>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- Enhanced Modal -->
+  <!-- Progress Tracking Modal -->
+  <%= if @show_progress_modal do %>
+    <div class="fixed inset-0 z-50 overflow-y-auto" phx-click="close_progress_modal">
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+      
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full" phx-click="stop_propagation">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 rounded-t-2xl flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white">Progress Tracking</h2>
+              <p class="text-blue-100 text-sm mt-1"><%= @selected_attachee_for_progress.user.username %></p>
+            </div>
+            <button phx-click="close_progress_modal" class="text-white hover:text-gray-200 transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Progress Overview -->
+          <div class="p-6">
+            <div class="bg-blue-50 p-4 rounded-lg mb-6">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-blue-900">Overall Progress</span>
+                <span class="text-sm font-bold text-blue-900">
+                  <%= Enum.count(@milestones, & &1.completed) %>/<%= length(@milestones) %> completed
+                </span>
+              </div>
+              <div class="w-full bg-blue-200 rounded-full h-3">
+                <div 
+                  class="bg-blue-600 h-3 rounded-full transition-all duration-300" 
+                  style={"width: #{if length(@milestones) > 0, do: trunc(Enum.count(@milestones, & &1.completed) / length(@milestones) * 100), else: 0}%"}
+                ></div>
+              </div>
+            </div>
+
+            <!-- Milestones List -->
+            <div class="space-y-3">
+              <%= for milestone <- @milestones do %>
+                <div class={"p-4 rounded-lg border-2 transition #{if milestone.completed, do: "bg-green-50 border-green-200", else: "bg-white border-gray-200"}"}>
+                  <div class="flex items-start gap-3">
+                    <button
+                      phx-click="toggle_milestone"
+                      phx-value-milestone_id={milestone.id}
+                      class={"flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition #{if milestone.completed, do: "bg-green-500 border-green-500", else: "border-gray-300 hover:border-green-500"}"}
+                    >
+                      <%= if milestone.completed do %>
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                        </svg>
+                      <% end %>
+                    </button>
+                    <div class="flex-1">
+                      <h4 class={"font-medium #{if milestone.completed, do: "text-green-900 line-through", else: "text-gray-900"}"}><%= milestone.title %></h4>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Due: <%= Calendar.strftime(milestone.due_date, "%B %d, %Y") %>
+                        <%= if Date.compare(milestone.due_date, Date.utc_today()) == :lt and !milestone.completed do %>
+                          <span class="text-red-600 font-medium">(Overdue)</span>
+                        <% end %>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Edit Attachee Modal (keeping the original) -->
   <%= if @show_modal do %>
     <div class="fixed inset-0 z-50 overflow-y-auto" phx-click="close_modal">
-      <!-- Backdrop -->
       <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
 
-      <!-- Modal content -->
       <div class="flex min-h-full items-center justify-center p-4">
-        <div
-          class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-          phx-click="stop_propagation"
-        >
-          <!-- Modal Header -->
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" phx-click="stop_propagation">
           <div class="sticky top-0 bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-6 flex items-center justify-between rounded-t-2xl z-10">
             <div>
               <h2 class="text-2xl font-bold text-white">
@@ -196,20 +388,15 @@
                 <%= if @editing_attachee, do: "Update attachee information and enrollment details", else: "Fill in the details to create a new attachee" %>
               </p>
             </div>
-            <button
-              phx-click="close_modal"
-              class="text-white hover:text-gray-200 transition p-2 hover:bg-white/20 rounded-lg"
-            >
+            <button phx-click="close_modal" class="text-white hover:text-gray-200 transition p-2 hover:bg-white/20 rounded-lg">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
 
-          <!-- Modal Body -->
           <div class="px-8 py-6">
             <.form for={@form} phx-submit="save" phx-change="validate">
-              <!-- Personal Information Section -->
               <div class="mb-8">
                 <div class="flex items-center gap-2 mb-4">
                   <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -224,13 +411,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                       User <span class="text-red-500">*</span>
                     </label>
-                    <.input
-                      field={@form[:user_id]}
-                      type="select"
-                      options={[{"Select User", ""} | Enum.map(@users, &{user_display(&1), &1.id})]}
-                      required
-                      class="w-full"
-                    />
+                    <.input field={@form[:user_id]} type="select" options={[{"Select User", ""} | Enum.map(@users, &{user_display(&1), &1.id})]} required class="w-full" />
                     <p class="mt-1 text-xs text-gray-500">Select the user account for this attachee</p>
                   </div>
 
@@ -239,20 +420,9 @@
                       <label class="block text-sm font-medium text-gray-700 mb-2">
                         Status <span class="text-red-500">*</span>
                       </label>
-                      <.input
-                        field={@form[:status]}
-                        type="select"
-                        options={[
-                          {"Active", "active"},
-                          {"Inactive", "inactive"},
-                          {"Completed", "completed"}
-                        ]}
-                        class="w-full"
-                      />
+                      <.input field={@form[:status]} type="select" options={[{"Active", "active"}, {"Inactive", "inactive"}, {"Completed", "completed"}]} class="w-full" />
                       <div class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                        <p class="text-blue-700">
-                          <strong>Auto-status:</strong> Status automatically updates based on dates
-                        </p>
+                        <p class="text-blue-700"><strong>Auto-status:</strong> Status automatically updates based on dates</p>
                         <ul class="mt-1 text-blue-600 list-disc list-inside space-y-0.5">
                           <li>Before start date → Inactive</li>
                           <li>Between dates → Active</li>
@@ -265,7 +435,6 @@
                 </div>
               </div>
 
-              <!-- Organization Details Section -->
               <div class="mb-8">
                 <div class="flex items-center gap-2 mb-4">
                   <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -277,33 +446,13 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pl-12">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Organization <span class="text-red-500">*</span>
-                    </label>
-                    <.input
-                      field={@form[:organization_id]}
-                      type="select"
-                      options={[{"Select Organization", ""} | Enum.map(@organizations, &{&1.name, &1.id})]}
-                      phx-change="organization_changed"
-                      required
-                      class="w-full"
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Organization <span class="text-red-500">*</span></label>
+                    <.input field={@form[:organization_id]} type="select" options={[{"Select Organization", ""} | Enum.map(@organizations, &{&1.name, &1.id})]} phx-change="organization_changed" required class="w-full" />
                     <p class="mt-1 text-xs text-gray-500">The organization hosting the attachment</p>
                   </div>
-
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Department <span class="text-red-500">*</span>
-                    </label>
-                    <.input
-                      field={@form[:department_id]}
-                      type="select"
-                      options={department_options(@departments)}
-                      phx-change="department_changed"
-                      required
-                      class="w-full"
-                      disabled={@departments == []}
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Department <span class="text-red-500">*</span></label>
+                    <.input field={@form[:department_id]} type="select" options={department_options(@departments)} phx-change="department_changed" required class="w-full" disabled={@departments == []} />
                     <p class="mt-1 text-xs text-gray-500">
                       <%= if @departments == [], do: "Select an organization first", else: "Department where attachee will work" %>
                     </p>
@@ -311,7 +460,6 @@
                 </div>
               </div>
 
-              <!-- Program & Schedule Section -->
               <div class="mb-8">
                 <div class="flex items-center gap-2 mb-4">
                   <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -324,31 +472,16 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pl-12">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Program
-                    </label>
-                    <.input
-                      field={@form[:program_id]}
-                      type="select"
-                      options={program_options(@programs)}
-                      class="w-full"
-                      disabled={@programs == []}
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Program</label>
+                    <.input field={@form[:program_id]} type="select" options={program_options(@programs)} class="w-full" disabled={@programs == []} />
                     <p class="mt-1 text-xs text-gray-500">
                       <%= if @programs == [], do: "Select a department first", else: "Optional: Assign to a specific program" %>
                     </p>
                   </div>
 
                   <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date <span class="text-red-500">*</span>
-                    </label>
-                    <.input
-                      field={@form[:starts_on]}
-                      type="date"
-                      required
-                      class="w-full"
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date <span class="text-red-500">*</span></label>
+                    <.input field={@form[:starts_on]} type="date" required class="w-full" />
                     <p class="mt-1 text-xs text-gray-500">When the attachment begins</p>
                   </div>
 
@@ -356,12 +489,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                       End Date <span class="text-blue-600">(Auto-calculated)</span>
                     </label>
-                    <.input
-                      field={@form[:ends_on]}
-                      type="date"
-                      class="w-full bg-blue-50"
-                      readonly
-                    />
+                    <.input field={@form[:ends_on]} type="date" class="w-full bg-blue-50" readonly />
                     <p class="mt-1 text-xs text-blue-600">
                       <svg class="w-3 h-3 inline mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
@@ -372,7 +500,6 @@
                 </div>
               </div>
 
-              <!-- Position & Notes Section (if editing) -->
               <%= if @editing_attachee do %>
                 <div class="mb-8">
                   <div class="flex items-center gap-2 mb-4">
@@ -401,19 +528,11 @@
                 </div>
               <% end %>
 
-              <!-- Action Buttons -->
               <div class="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  phx-click="close_modal"
-                  class="px-6 py-3 rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition"
-                >
+                <button type="button" phx-click="close_modal" class="px-6 py-3 rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  class="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-105"
-                >
+                <button type="submit" class="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold shadow-lg hover:from-purple-700 hover:to-indigo-700 transition transform hover:scale-105">
                   <%= if @editing_attachee do %>
                     <span class="flex items-center gap-2">
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
