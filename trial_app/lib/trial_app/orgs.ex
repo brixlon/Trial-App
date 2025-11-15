@@ -240,20 +240,15 @@ defmodule TrialApp.Orgs do
   end
 
   # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES - NEW
-  # ──────────────────────────────────────────────────────────────────────
-
-  @doc """
-  Creates an attachee with hashed password and associated user account.
-  """
-  # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES - UPDATED FOR EAMS SCHEMA
+  # ATTACHEES - NEW (UPDATED FOR EAMS SCHEMA)
   # ──────────────────────────────────────────────────────────────────────
 
   alias TrialApp.Eams.Attachee
 
   @doc """
-  Creates an attachee with user account.
+  Creates an attachee with a user account using the Eams.Attachee schema.
+  Generates a plain password, registers a User, ensures or creates the Organization,
+  and inserts an Attachee record; returns the attachee with preloads on success.
   Works with existing Eams.Attachee schema (no full_name, email, password_hash fields).
   """
   def create_attachee(attrs) do

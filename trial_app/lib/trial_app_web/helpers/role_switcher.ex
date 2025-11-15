@@ -3,6 +3,8 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
 
   # Import LiveView helpers
   import Phoenix.LiveView, only: [put_flash: 3, push_navigate: 2]
+  # Alias the JS helper so templates can use `JS.push/2` in HEEx
+  alias Phoenix.LiveView.JS
 
   # Import verified routes macro
   use TrialAppWeb, :verified_routes

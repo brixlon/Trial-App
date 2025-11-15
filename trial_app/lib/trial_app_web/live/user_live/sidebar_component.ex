@@ -126,7 +126,6 @@ defmodule TrialAppWeb.SidebarComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <!-- Sidebar -->
       <aside
         class={
           "#{if @sidebar_open, do: "translate-x-0", else: "-translate-x-full"}
@@ -135,9 +134,7 @@ defmodule TrialAppWeb.SidebarComponent do
           transition-transform duration-300 flex flex-col"
         }
       >
-        <!-- Header -->
         <div class="p-6 space-y-6 flex-shrink-0">
-          <!-- Logo -->
           <div class="text-center">
             <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
               trial<span class="text-gray-900">app</span>
@@ -145,7 +142,6 @@ defmodule TrialAppWeb.SidebarComponent do
             <div class="h-1 w-12 mx-auto bg-purple-300 rounded-full mt-2"></div>
           </div>
 
-          <!-- Role Switcher -->
           <%= if length(@available_roles) > 1 do %>
             <div class="relative">
               <button
@@ -192,7 +188,6 @@ defmodule TrialAppWeb.SidebarComponent do
             </div>
           <% end %>
 
-          <!-- Notifications -->
           <%= if @active_role in ["admin", "supervisor", "attachee"] do %>
             <div class="relative">
               <button
@@ -227,7 +222,7 @@ defmodule TrialAppWeb.SidebarComponent do
                     </h3>
                   </div>
 
-                  <div class="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-200 scrollbar-track-gray-100">
+                  <div class="max-h-[400px] overflow-y-auto">
                     <%= case TrialApp.Announcements.list_announcements_for_user(@current_scope.user.id, @active_role) |> Enum.take(10) do %>
                       <% [] -> %>
                         <div class="px-4 py-12 text-center">
@@ -239,17 +234,13 @@ defmodule TrialAppWeb.SidebarComponent do
                         </div>
                       <% announcements -> %>
                         <%= for announcement <- announcements do %>
-                          <.link
-                            navigate={~p"/announcements"}
-                            class="block px-4 py-3 hover:bg-purple-50 border-b border-gray-100 last:border-b-0 transition-colors group"
-                          >
+                          <.link navigate={~p"/announcements"} class="block px-4 py-3 hover:bg-purple-50 border-b border-gray-100 last:border-b-0 transition-colors group">
                             <div class="flex items-start gap-3">
                               <%= if not TrialApp.Announcements.is_read?(announcement.id, @current_scope.user.id) do %>
                                 <div class="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
                               <% else %>
                                 <div class="w-2 h-2 mt-2 flex-shrink-0"></div>
                               <% end %>
-
                               <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-1.5 mb-1.5">
                                   <%= if announcement.pinned do %>
@@ -263,15 +254,12 @@ defmodule TrialAppWeb.SidebarComponent do
                                     <%= String.upcase(announcement.priority) %>
                                   </span>
                                 </div>
-
                                 <p class="text-sm font-semibold text-gray-900 group-hover:text-purple-700 transition-colors line-clamp-1 mb-1">
                                   <%= announcement.title %>
                                 </p>
-
                                 <p class="text-xs text-gray-600 line-clamp-2 mb-2 leading-relaxed">
                                   <%= announcement.content %>
                                 </p>
-
                                 <div class="flex items-center gap-2 text-xs text-gray-500">
                                   <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -291,12 +279,8 @@ defmodule TrialAppWeb.SidebarComponent do
                         <% end %>
                     <% end %>
                   </div>
-
                   <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                    <.link
-                      navigate={~p"/announcements"}
-                      class="block text-center text-sm font-semibold text-purple-600 hover:text-purple-800 transition-colors"
-                    >
+                    <.link navigate={~p"/announcements"} class="block text-center text-sm font-semibold text-purple-600 hover:text-purple-800 transition-colors">
                       View All Announcements
                     </.link>
                   </div>
@@ -306,8 +290,7 @@ defmodule TrialAppWeb.SidebarComponent do
           <% end %>
         </div>
 
-        <!-- Scrollable Nav -->
-        <div class="flex-1 overflow-y-auto px-6 pb-6" style="max-height: calc(100vh - 320px);">
+        <div class="flex-1 overflow-y-auto px-6 pb-6">
           <nav>
             <ul class="space-y-3">
               <%= case @active_role do %>
@@ -329,7 +312,6 @@ defmodule TrialAppWeb.SidebarComponent do
                   <li><.link navigate={~p"/admin/dashboard"} class={link_class(@current_path, "/admin/dashboard", exact: true)}>Admin Dashboard</.link></li>
                   <li><.link navigate={~p"/organizations"} class={link_class(@current_path, "/organizations", exact: true)}>Organizations</.link></li>
 
-                  <!-- Admin Dropdown -->
                   <li>
                     <button phx-click="toggle_admin" phx-target={@myself} class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-purple-400 shadow-sm">
                       <span class="flex items-center gap-2">
@@ -352,7 +334,6 @@ defmodule TrialAppWeb.SidebarComponent do
                     <% end %>
                   </li>
 
-                  <!-- EAMS Dropdown -->
                   <li>
                     <button phx-click="toggle_eams" phx-target={@myself} class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-blue-400 shadow-sm">
                       <span class="flex items-center gap-2">
@@ -376,7 +357,6 @@ defmodule TrialAppWeb.SidebarComponent do
                     <% end %>
                   </li>
 
-                  <!-- Evaluation Dropdown -->
                   <li>
                     <button phx-click="toggle_supervision" phx-target={@myself} class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-indigo-400 shadow-sm">
                       <span class="flex items-center gap-2">
@@ -407,18 +387,18 @@ defmodule TrialAppWeb.SidebarComponent do
                   <li><.link navigate={~p"/users/settings"} class={link_class(@current_path, "/users/settings", exact: true)}>Settings</.link></li>
               <% end %>
 
-              <%!--
-              <li class="mt-6">
-                <a href={~p"/users/logout"} method="delete" class="block py-2.5 px-4 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium text-red-600">
+              <li class="mt-6 pt-6 border-t border-purple-200">
+                <.link href={~p"/users/logout"} method="delete" class="block py-2.5 px-4 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium text-red-600 flex items-center gap-2">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                  </svg>
                   Logout
-                </a>
+                </.link>
               </li>
-              --%>
             </ul>
           </nav>
         </div>
 
-        <!-- User Info -->
         <div class="p-6 flex-shrink-0">
           <div class="p-4 bg-white/80 rounded-xl border border-purple-200 shadow-md backdrop-blur-sm">
             <div class="flex items-center space-x-3">
@@ -440,7 +420,6 @@ defmodule TrialAppWeb.SidebarComponent do
         </div>
       </aside>
 
-      <!-- Toggle Button -->
       <button
         phx-click="toggle_sidebar"
         phx-target={@myself}
