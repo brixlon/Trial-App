@@ -103,6 +103,10 @@ defmodule TrialApp.Eams do
 
   def delete_project(%Project{} = project), do: Repo.delete(project)
 
+  def count_projects do
+    Repo.aggregate(Project, :count, :id)
+  end
+
   # ──────────────────────────────────────────────────────────────────────
   # ATTACHEES
   # ──────────────────────────────────────────────────────────────────────
@@ -126,6 +130,20 @@ defmodule TrialApp.Eams do
       on: ap.attachee_id == a.id,
       where: ap.program_id == ^program_id and a.status == "active",
       preload: [:user, :department, :organization],
+      order_by: [asc: a.id]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all attachees assigned to a program with optional preloads.
+  """
+  def list_attachees_by_program(program_id, opts \\ %{}) do
+    from(a in Attachee,
+      join: ap in AttacheeProgram,
+      on: ap.attachee_id == a.id,
+      where: ap.program_id == ^program_id and a.status == "active",
+      preload: ^Map.get(opts, :preloads, [:user, :department, :organization]),
       order_by: [asc: a.id]
     )
     |> Repo.all()
@@ -228,6 +246,10 @@ defmodule TrialApp.Eams do
   end
 
   def delete_attachee(%Attachee{} = attachee), do: Repo.delete(attachee)
+
+  def count_attachees do
+    Repo.aggregate(Attachee, :count, :id)
+  end
 
   # ──────────────────────────────────────────────────────────────────────
   # TASKS
@@ -342,6 +364,17 @@ defmodule TrialApp.Eams do
       |> order_by([t], desc: t.inserted_at)
       |> Repo.all()
     end
+  end
+
+  @doc """
+  Lists all tasks for a specific project.
+  """
+  def list_tasks_for_project(project_id) do
+    Task
+    |> where([t], t.project_id == ^project_id)
+    |> preload([:project, assignee: :user])
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
   end
 
   @doc """

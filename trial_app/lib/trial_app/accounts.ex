@@ -541,7 +541,7 @@ def get_user_by_email_and_password(email, password)
   Gets the user's active role.
   Falls back to first available role if active_role is not set.
   """
-  def get_active_role(%User{active_role: active_role} = user) when not is_nil(active_role) do
+  def get_active_role(%User{active_role: active_role} = _user) when not is_nil(active_role) do
     active_role
   end
 
@@ -653,6 +653,14 @@ def get_user_by_email_and_password(email, password)
         nil
     end
   end
+
+  @doc """
+  Deletes a user and associated data.
+  """
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
   # Private helpers
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transaction(fn ->

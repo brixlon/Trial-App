@@ -345,16 +345,17 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   <%= for project <- @projects do %>
                     <div
-                      phx-click="view_project_tasks"
-                      phx-value-id={project.id}
-                      class={"group relative p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer hover:shadow-lg #{if is_overdue?(project), do: "border-red-200 bg-gradient-to-br from-red-50 to-white hover:border-red-300", else: "border-gray-200 bg-white hover:border-purple-300 hover:shadow-purple-100"}"}
-                    >
+  phx-click="view_project_tasks"
+  phx-value-id={project.id}
+  class={"group relative p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md #{if is_overdue?(project), do: "border-red-200 bg-red-50/60 hover:border-red-300", else: "border-gray-200 bg-white hover:border-purple-200"}"}
+>
+
                       <div class="flex flex-col h-full space-y-4">
                         <!-- Header -->
                         <div class="flex items-start justify-between gap-3">
-                          <h3 class="text-lg font-bold text-gray-900 group-hover:text-purple-700 transition-colors line-clamp-2 flex-1">
+                          <h6 class="text-lg font-semibold text- italic purple-900 group-hover:text-purple-900 transition-colors line-clamp-2 flex-1">
                             <%= project.name %>
-                          </h3>
+                          </h6>
                           <span class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold flex-shrink-0">
                             <%= project.code %>
                           </span>
@@ -396,7 +397,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
 
                       <!-- Hover Arrow -->
                       <div class="absolute top-5 right-5 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-2 h-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                         </svg>
                       </div>
@@ -408,16 +409,16 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
           </div>
 
           <!-- Recent Activities -->
-          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div class="bg-white rounded-l border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-2 py-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
               <h2 class="text-xl font-bold text-gray-900">Recent Activities</h2>
             </div>
 
-            <div class="p-6">
+            <div class="p-4">
               <%= if @recent_activities == [] do %>
                 <div class="text-center py-12">
-                  <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="inline-flex items-center justify-center w-10 h-10 bg-gray-100 rounded-full mb-4">
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
@@ -439,7 +440,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
                             </p>
                           </div>
                         </div>
-                        <div class="flex items-center justify-between gap-3 pl-5">
+                        <div class="flex items-center justify-between gap-2 pl-4">
                           <p class="text-sm text-gray-600 truncate flex-1">
                             <%= activity.assignee_name %>
                           </p>
