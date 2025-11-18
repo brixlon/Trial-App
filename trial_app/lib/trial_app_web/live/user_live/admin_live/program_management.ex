@@ -88,15 +88,12 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   end
 
   # --------------------------------------------------------------------- #
-  # VIEW PROGRAM
+  # VIEW PROGRAM - Navigate to Program Show Page
   # --------------------------------------------------------------------- #
   @impl true
   def handle_event("view_program", %{"id" => id}, socket) do
-    program = Eams.get_program!(id) |> TrialApp.Repo.preload([:organization, :department])
-    {:noreply,
-     socket
-     |> assign(:viewing_program, program)
-     |> assign(:show_view_modal, true)}
+    Logger.info("VIEW PROGRAM – navigating to program show page for ID: #{id}")
+    {:noreply, push_navigate(socket, to: ~p"/admin/eams/programs/#{id}")}
   end
 
   # --------------------------------------------------------------------- #
@@ -122,6 +119,7 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     {:noreply,
      socket
      |> assign(:show_form, true)
+     |> assign(:show_view_modal, false)
      |> assign(:editing_program, program)
      |> assign(:form_data, form_data)
      |> assign(:departments, departments)
@@ -145,6 +143,14 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Could not delete program")}
     end
+  end
+
+  # --------------------------------------------------------------------- #
+  # STOP PROPAGATION (for action buttons)
+  # --------------------------------------------------------------------- #
+  @impl true
+  def handle_event("stop_propagation", _params, socket) do
+    {:noreply, socket}
   end
 
   # --------------------------------------------------------------------- #

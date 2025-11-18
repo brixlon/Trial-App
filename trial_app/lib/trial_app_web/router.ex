@@ -119,8 +119,21 @@ defmodule TrialAppWeb.Router do
       live "/employees/new", AdminLive.EmployeeForm, :new
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
 
-      # EAMS SECTION
+      # ════════════════════════════════════════════════════════════════
+      # EAMS SECTION - HIERARCHICAL NAVIGATION
+      # ════════════════════════════════════════════════════════════════
+
+      # Program Management (Level 1)
       live "/eams/programs", AdminLive.ProgramManagement, :index
+      live "/eams/programs/:id", AdminLive.ProgramShow, :show
+
+      # Project Management (Level 2 - under program context)
+      live "/eams/programs/:program_id/projects/:id", AdminLive.ProjectShow, :show
+
+      # Attachee Management (Level 3 - under project context)
+      live "/eams/programs/:program_id/projects/:project_id/attachees/:id", AdminLive.AttacheeShow, :show
+
+      # Standalone routes for direct access
       live "/eams/projects", AdminLive.ProjectManagement, :index
       live "/eams/tasks", AdminLive.TaskManagement, :index
 

@@ -7,7 +7,7 @@ defmodule TrialApp.Eams do
   alias TrialApp.Repo
 
   alias TrialApp.Eams.{
-    Program, Project, Task, Attachee, AttacheeProgram, Team, TeamMember, Evaluation
+    Program, Project, Task, Attachee, AttacheeProgram, ProjectAttachee, Team, TeamMember, Evaluation
   }
   alias TrialApp.Orgs.{Department, Organization}
   alias TrialApp.Accounts.User
@@ -35,6 +35,66 @@ defmodule TrialApp.Eams do
     |> Repo.preload(Map.get(opts, :preloads, [:department, :organization]))
   end
 
+  @doc """
+  Gets a program with its projects preloaded.
+  """
+  def get_program_with_projects(id) do
+    Program
+    |> Repo.get!(id)
+    |> Repo.preload([
+      :organization,
+      :department,
+      projects: [:supervisor, :department, :organization]
+    ])
+  end
+
+  @doc """
+  Gets statistics for a program (projects and attachees counts).
+  """
+  def get_program_stats(program_id) do
+    # Get all projects for this program
+    projects = list_projects_by_program(program_id, %{preloads: []})
+
+    # Ensure projects is a list
+    projects = if is_list(projects), do: projects, else: []
+
+    total_projects = length(projects)
+    active_projects = Enum.count(projects, fn p ->
+      Map.get(p, :is_active, false) &&
+      (!Map.get(p, :ends_on) || Date.compare(p.ends_on, Date.utc_today()) != :lt)
+    end)
+
+    # Get all unique attachees across all projects via project_attachees join table
+    project_ids = Enum.map(projects, & &1.id)
+
+    {total_attachees, active_attachees} = if Enum.empty?(project_ids) do
+      {0, 0}
+    else
+      try do
+        attachees = from(a in Attachee,
+          join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
+          where: pa.project_id in ^project_ids,
+          distinct: true,
+          select: a
+        )
+        |> Repo.all()
+
+        total = length(attachees)
+        active = Enum.count(attachees, fn a -> a.status == "active" end)
+        {total, active}
+      rescue
+        _ -> {0, 0}
+      end
+    end
+
+    %{
+      total_projects: total_projects,
+      active_projects: active_projects,
+      total_attachees: total_attachees,
+      active_attachees: active_attachees
+    }
+  end
+
   def create_program(attrs) do
     %Program{}
     |> Program.create_changeset(attrs)
@@ -58,11 +118,19 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  def list_projects_by_program(program_id, opts \\ %{}) do
-    Project
-    |> where([p], p.program_id == ^program_id)
-    |> preload(^Map.get(opts, :preloads, [:program, :department, :organization]))
-    |> Repo.all()
+  # Declare function head with defaults
+  def list_projects_by_program(program_id, opts \\ %{})
+
+  # Define implementation without defaults
+  def list_projects_by_program(program_id, opts) do
+    try do
+      Project
+      |> where([p], p.program_id == ^program_id)
+      |> preload(^Map.get(opts, :preloads, [:program, :department, :organization, :supervisor, :attachees]))
+      |> Repo.all()
+    rescue
+      _ -> []
+    end
   end
 
   def list_projects_by_supervisor(supervisor_id, opts \\ %{}) do
@@ -87,6 +155,97 @@ defmodule TrialApp.Eams do
     Project
     |> Repo.get!(id)
     |> Repo.preload(Map.get(opts, :preloads, [:program, :department, :organization]))
+  end
+
+  @doc """
+  Gets a project with detailed preloads for the show page.
+  """
+  def get_project_with_details(id) do
+    Project
+    |> Repo.get!(id)
+    |> Repo.preload([
+      :program,
+      :supervisor,
+      :department,
+      :organization
+    ])
+  end
+
+  @doc """
+  Gets statistics for a project (attachees and tasks).
+  """
+  def get_project_stats(project_id) do
+    # Get all attachees via project_attachees join table
+    attachees = from(a in Attachee,
+      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
+      where: pa.project_id == ^project_id,
+      distinct: true,
+      select: a
+    )
+    |> Repo.all()
+
+    total_attachees = length(attachees)
+    active_attachees = Enum.count(attachees, fn a -> a.status == "active" end)
+
+    # Get tasks for this project
+    tasks = from(t in Task, where: t.project_id == ^project_id)
+    |> Repo.all()
+
+    total_tasks = length(tasks)
+    completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
+
+    completion_rate = if total_tasks > 0 do
+      Float.round(completed_tasks / total_tasks * 100, 1)
+    else
+      0.0
+    end
+
+    %{
+      total_attachees: total_attachees,
+      active_attachees: active_attachees,
+      total_tasks: total_tasks,
+      completed_tasks: completed_tasks,
+      completion_rate: completion_rate
+    }
+  end
+
+  @doc """
+  Lists all attachees assigned to a project via project_attachees.
+  """
+  def list_attachees_by_project(project_id) do
+    from(a in Attachee,
+      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
+      where: pa.project_id == ^project_id,
+      preload: [:user, :department, :organization],
+      order_by: [desc: pa.joined_at]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Adds an attachee to a project using the project_attachees join table.
+  """
+  def add_attachee_to_project(project_id, attachee_id, attrs \\ %{}) do
+    %ProjectAttachee{}
+    |> ProjectAttachee.changeset(%{
+      project_id: project_id,
+      attachee_id: attachee_id,
+      role: Map.get(attrs, :role, "Intern"),
+      joined_at: Map.get(attrs, :joined_at, Date.utc_today())
+    })
+    |> Repo.insert()
+  end
+
+  @doc """
+  Removes an attachee from a project by deleting the project_attachees record.
+  """
+  def remove_attachee_from_project(project_id, attachee_id) do
+    from(pa in ProjectAttachee,
+      where: pa.project_id == ^project_id and pa.attachee_id == ^attachee_id
+    )
+    |> Repo.delete_all()
+
+    {:ok, :removed}
   end
 
   def create_project(attrs) do
@@ -154,9 +313,8 @@ defmodule TrialApp.Eams do
   """
   def list_attachees_in_project(project_id) do
     from(a in Attachee,
-      join: t in Task, on: t.assignee_id == a.id,
-      where: t.project_id == ^project_id,
-      distinct: a.id,
+      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
+      where: pa.project_id == ^project_id,
       preload: [:user, :department, :organization]
     )
     |> Repo.all()
@@ -208,6 +366,117 @@ defmodule TrialApp.Eams do
     Attachee
     |> Repo.get!(id)
     |> Repo.preload(Map.get(opts, :preloads, [:user, :department, :organization]))
+  end
+
+  @doc """
+  Gets an attachee with all necessary preloads for the show page.
+  """
+  def get_attachee_with_details(id) do
+    Attachee
+    |> Repo.get!(id)
+    |> Repo.preload([:user, :department, :organization])
+  end
+
+  @doc """
+  Lists all tasks for a specific attachee.
+  """
+  def list_tasks_by_attachee(attachee_id) do
+    Task
+    |> where([t], t.assignee_id == ^attachee_id)
+    |> preload([:project])
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all evaluations for a specific attachee.
+  """
+  def list_evaluations_by_attachee(attachee_id) do
+    Evaluation
+    |> where([e], e.attachee_id == ^attachee_id)
+    |> preload([:evaluator])
+    |> order_by([e], desc: e.inserted_at)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets comprehensive stats for an attachee.
+  """
+  def get_attachee_stats(attachee_id) do
+    # Get projects via tasks
+    projects = from(p in Project,
+      join: t in Task, on: t.project_id == p.id,
+      where: t.assignee_id == ^attachee_id,
+      distinct: p.id
+    )
+    |> Repo.all()
+
+    # Get tasks
+    tasks = list_tasks_by_attachee(attachee_id)
+    total_tasks = length(tasks)
+    completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
+
+    completion_rate = if total_tasks > 0 do
+      Float.round(completed_tasks / total_tasks * 100, 1)
+    else
+      0.0
+    end
+
+    %{
+      total_projects: length(projects),
+      total_tasks: total_tasks,
+      completed_tasks: completed_tasks,
+      completion_rate: completion_rate
+    }
+  end
+
+  @doc """
+  Gets evaluation summary with averages and trends.
+  """
+  def get_evaluation_summary(attachee_id) do
+    evaluations = list_evaluations_by_attachee(attachee_id)
+
+    if Enum.empty?(evaluations) do
+      %{
+        total_evaluations: 0,
+        average_score: 0.0,
+        highest_score: 0,
+        latest_score: 0,
+        trend: "stable"
+      }
+    else
+      scores = Enum.map(evaluations, & &1.score)
+      total = length(scores)
+      average = Float.round(Enum.sum(scores) / total, 1)
+      highest = Enum.max(scores)
+      latest = hd(scores)
+
+      # Calculate trend (comparing latest 3 vs previous 3)
+      trend = calculate_trend(scores)
+
+      %{
+        total_evaluations: total,
+        average_score: average,
+        highest_score: highest,
+        latest_score: latest,
+        trend: trend
+      }
+    end
+  end
+
+  defp calculate_trend(scores) when length(scores) < 4, do: "stable"
+  defp calculate_trend(scores) do
+    recent_sum = scores |> Enum.take(3) |> Enum.sum()
+    recent = recent_sum / 3
+
+    previous_sum = scores |> Enum.slice(3, 3) |> Enum.sum()
+    previous = previous_sum / 3
+
+    cond do
+      recent > previous + 5 -> "improving"
+      recent < previous - 5 -> "declining"
+      true -> "stable"
+    end
   end
 
   @doc """
@@ -388,13 +657,12 @@ defmodule TrialApp.Eams do
   end
 
   # Lists all projects accessible by a supervisor (through their department)
- def list_projects_for_supervisor(supervisor_id) do
-  Project
-  |> where([p], p.supervisor_id == ^supervisor_id and p.is_active == true)
-  |> preload([:program, :department, :organization])
-  |> Repo.all()
-end
-
+  def list_projects_for_supervisor(supervisor_id) do
+    Project
+    |> where([p], p.supervisor_id == ^supervisor_id and p.is_active == true)
+    |> preload([:program, :department, :organization])
+    |> Repo.all()
+  end
 
   # Counts the projects for a supervisor
   def count_projects_for_supervisor(supervisor_id) do
