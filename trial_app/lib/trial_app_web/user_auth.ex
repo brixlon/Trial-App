@@ -63,6 +63,7 @@ defmodule TrialAppWeb.UserAuth do
 
       true ->
         conn = fetch_cookies(conn, signed: [@remember_me_cookie])
+
         if token = conn.cookies[@remember_me_cookie] do
           {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
         else
@@ -102,6 +103,7 @@ defmodule TrialAppWeb.UserAuth do
     case conn.assigns[:current_scope] do
       %{user: %{id: user_id}} when user_id == user.id ->
         conn
+
       _ ->
         delete_csrf_token()
 
@@ -169,6 +171,7 @@ defmodule TrialAppWeb.UserAuth do
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
+
     if socket.assigns.current_scope && socket.assigns.current_scope.user &&
          socket.assigns.current_scope.user.role == "admin" do
       {:cont, socket}
@@ -194,7 +197,10 @@ defmodule TrialAppWeb.UserAuth do
     else
       socket =
         socket
-        |> Phoenix.LiveView.put_flash(:error, "You must be a supervisor or admin to access this page.")
+        |> Phoenix.LiveView.put_flash(
+          :error,
+          "You must be a supervisor or admin to access this page."
+        )
         |> Phoenix.LiveView.redirect(to: ~p"/dashboard")
 
       {:halt, socket}
@@ -222,46 +228,57 @@ defmodule TrialAppWeb.UserAuth do
         case session["user_token"] do
           nil ->
             nil
+
           token ->
-            case Accounts.get_user_by_session_token(token) do
+            case Accounts.get_user_by_session_token(token)
+   do
               {u, _} ->
                 case Accounts.ensure_active_role(u) do
                   {:ok, user_with_role} -> user_with_role
                   _ -> u
                 end
+
               nil ->
                 nil
             end
         end
+
       Scope.for_user(user)
     end)
   end
 
   def signed_in_path(%Plug.Conn{
         assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
-      }) when not is_nil(active_role) do
+      })
+      when not is_nil(active_role) do
     case active_role do
       "admin" -> ~p"/admin/dashboard"
       "supervisor" -> ~p"/supervisor/dashboard"
       "attachee" -> ~p"/attachee"
       "manager" -> ~p"/dashboard"
       _ -> ~p"/dashboard"
+
     end
   end
 
   def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{role: "admin"}}}
+        assigns: %{current_scope: %Scope{user: %Accounts.User{roles: roles}}}
       }) do
-    ~p"/admin/dashboard"
+    if Enum.any?(["admin", "supervisor"], &(&1 in roles)) do
+      ~p"/admin/dashboard"
+    else
+      ~p"/"
+    end
   end
 
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{} }}}) do
     ~p"/dashboard"
   end
 
   def signed_in_path(_), do: ~p"/dashboard"
 
   def require_authenticated_user(conn, _opts) do
+    IO.inspect(conn, label: "require_authenticated_user CONN")
     if conn.assigns.current_scope && conn.assigns.current_scope.user do
       conn
     else
@@ -276,7 +293,7 @@ defmodule TrialAppWeb.UserAuth do
   # FIXED: Use `conn`, not `socket`
   def require_admin_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user &&
-         conn.assigns.current_scope.user.role == "admin" do
+         "admin" in conn.assigns.current_scope.user.roles do
       conn
     else
       conn

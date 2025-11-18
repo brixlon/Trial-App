@@ -528,14 +528,11 @@ def get_user_by_email_and_password(email, password)
   Gets all roles available to a user.
   Returns the roles array if populated, otherwise returns single role as list.
   """
-  def get_user_roles(%User{roles: roles, role: single_role}) do
-    if Enum.any?(roles || []) do
-      roles
-    else
-      [single_role]
-    end
-    |> Enum.reject(&is_nil/1)
-  end
+def get_user_roles(%User{roles: roles, role: single_role}) do
+  array_roles = if is_list(roles), do: roles || [], else: []
+  single_role_list = if is_binary(single_role) and single_role != "", do: [single_role], else: []
+  (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
+end
 
   @doc """
   Gets the user's active role.

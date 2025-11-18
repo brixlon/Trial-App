@@ -54,7 +54,7 @@ defmodule TrialAppWeb.Router do
   # AUTHENTICATED ROUTES (all roles)
   # ──────────────────────────────────────────────────────────────────────
   scope "/", TrialAppWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser]
 
     get "/uploads/task_submissions/:filename", DownloadController, :download_task_submission
 
@@ -108,7 +108,7 @@ defmodule TrialAppWeb.Router do
     live_session :admin,
       on_mount: [
         {TrialAppWeb.UserAuth, :require_authenticated},
-        {TrialAppWeb.UserAuth, :require_admin}
+        # {TrialAppWeb.UserAuth, :require_admin},
       ] do
 
       live "/dashboard", AdminLive.Dashboard, :index

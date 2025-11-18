@@ -377,55 +377,33 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  @doc """
-  Lists all projects accessible by a supervisor.
-  Based on the programs in their department.
-  """
-  def list_projects_for_supervisor(supervisor_id) do
-    # Get supervisor's department
-    case get_supervisor_department(supervisor_id) do
-      nil ->
-        []
+  # ──────────────────────────────────────────────────────────────────────
+  # SUPERVISOR DASHBOARD HELPERS
+  # ──────────────────────────────────────────────────────────────────────
 
-      dept ->
-        # Get programs in supervisor's department
-        programs = list_programs_by_department(dept.id)
-        program_ids = Enum.map(programs, & &1.id)
-
-        if Enum.empty?(program_ids) do
-          []
-        else
-          list_projects_by_programs(program_ids)
-        end
-    end
-  end
-
+  # Helper to get the supervisor's department
   defp get_supervisor_department(supervisor_id) do
     user = Accounts.get_user!(supervisor_id)
     Orgs.get_department_for_user(user.id)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # TEAMS
-  # ──────────────────────────────────────────────────────────────────────
-  def create_team(attrs) do
-    %Team{}
-    |> Team.changeset(attrs)
-    |> Repo.insert()
-  end
+  # Lists all projects accessible by a supervisor (through their department)
+ def list_projects_for_supervisor(supervisor_id) do
+  Project
+  |> where([p], p.supervisor_id == ^supervisor_id and p.is_active == true)
+  |> preload([:program, :department, :organization])
+  |> Repo.all()
+end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # SUPERVISOR DASHBOARD HELPERS
-  # ──────────────────────────────────────────────────────────────────────
 
-  # ADDED: THIS IS THE ONLY NEW FUNCTION YOU WERE MISSING
+  # Counts the projects for a supervisor
   def count_projects_for_supervisor(supervisor_id) do
     supervisor_id
     |> list_projects_for_supervisor()
     |> length()
   end
 
-  # OPTIONAL: Safer version of count_attachees_under_supervisor (won't crash if no teams exist)
+  # Counts all active attachees under a supervisor (safely)
   def count_attachees_under_supervisor(supervisor_id) do
     case get_supervisor_department(supervisor_id) do
       nil -> 0
@@ -439,6 +417,7 @@ defmodule TrialApp.Eams do
     end
   end
 
+  # Counts active tasks (pending/in_progress) under a supervisor
   def count_active_tasks_for_supervisor(supervisor_id) do
     from(task in Task,
       join: a in Attachee, on: task.assignee_id == a.id,
@@ -451,6 +430,7 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
+  # Counts tasks submitted by attachees under a supervisor that are awaiting review
   def count_pending_task_reviews(supervisor_id) do
     from(task in Task,
       join: a in Attachee, on: task.assignee_id == a.id,
@@ -463,6 +443,7 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
+  # Counts tasks completed this week under a supervisor
   def count_completed_tasks_this_week(supervisor_id) do
     beginning_of_week = Date.utc_today() |> Date.beginning_of_week()
     start_of_week = DateTime.new!(beginning_of_week, ~T[00:00:00])
@@ -479,6 +460,7 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
+  # Lists recent activities (submitted or completed tasks) under a supervisor
   def list_recent_activities_for_supervisor(supervisor_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 5)
 

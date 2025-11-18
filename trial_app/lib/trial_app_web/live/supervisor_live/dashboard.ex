@@ -22,40 +22,46 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
      |> load_data(current_user, active_role)}
   end
 
+  # FIXED: Admin load_data - ensure we're loading ALL projects
   defp load_data(socket, user, "admin") do
-    org = Orgs.get_organization_for_user(user.id)
-    dept = Orgs.get_department_for_user(user.id)
+  org = Orgs.get_organization_for_user(user.id)
+  dept = Orgs.get_department_for_user(user.id)
 
-    # Admin sees ALL projects
-    projects = Eams.list_projects()
+  # Admin sees ALL projects with proper preloads
+  projects = Eams.list_projects(%{preloads: [:program, :department, :organization]})
+
+  # Admin sees ALL tasks with proper preloads
+  all_tasks = Eams.list_tasks(%{preloads: [:project, assignee: :user]})
 
     socket
     |> assign(:organization, org)
     |> assign(:department, dept)
     |> assign(:projects, projects)
-    |> assign(:stats, load_supervisor_stats_for_admin())
-    |> assign(:recent_activities, load_recent_activities_for_admin())
+    |> assign(:stats, load_supervisor_stats_for_admin(all_tasks))
+    |> assign(:recent_activities, load_recent_activities_for_admin(all_tasks))
   end
 
+  # FIXED: Supervisor load_data - only their assigned projects
   defp load_data(socket, user, _role) do
     org = Orgs.get_organization_for_user(user.id)
     dept = Orgs.get_department_for_user(user.id)
 
-    # Supervisor sees only their own
+    # Supervisor sees only their own projects (where they are the supervisor)
     projects = Eams.list_projects_for_supervisor(user.id)
+
+    # Supervisor sees only tasks from their projects
+    all_tasks = Eams.list_tasks_for_supervisor(user.id)
 
     socket
     |> assign(:organization, org)
     |> assign(:department, dept)
     |> assign(:projects, projects)
-    |> assign(:stats, load_supervisor_stats(user))
-    |> assign(:recent_activities, load_recent_activities(user))
+    |> assign(:stats, load_supervisor_stats(all_tasks))
+    |> assign(:recent_activities, load_recent_activities(all_tasks))
   end
 
-  # Admin: all data
-  defp load_supervisor_stats_for_admin do
-    all_tasks = Eams.list_tasks()
-
+  # Admin stats helper
+  defp load_supervisor_stats_for_admin(all_tasks) do
     %{
       total_projects: Eams.count_projects(),
       total_attachees: Eams.count_attachees(),
@@ -65,33 +71,42 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     }
   end
 
-  # Supervisor: own data
-  defp load_supervisor_stats(current_user) do
-    all_tasks = Eams.list_tasks_for_supervisor(current_user.id)
-
+  # Supervisor stats helper
+  defp load_supervisor_stats(all_tasks) do
     %{
-      total_projects: Eams.count_projects_for_supervisor(current_user.id),
-      total_attachees: Eams.count_attachees_under_supervisor(current_user.id),
+      total_projects: length(all_tasks |> Enum.map(& &1.project_id) |> Enum.uniq()),
+      total_attachees: length(all_tasks |> Enum.map(& &1.assignee_id) |> Enum.uniq()),
       active_tasks: Enum.count(all_tasks, &(&1.status in ["pending", "in_progress"])),
       pending_reviews: Enum.count(all_tasks, &(&1.status == "submitted")),
       completed_tasks: Enum.count(all_tasks, &(&1.status == "completed"))
     }
   end
 
-  defp load_recent_activities_for_admin do
-    Eams.list_tasks()
-    |> Enum.sort_by(& &1.updated_at, {:desc, NaiveDateTime})
+  # Admin activities
+  defp load_recent_activities_for_admin(all_tasks) do
+  all_tasks
+  |> Enum.filter(&(&1.status in ["submitted", "completed"]))
+  |> Enum.sort_by(& &1.inserted_at, {:desc, NaiveDateTime})  # FIXED HERE
+  |> Enum.take(10)
+  |> Enum.map(&format_activity/1)
+end
+
+  # Supervisor activities
+  defp load_recent_activities(all_tasks) do
+    all_tasks
+    |> Enum.filter(&(&1.status in ["submitted", "completed"]))
+    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
     |> Enum.take(10)
     |> Enum.map(&format_activity/1)
   end
-
-  defp load_recent_activities(current_user) do
-    Eams.list_tasks_for_supervisor(current_user.id)
-    |> Enum.sort_by(& &1.updated_at, {:desc, NaiveDateTime})
+  # Supervisor activities —
+  defp load_recent_activities(all_tasks) do
+    all_tasks
+    |> Enum.filter(&(&1.status in ["submitted", "completed"]))
+    |> Enum.sort_by(& &1.updated_at, {:desc, NaiveDateTime})  # ←
     |> Enum.take(10)
     |> Enum.map(&format_activity/1)
   end
-
   defp format_activity(task) do
     %{
       task_title: task.title,
@@ -136,6 +151,13 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     case Accounts.switch_user_role(user, new_role) do
       {:ok, updated_user} ->
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
+
+        # FIXED: Reload data immediately after role switch
+        socket = socket
+        |> assign(:current_scope, updated_scope)
+        |> assign(:active_role, new_role)
+        |> load_data(updated_user, new_role)
+
         redirect_path = case new_role do
           "admin" -> ~p"/admin/dashboard"
           "supervisor" -> ~p"/supervisor/dashboard"
@@ -147,7 +169,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
 
         {:noreply,
          socket
-         |> assign(:current_scope, updated_scope)
          |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
@@ -168,7 +189,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     {:noreply, socket |> load_data(user, role) |> put_flash(:info, "Task created!") |> assign(:show_task_form, false)}
   end
 
-  # ─── RENDER ───
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -491,8 +512,10 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     </div>
     """
   end
-  # ─── HELPERS (unchanged) ───
+
+  # ─── HELPERS ───
   defp is_overdue?(project), do: project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt
+
   defp format_due_date(nil), do: "No deadline"
   defp format_due_date(date) do
     days = Date.diff(date, Date.utc_today())

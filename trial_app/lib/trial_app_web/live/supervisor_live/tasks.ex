@@ -5,10 +5,20 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
   @impl true
   def mount(_params, _session, socket) do
     current_user = socket.assigns.current_scope.user
+    active_role = Accounts.get_active_role(current_user)
 
-    # Load all tasks for supervisor
-    all_tasks = Eams.list_tasks_for_supervisor(current_user.id)
-    projects = Eams.list_projects_for_supervisor(current_user.id)
+    # FIXED: Load tasks based on role
+    {all_tasks, projects} = case active_role do
+      "admin" ->
+        # Admin sees ALL tasks and ALL projects
+        {Eams.list_tasks(%{preloads: [:project, assignee: :user]}),
+         Eams.list_projects(%{preloads: [:program, :department, :organization]})}
+
+      _ ->
+        # Supervisor sees only their tasks and projects
+        {Eams.list_tasks_for_supervisor(current_user.id),
+         Eams.list_projects_for_supervisor(current_user.id)}
+    end
 
     # Group tasks by status
     pending_approval = Enum.filter(all_tasks, &(&1.status == "submitted"))
@@ -21,6 +31,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      socket
      |> assign(:current_user, current_user)
      |> assign(:current_scope, socket.assigns.current_scope)
+     |> assign(:active_role, active_role)
      |> assign(:all_tasks, all_tasks)
      |> assign(:projects, projects)
      |> assign(:pending_approval, pending_approval)
@@ -37,7 +48,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     {:noreply, assign(socket, :selected_tab, tab)}
   end
 
-  # FIXED: Properly preload the nested user association
   def handle_event("view_task", %{"id" => id}, socket) do
     task = Eams.get_task!(id, %{preloads: [:project, assignee: :user]})
 
@@ -54,7 +64,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      |> assign(:show_task_modal, false)}
   end
 
-  # FIXED: Added stop_propagation handler
   def handle_event("stop_propagation", _params, socket) do
     {:noreply, socket}
   end
@@ -122,9 +131,18 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     end
   end
 
+  # FIXED: Reload tasks based on current role
   defp reload_tasks(socket) do
     current_user = socket.assigns.current_user
-    all_tasks = Eams.list_tasks_for_supervisor(current_user.id)
+    active_role = socket.assigns.active_role
+
+    all_tasks = case active_role do
+      "admin" ->
+        Eams.list_tasks(%{preloads: [:project, assignee: :user]})
+      _ ->
+        Eams.list_tasks_for_supervisor(current_user.id)
+    end
+
     pending_approval = Enum.filter(all_tasks, &(&1.status == "submitted"))
     overdue_tasks = get_overdue_tasks(all_tasks)
     tasks_by_project = Enum.group_by(all_tasks, & &1.project_id)
@@ -155,6 +173,8 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
       0
     end
   end
+
+  # Keep your existing @impl true render/1 function and all helper functions below this line
 
   @impl true
   def render(assigns) do

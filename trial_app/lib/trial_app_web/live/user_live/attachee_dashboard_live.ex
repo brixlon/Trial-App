@@ -2,85 +2,85 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   use TrialAppWeb, :live_view
 
   alias TrialApp.{Accounts, Eams, Repo}
+@impl true
+def mount(_params, _session, socket) do
+  current_scope = socket.assigns.current_scope
+  user = current_scope.user
 
-  @impl true
-  def mount(_params, _session, socket) do
-    current_scope = socket.assigns.current_scope
-    user = current_scope.user
+  # Check if active role is attachee
+  if current_scope.active_role == "attachee" or "attachee" in user.roles do
+    # User should be an attachee, try to load their profile
+    attachee = Eams.get_attachee_by_user(user.id)
 
-    # Check if user should have access to attachee dashboard
-    if current_scope.is_admin or current_scope.is_supervisor do
-      # Redirect admin/supervisor to their appropriate dashboard
-      redirect_path = cond do
-        current_scope.is_admin -> ~p"/admin/dashboard"
-        current_scope.is_supervisor -> ~p"/supervisor/dashboard"
-        true -> ~p"/dashboard"
-      end
+    if attachee do
+      programs = Eams.list_programs_for_attachee(attachee.id)
+      tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
+      projects = Eams.list_projects_for_attachee(attachee.id)
+      team_mates = get_team_mates(attachee.department_id)
+
+      # Get REAL evaluation data
+      evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
+      avg_score = Eams.get_average_evaluation_score(attachee.id)
+      eval_count = Eams.count_evaluations_for_attachee(attachee.id)
+      evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
+
+      # Calculate not meeting expectations (scores below 41)
+      not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
 
       {:ok,
        socket
-       |> put_flash(:error, "You don't have access to the attachee dashboard")
-       |> push_navigate(to: redirect_path)}
+       |> assign(:current_scope, current_scope)
+       |> assign(:attachee, attachee)
+       |> assign(:programs, programs)
+       |> assign(:tasks, tasks)
+       |> assign(:projects, projects)
+       |> assign(:team_mates, team_mates)
+       |> assign(:evaluations, evaluations)
+       |> assign(:evaluation_data, evaluation_data)
+       |> assign(:avg_score, avg_score)
+       |> assign(:eval_count, eval_count)
+       |> assign(:not_meeting, not_meeting)
+       |> assign(:show_task_modal, false)
+       |> assign(:selected_task, nil)
+       |> assign(:submission_comment, "")
+       |> assign(:submission_links, [])
+       |> assign(:uploaded_files, [])
+       |> allow_upload(:task_files,
+          accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
+          max_entries: 5,
+          max_file_size: 10_000_000)}
     else
-      # User should be an attachee, try to load their profile
-      attachee = Eams.get_attachee_by_user(user.id)
-
-      if attachee do
-        programs = Eams.list_programs_for_attachee(attachee.id)
-        tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
-        projects = Eams.list_projects_for_attachee(attachee.id)
-        team_mates = get_team_mates(attachee.department_id)
-
-        # Get REAL evaluation data
-        evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-        avg_score = Eams.get_average_evaluation_score(attachee.id)
-        eval_count = Eams.count_evaluations_for_attachee(attachee.id)
-        evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
-
-        # Calculate not meeting expectations (scores below 41)
-        not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
-
-        {:ok,
-         socket
-         |> assign(:current_scope, current_scope)
-         |> assign(:attachee, attachee)
-         |> assign(:programs, programs)
-         |> assign(:tasks, tasks)
-         |> assign(:projects, projects)
-         |> assign(:team_mates, team_mates)
-         |> assign(:evaluations, evaluations)
-         |> assign(:evaluation_data, evaluation_data)
-         |> assign(:avg_score, avg_score)
-         |> assign(:eval_count, eval_count)
-         |> assign(:not_meeting, not_meeting)
-         |> assign(:show_task_modal, false)
-         |> assign(:selected_task, nil)
-         |> assign(:submission_comment, "")
-         |> assign(:submission_links, [])
-         |> assign(:uploaded_files, [])
-         |> allow_upload(:task_files,
-            accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
-            max_entries: 5,
-            max_file_size: 10_000_000)}
-      else
-        # User is marked as attachee but has no profile
-        {:ok,
-         socket
-         |> assign(:current_scope, current_scope)
-         |> assign(:attachee, nil)
-         |> assign(:tasks, [])
-         |> assign(:projects, [])
-         |> assign(:programs, [])
-         |> assign(:team_mates, [])
-         |> assign(:evaluations, [])
-         |> assign(:evaluation_data, [])
-         |> assign(:avg_score, 0)
-         |> assign(:eval_count, 0)
-         |> assign(:not_meeting, 0)
-         |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
-      end
+      # User is marked as attachee but has no profile
+      {:ok,
+       socket
+       |> assign(:current_scope, current_scope)
+       |> assign(:attachee, nil)
+       |> assign(:tasks, [])
+       |> assign(:show_task_modal, false) 
+       |> assign(:projects, [])
+       |> assign(:programs, [])
+       |> assign(:team_mates, [])
+       |> assign(:evaluations, [])
+       |> assign(:evaluation_data, [])
+       |> assign(:avg_score, 0)
+       |> assign(:eval_count, 0)
+       |> assign(:not_meeting, 0)
+       |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
     end
+  else
+    # Not an attachee - redirect to appropriate dashboard
+    redirect_path = case current_scope.active_role do
+      "admin" -> ~p"/admin/dashboard"
+      "supervisor" -> ~p"/supervisor/dashboard"
+      _ -> ~p"/dashboard"
+    end
+
+    {:ok,
+     socket
+     |> put_flash(:info, "Redirecting to #{current_scope.active_role} dashboard")
+     |> push_navigate(to: redirect_path)}
   end
+end
 
   @impl true
   def handle_params(_params, _uri, socket) do
