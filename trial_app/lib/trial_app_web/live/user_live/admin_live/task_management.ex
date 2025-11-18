@@ -216,6 +216,11 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     end
   end
 
+  def handle_event("stop_propagation", _params, socket) do
+  {:noreply, socket}
+end
+
+
   # --------------------------------------------------------------------- #
   # HELPERS
   # --------------------------------------------------------------------- #

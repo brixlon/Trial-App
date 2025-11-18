@@ -1,4 +1,3 @@
-# lib/trial_app_web/live/admin_live/program_show.ex
 defmodule TrialAppWeb.AdminLive.ProgramShow do
   use TrialAppWeb, :live_view
 
@@ -88,32 +87,57 @@ defmodule TrialAppWeb.AdminLive.ProgramShow do
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-          <%= if Ecto.assoc_loaded?(@program.organization) && @program.organization do %>
-            <div class="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-5">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <.icon name="hero-building-office-2" class="w-7 h-7" />
-              </div>
-              <div>
-                <p class="text-purple-200 text-sm">Organization</p>
-                <p class="font-semibold text-lg"><%= @program.organization.name %></p>
-              </div>
-            </div>
-          <% end %>
+              <!-- Program Info -->
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                <%= if Ecto.assoc_loaded?(@program.organization) && @program.organization do %>
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    <div>
+                      <div class="text-xs text-purple-200">Organization</div>
+                      <div class="font-medium"><%= @program.organization.name %></div>
+                    </div>
+                  </div>
+                <% end %>
 
-          <%= if Ecto.assoc_loaded?(@program.department) && @program.department do %>
-            <div class="flex items-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-5">
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <.icon name="hero-user-group" class="w-7 h-7" />
-              </div>
-              <div>
-                <p class="text-purple-200 text-sm">Department</p>
-                <p class="font-semibold text-lg"><%= @program.department.name %></p>
+                <%= if Ecto.assoc_loaded?(@program.department) && @program.department do %>
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    <div>
+                      <div class="text-xs text-purple-200">Department</div>
+                      <div class="font-medium"><%= @program.department.name %></div>
+                    </div>
+                  </div>
+                <% end %>
+
+                <%= if @program.starts_on do %>
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <div>
+                      <div class="text-xs text-purple-200">Start Date</div>
+                      <div class="font-medium"><%= Calendar.strftime(@program.starts_on, "%b %d, %Y") %></div>
+                    </div>
+                  </div>
+                <% end %>
+
+                <%= if @program.ends_on do %>
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    <div>
+                      <div class="text-xs text-purple-200">End Date</div>
+                      <div class="font-medium"><%= Calendar.strftime(@program.ends_on, "%b %d, %Y") %></div>
+                    </div>
+                  </div>
+                <% end %>
               </div>
             </div>
-          <% end %>
-        </div>
-      </div>
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
