@@ -244,6 +244,14 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagement do
           Eams.enroll_attachee_in_program(attachee.id, program_id)
         end
 
+        # Send welcome email for new attachees
+        unless socket.assigns.editing_attachee do
+          attachee_with_preloads = attachee |> Repo.preload([:user, :organization, :department, :programs])
+          Task.start(fn ->
+            TrialApp.AttacheeNotifications.send_welcome_email(attachee_with_preloads)
+          end)
+        end
+
         # Reload attachees list with auto-status
         updated_attachees = list_attachees_with_auto_status()
 
