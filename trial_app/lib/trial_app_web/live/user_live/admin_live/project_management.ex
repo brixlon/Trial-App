@@ -1,28 +1,37 @@
 defmodule TrialAppWeb.AdminLive.ProjectManagement do
   use TrialAppWeb, :live_view
+  require Logger
 
-  alias TrialApp.{Eams, Orgs}
-  alias TrialApp.Accounts
+  alias TrialApp.{Eams, Orgs, Accounts}
 
-  # Mount
   def mount(_params, _session, socket) do
+    projects = load_projects_with_stats()
+
     {:ok,
      socket
-     |> assign(:current_scope, socket.assigns.current_scope)
-     |> assign(:projects, list_projects_with_preloads())
+     |> assign(:current_scope, socket.assigns[:current_scope] || %{})
+     |> assign(:projects, projects)
      |> assign(:show_form, false)
-     |> assign(:show_view_modal, false)
      |> assign(:editing_project, nil)
-     |> assign(:viewing_project, nil)
+     |> assign(:search_query, "")
      |> assign(:orgs, Orgs.list_all_organizations())
      |> assign(:departments, [])
      |> assign(:programs, [])
      |> assign(:supervisors, Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager"))
      |> assign(:form_data, empty_form())
-     |> assign(:errors, %{})}
+     |> assign(:errors, %{})
+     # New: Detail view state
+     |> assign(:show_detail_view, false)
+     |> assign(:selected_project, nil)
+     |> assign(:project_attachees, [])
+     |> assign(:selected_attachee, nil)
+     |> assign(:attachee_tasks, [])
+     |> assign(:attachee_evaluations, [])
+     |> assign(:attachee_stats, %{})
+     |> assign(:detail_level, "projects")}  # "projects" | "attachees" | "tasks"
   end
 
-  # Events - Create
+  # Form Events
   def handle_event("new", _params, socket) do
     {:noreply,
      socket
@@ -38,15 +47,85 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     {:noreply,
      socket
      |> assign(:show_form, false)
-     |> assign(:show_view_modal, false)
+     |> assign(:show_detail_view, false)
      |> assign(:editing_project, nil)
-     |> assign(:viewing_project, nil)
+     |> assign(:selected_project, nil)
+     |> assign(:selected_attachee, nil)
      |> assign(:form_data, empty_form())
      |> assign(:departments, [])
      |> assign(:programs, [])
-     |> assign(:errors, %{})}
+     |> assign(:errors, %{})
+     |> assign(:detail_level, "projects")}
   end
 
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply, assign(socket, :search_query, query)}
+  end
+
+  # Detail View Navigation
+  def handle_event("view_project_detail", %{"id" => id}, socket) do
+    project = Eams.get_project!(parse_int(id))
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+
+    # IMPORTANT: Add stats to the project
+    project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project.id))
+
+    attachees = Eams.list_attachees_by_project(project.id)
+
+    {:noreply,
+     socket
+     |> assign(:show_detail_view, true)
+     |> assign(:selected_project, project_with_stats)
+     |> assign(:project_attachees, attachees)
+     |> assign(:selected_attachee, nil)
+     |> assign(:detail_level, "attachees")}
+  end
+
+  def handle_event("view_attachee_detail", %{"id" => id}, socket) do
+    attachee = Eams.get_attachee_with_details(parse_int(id))
+
+    # Preload the project association if it's not already loaded
+    attachee_with_project = if Ecto.assoc_loaded?(attachee.projects) do
+      attachee
+    else
+      TrialApp.Repo.preload(attachee, [projects: [:program]])
+    end
+
+    # Load tasks with project preloaded
+    tasks = Eams.list_tasks_by_attachee(attachee.id)
+            |> TrialApp.Repo.preload([:project])
+
+    evaluations = Eams.list_evaluations_by_attachee(attachee.id)
+                  |> TrialApp.Repo.preload([:evaluator])
+
+    stats = Eams.get_attachee_stats(attachee.id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_attachee, attachee_with_project)
+     |> assign(:attachee_tasks, tasks)
+     |> assign(:attachee_evaluations, evaluations)
+     |> assign(:attachee_stats, stats)
+     |> assign(:detail_level, "tasks")}
+  end
+
+  def handle_event("back_to_attachees", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_attachee, nil)
+     |> assign(:detail_level, "attachees")}
+  end
+
+  def handle_event("back_to_projects", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_detail_view, false)
+     |> assign(:selected_project, nil)
+     |> assign(:selected_attachee, nil)
+     |> assign(:detail_level, "projects")}
+  end
+
+  # CRUD Events
   def handle_event("update", %{"project" => params}, socket) do
     org_id = Map.get(params, "organization_id")
     dept_id = Map.get(params, "department_id")
@@ -57,7 +136,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     departments = if is_integer(org_int), do: Orgs.list_departments_by_org(org_int), else: []
     programs = if is_integer(dept_int), do: Eams.list_programs_by_department(dept_int), else: []
 
-    # Clear date validation errors when dates change
     errors = socket.assigns.errors
     |> Map.delete(:starts_on)
     |> Map.delete(:ends_on)
@@ -72,12 +150,8 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   end
 
   def handle_event("save", %{"project" => params}, socket) do
-    require Logger
-
-    # Log what we received
     Logger.info("Attempting to save project with params: #{inspect(params)}")
 
-    # Validate dates first
     case validate_dates(params) do
       {:ok, _} ->
         attrs = %{
@@ -93,8 +167,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
           is_active: true
         }
 
-        Logger.info("Parsed attributes: #{inspect(attrs)}")
-
         result = if socket.assigns.editing_project do
           Eams.update_project(socket.assigns.editing_project, attrs)
         else
@@ -102,8 +174,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
         end
 
         case result do
-          {:ok, project} ->
-            Logger.info("Project saved successfully: #{inspect(project)}")
+          {:ok, _project} ->
             {:noreply,
              socket
              |> assign(:show_form, false)
@@ -111,39 +182,20 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
              |> assign(:form_data, empty_form())
              |> assign(:departments, [])
              |> assign(:programs, [])
-             |> assign(:projects, list_projects_with_preloads())
+             |> assign(:projects, load_projects_with_stats())
              |> assign(:errors, %{})
              |> put_flash(:info, "Project #{if socket.assigns.editing_project, do: "updated", else: "created"} successfully")}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            Logger.error("Failed to save project. Changeset errors: #{inspect(changeset.errors)}")
             errors = changeset.errors |> Enum.into(%{})
-            Logger.error("Formatted errors: #{inspect(errors)}")
             {:noreply, assign(socket, errors: errors)}
-
-          {:error, reason} ->
-            Logger.error("Failed to save project. Reason: #{inspect(reason)}")
-            {:noreply, put_flash(socket, :error, "Failed to save project: #{inspect(reason)}")}
         end
 
       {:error, message} ->
-        Logger.error("Date validation failed: #{message}")
         {:noreply, assign(socket, errors: %{date_range: message})}
     end
   end
 
-  # Events - View
-  def handle_event("view_project", %{"id" => id}, socket) do
-    project = Eams.get_project!(parse_int(id))
-              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
-
-    {:noreply,
-     socket
-     |> assign(:viewing_project, project)
-     |> assign(:show_view_modal, true)}
-  end
-
-  # Events - Edit
   def handle_event("edit_project", %{"id" => id}, socket) do
     project = Eams.get_project!(parse_int(id))
               |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
@@ -176,7 +228,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:errors, %{})}
   end
 
-  # Events - Delete
   def handle_event("delete_project", %{"id" => id}, socket) do
     project = Eams.get_project!(parse_int(id))
 
@@ -184,7 +235,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
       {:ok, _project} ->
         {:noreply,
          socket
-         |> assign(:projects, list_projects_with_preloads())
+         |> assign(:projects, load_projects_with_stats())
          |> put_flash(:info, "Project deleted successfully")}
 
       {:error, _changeset} ->
@@ -192,10 +243,24 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     end
   end
 
+  def handle_event("refresh", _params, socket) do
+    {:noreply, assign(socket, :projects, load_projects_with_stats())}
+  end
+
   # Helpers
-  defp list_projects_with_preloads do
-    Eams.list_projects()
-    |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+  defp load_projects_with_stats do
+    try do
+      Eams.list_projects()
+      |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+      |> Enum.map(fn project ->
+        stats = Eams.get_project_stats(project.id)
+        Map.put(project, :stats, stats)
+      end)
+    rescue
+      e ->
+        Logger.error("Error loading projects with stats: #{inspect(e)}")
+        []
+    end
   end
 
   defp empty_form do
@@ -212,6 +277,43 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     }
   end
 
+  defp filtered_projects(projects, ""), do: projects
+  defp filtered_projects(projects, query) do
+    query = String.downcase(query)
+    Enum.filter(projects, fn project ->
+      String.contains?(String.downcase(project.name || ""), query) ||
+      (project.code && String.contains?(String.downcase(project.code), query)) ||
+      (project.description && String.contains?(String.downcase(project.description), query))
+    end)
+  end
+
+  defp project_status(project) do
+    cond do
+      !project.is_active -> :inactive
+      project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt -> :completed
+      project.starts_on && Date.compare(project.starts_on, Date.utc_today()) == :gt -> :upcoming
+      true -> :active
+    end
+  end
+
+  defp attachee_name(attachee) do
+    if Ecto.assoc_loaded?(attachee.user) && attachee.user do
+      attachee.user.username || attachee.user.email
+    else
+      "Attachee ##{attachee.id}"
+    end
+  end
+
+  defp task_status_color(status) do
+    case status do
+      "completed" -> "bg-green-100 text-green-800"
+      "in_progress" -> "bg-blue-100 text-blue-800"
+      "submitted" -> "bg-purple-100 text-purple-800"
+      "rejected" -> "bg-red-100 text-red-800"
+      _ -> "bg-gray-100 text-gray-800"
+    end
+  end
+
   defp validate_dates(params) do
     starts_on = parse_date(params["starts_on"])
     ends_on = parse_date(params["ends_on"])
@@ -219,13 +321,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     cond do
       is_nil(starts_on) and is_nil(ends_on) ->
         {:ok, nil}
-
       is_nil(starts_on) and not is_nil(ends_on) ->
         {:error, "Start date is required when end date is provided"}
-
       not is_nil(starts_on) and not is_nil(ends_on) and Date.compare(ends_on, starts_on) == :lt ->
         {:error, "End date must be after start date"}
-
       true ->
         {:ok, nil}
     end
@@ -248,74 +347,27 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   defp parse_date(nil), do: nil
   defp parse_date(""), do: nil
-
-  # Handle multiple date formats
   defp parse_date(date_string) when is_binary(date_string) do
     date_string = String.trim(date_string)
 
     cond do
-      # ISO format: YYYY-MM-DD
       String.match?(date_string, ~r/^\d{4}-\d{2}-\d{2}$/) ->
         parse_iso_date(date_string)
-
-      # US format: MM/DD/YYYY
-      String.match?(date_string, ~r/^\d{1,2}\/\d{1,2}\/\d{4}$/) ->
-        parse_us_date(date_string)
-
-      # European format: DD/MM/YYYY
-      String.match?(date_string, ~r/^\d{1,2}\/\d{1,2}\/\d{4}$/) ->
-        parse_european_date(date_string)
-
-      # Dotted format: DD.MM.YYYY
-      String.match?(date_string, ~r/^\d{1,2}\.\d{1,2}\.\d{4}$/) ->
-        parse_dotted_date(date_string)
-
       true ->
         nil
     end
   end
-
   defp parse_date(_), do: nil
 
-  # Parse ISO format: YYYY-MM-DD
   defp parse_iso_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>) do
-    create_date(y, m, d)
-  end
-  defp parse_iso_date(_), do: nil
-
-  # Parse US format: MM/DD/YYYY
-  defp parse_us_date(date_string) do
-    case String.split(date_string, "/") do
-      [m, d, y] -> create_date(y, m, d)
-      _ -> nil
-    end
-  end
-
-  # Parse European format: DD/MM/YYYY
-  defp parse_european_date(date_string) do
-    case String.split(date_string, "/") do
-      [d, m, y] -> create_date(y, m, d)
-      _ -> nil
-    end
-  end
-
-  # Parse dotted format: DD.MM.YYYY
-  defp parse_dotted_date(date_string) do
-    case String.split(date_string, ".") do
-      [d, m, y] -> create_date(y, m, d)
-      _ -> nil
-    end
-  end
-
-  # Helper to safely create a date
-  defp create_date(year, month, day) do
-    with {y, ""} <- Integer.parse(to_string(year)),
-         {m, ""} <- Integer.parse(to_string(month)),
-         {d, ""} <- Integer.parse(to_string(day)),
-         {:ok, date} <- Date.new(y, m, d) do
+    with {year, _} <- Integer.parse(y),
+         {month, _} <- Integer.parse(m),
+         {day, _} <- Integer.parse(d),
+         {:ok, date} <- Date.new(year, month, day) do
       date
     else
       _ -> nil
     end
   end
+  defp parse_iso_date(_), do: nil
 end
