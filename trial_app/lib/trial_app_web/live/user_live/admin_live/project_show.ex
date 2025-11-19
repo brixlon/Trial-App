@@ -145,7 +145,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-50">
+    <div class="min-h-screen bg-white">
       <div class="flex">
         <!-- Sidebar -->
         <.live_component
@@ -160,12 +160,12 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
             <!-- Breadcrumb -->
             <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />
 
-            <!-- Project Header -->
-            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-xl p-8 text-white">
+            <!-- Project Header (UNCHANGED - Keeping original gradient card) -->
+            <div class="bg-gradient-to-r from-purple-500 to-purple-500 rounded-2xl shadow-xl p-8 text-white">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
-                    <h1 class="text-4xl font-bold"><%= @project.name %></h1>
+                    <h1 class="text-3xl font-bold"><%= @project.name %></h1>
                     <%= if @project.code do %>
                       <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm text-sm font-medium rounded-full">
                         <%= @project.code %>
@@ -181,8 +181,8 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
               <!-- Project Info Grid -->
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <%= if Ecto.assoc_loaded?(@project.supervisor) && @project.supervisor do %>
-                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                     <div>
@@ -193,8 +193,8 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                 <% end %>
 
                 <%= if @project.starts_on do %>
-                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
                     <div>
@@ -205,8 +205,8 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                 <% end %>
 
                 <%= if @project.ends_on do %>
-                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-3">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                     </svg>
                     <div>
@@ -220,21 +220,21 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
             <!-- Stats Overview -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-                <div class="text-sm font-medium text-gray-600">Total Attachees</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2"><%= @stats.total_attachees %></div>
+              <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div class="text-xs text-purple-600 font-medium uppercase">Total Attachees</div>
+                <div class="text-2xl font-bold text-purple-700 mt-1"><%= @stats.total_attachees %></div>
               </div>
-              <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-                <div class="text-sm font-medium text-gray-600">Active Attachees</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2"><%= @stats.active_attachees %></div>
+              <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div class="text-xs text-green-600 font-medium uppercase">Active Attachees</div>
+                <div class="text-2xl font-bold text-green-700 mt-1"><%= @stats.active_attachees %></div>
               </div>
-              <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-                <div class="text-sm font-medium text-gray-600">Total Tasks</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2"><%= @stats.total_tasks %></div>
+              <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div class="text-xs text-blue-600 font-medium uppercase">Total Tasks</div>
+                <div class="text-2xl font-bold text-blue-700 mt-1"><%= @stats.total_tasks %></div>
               </div>
-              <div class="bg-white rounded-xl shadow-sm p-6 border-l-4 border-amber-500">
-                <div class="text-sm font-medium text-gray-600">Completion Rate</div>
-                <div class="text-3xl font-bold text-gray-900 mt-2"><%= @stats.completion_rate %>%</div>
+              <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <div class="text-xs text-amber-600 font-medium uppercase">Completion Rate</div>
+                <div class="text-2xl font-bold text-amber-700 mt-1"><%= @stats.completion_rate %>%</div>
               </div>
             </div>
 
@@ -250,13 +250,13 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                     name="query"
                     value={@search_query}
                     placeholder="Search attachees..."
-                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-sm"
+                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </form>
               </div>
               <button
                 phx-click="open_add_modal"
-                class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow-sm"
+                class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -266,19 +266,19 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
             </div>
 
             <!-- Attachees List -->
-            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div class="px-6 py-4 border-b border-gray-200">
-                <h2 class="text-xl font-bold text-gray-900">Project Attachees</h2>
-                <p class="text-sm text-gray-600 mt-1">Click on an attachee to view their details, tasks, and evaluations</p>
+            <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+              <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Project Attachees</h2>
+                <p class="text-sm text-gray-500 mt-1">Click on an attachee to view their details, tasks, and evaluations</p>
               </div>
 
               <%= if filtered_attachees(@attachees, @search_query) == [] do %>
                 <div class="p-12 text-center">
-                  <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                   </svg>
                   <h3 class="text-lg font-medium text-gray-900 mb-2">No attachees found</h3>
-                  <p class="text-gray-600 mb-4">Add attachees to this project to get started</p>
+                  <p class="text-gray-500 mb-4">Add attachees to this project to get started</p>
                   <button
                     phx-click="open_add_modal"
                     class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
@@ -289,15 +289,15 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
               <% else %>
                 <div class="divide-y divide-gray-200">
                   <%= for attachee <- filtered_attachees(@attachees, @search_query) do %>
-                    <div class="p-6 hover:bg-gray-50 transition-colors">
+                    <div class="p-4 hover:bg-gray-50 transition-colors">
                       <div class="flex items-start justify-between">
                         <.link
                           navigate={~p"/admin/eams/programs/#{@program.id}/projects/#{@project.id}/attachees/#{attachee.id}"}
                           class="flex-1 group"
                         >
-                          <div class="flex items-start gap-4">
+                          <div class="flex items-start gap-3">
                             <!-- Avatar -->
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                            <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                               <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user && attachee.user.username do %>
                                 <%= String.first(attachee.user.username) |> String.upcase() %>
                               <% else %>
@@ -307,7 +307,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
                             <div class="flex-1">
                               <div class="flex items-center gap-2 mb-1">
-                                <h3 class="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                                <h3 class="text-base font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
                                   <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user do %>
                                     <%= attachee.user.username || attachee.user.email %>
                                   <% else %>
@@ -322,7 +322,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                                       Active
                                     </span>
                                   <% :suspended -> %>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                       Suspended
                                     </span>
                                   <% :completed -> %>
@@ -334,7 +334,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
                               <p class="text-sm text-gray-600 mb-2"><%= attachee.position %></p>
 
-                              <div class="flex items-center gap-6 text-sm text-gray-600">
+                              <div class="flex items-center gap-4 text-sm text-gray-500">
                                 <%= if attachee.starts_on do %>
                                   <div class="flex items-center gap-1.5">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -395,49 +395,49 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
     <%!-- Add Attachee Modal --%>
     <%= if @show_add_modal do %>
-      <div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl">
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
           <!-- Modal Header -->
-          <div class="flex items-center justify-between px-8 py-6 border-b border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
-              <h2 class="text-2xl font-bold text-gray-900">Add Attachee to Project</h2>
+              <h2 class="text-xl font-bold text-gray-900">Add Attachee to Project</h2>
               <p class="text-sm text-gray-500 mt-1">Select an attachee to add to this project</p>
             </div>
-            <button phx-click="close_add_modal" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button phx-click="close_add_modal" class="text-gray-400 hover:text-gray-600 transition">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
               </svg>
             </button>
           </div>
 
           <!-- Modal Body -->
-          <div class="px-8 py-6">
+          <div class="px-6 py-6">
             <%= if @available_attachees == [] do %>
               <div class="text-center py-8">
-                <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
-                <p class="text-gray-600">All available attachees are already in this project</p>
+                <p class="text-gray-500">All available attachees are already in this project</p>
               </div>
             <% else %>
               <div class="space-y-4">
                 <!-- Role Input -->
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Role in Project</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Role in Project</label>
                   <input
                     type="text"
                     phx-change="update_role"
                     name="role"
                     value={@add_role}
                     placeholder="e.g., Intern, Junior Developer, etc."
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
 
                 <!-- Attachee Selection -->
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2">Select Attachee</label>
-                  <div class="max-h-64 overflow-y-auto border border-gray-300 rounded-lg divide-y">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Select Attachee</label>
+                  <div class="max-h-64 overflow-y-auto border border-gray-300 rounded-lg divide-y divide-gray-200">
                     <%= for attachee <- @available_attachees do %>
                       <label class={"flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition #{if @selected_attachee_id == attachee.id, do: "bg-purple-50"}"}>
                         <input
@@ -447,7 +447,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                           phx-click="select_attachee"
                           phx-value-id={attachee.id}
                           checked={@selected_attachee_id == attachee.id}
-                          class="w-4 h-4 text-purple-600"
+                          class="w-4 h-4 text-purple-600 focus:ring-purple-500"
                         />
                         <div class="flex-1">
                           <div class="font-medium text-gray-900">
@@ -457,7 +457,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                               Attachee #<%= attachee.id %>
                             <% end %>
                           </div>
-                          <div class="text-sm text-gray-600"><%= attachee.position %></div>
+                          <div class="text-sm text-gray-500"><%= attachee.position %></div>
                         </div>
                       </label>
                     <% end %>
@@ -469,17 +469,17 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
           <!-- Modal Footer -->
           <%= if @available_attachees != [] do %>
-            <div class="flex items-center justify-end gap-3 px-8 py-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
                 phx-click="close_add_modal"
-                class="px-6 py-2.5 rounded-lg border-2 border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300"
               >
                 Cancel
               </button>
               <button
                 phx-click="add_attachee"
                 disabled={is_nil(@selected_attachee_id)}
-                class={"px-6 py-2.5 rounded-lg font-medium transition-all #{if @selected_attachee_id, do: "bg-purple-600 text-white hover:bg-purple-700 shadow-lg shadow-purple-500/30", else: "bg-gray-300 text-gray-500 cursor-not-allowed"}"}
+                class={"px-4 py-2 rounded-lg text-sm font-medium transition shadow #{if @selected_attachee_id, do: "bg-purple-600 text-white hover:bg-purple-700", else: "bg-gray-300 text-gray-500 cursor-not-allowed"}"}
               >
                 Add to Project
               </button>

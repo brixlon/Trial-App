@@ -5,7 +5,8 @@ defmodule TrialApp.Orgs do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position, Attachee}
+  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position}
+  alias TrialApp.Eams.{Attachee, Program}
   alias TrialApp.Accounts.User
 
   # ──────────────────────────────────────────────────────────────────────
@@ -242,8 +243,6 @@ defmodule TrialApp.Orgs do
   # ──────────────────────────────────────────────────────────────────────
   # ATTACHEES - NEW (UPDATED FOR EAMS SCHEMA)
   # ──────────────────────────────────────────────────────────────────────
-
-  alias TrialApp.Eams.Attachee
 
   @doc """
   Creates an attachee with a user account using the Eams.Attachee schema.
@@ -561,7 +560,12 @@ defmodule TrialApp.Orgs do
     )
     |> Repo.all()
   end
-
+  def list_programs do
+    Program
+    |> where([p], p.is_active == true)
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
   def teams_with_employee_counts do
     from(t in Team,
       where: t.is_active == true,

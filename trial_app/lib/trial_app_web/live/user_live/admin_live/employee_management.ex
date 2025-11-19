@@ -15,10 +15,16 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
       |> Enum.uniq_by(& &1.id)
       |> length()
 
+    # Load organizations and programs from the system
+    organizations = load_organizations()
+    programs = load_programs()
+
     {:ok,
      socket
      |> assign(:page_title, "Employee Management")
      |> assign(:departments, departments)
+     |> assign(:organizations, organizations)
+     |> assign(:programs, programs)
      |> assign(:search, "")
      |> assign(:selected_department, "")
      |> assign(:view_mode, "department")
@@ -172,7 +178,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
             # Preload the user association to access email
             attachee = Repo.preload(attachee, :user)
 
-            # === SEND MAGIC LINK EMAIL (NO PLAIN PASSWORD) ===
+            # Send magic link email
             case Emails.attachee_credentials_email(attachee, password) |> TrialApp.Mailer.deliver() do
               {:ok, _} ->
                 # Reload data
@@ -190,7 +196,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
                  |> assign(:departments, departments)
                  |> assign(:total_employees, length(employees))
                  |> assign(:active_count, active_count)
-                 |> put_flash(:info, "Attachee created! Magic link sent to #{attachee.user.email}. Check mailbox at http://localhost:4000/dev/mailbox")}
+                 |> put_flash(:info, "✅ Success! Attachee #{attachee_params["full_name"]} has been created and login credentials sent to #{attachee.user.email}")}
 
               {:error, reason} ->
                 # Reload data even if email failed
@@ -208,7 +214,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
                  |> assign(:departments, departments)
                  |> assign(:total_employees, length(employees))
                  |> assign(:active_count, active_count)
-                 |> put_flash(:warning, "Attachee created but failed to send email to #{attachee.user.email}. Error: #{inspect(reason)}")}
+                 |> put_flash(:warning, "⚠️ Attachee created but email delivery failed. Please manually send credentials to #{attachee.user.email}")}
             end
 
           {:error, changeset} ->
@@ -228,6 +234,18 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   defp load_departments do
     Orgs.list_departments()
     |> Repo.preload(employees: [:user, :team])
+  end
+
+  # Load organizations from the system
+  defp load_organizations do
+    # Fetch organizations from database
+    Orgs.list_organizations()
+  end
+
+  # Load programs from the system
+  defp load_programs do
+    # Fetch programs from database
+    Orgs.list_programs()
   end
 
   # Validate if email is unique across employees and attachees

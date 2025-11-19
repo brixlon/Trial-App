@@ -64,7 +64,7 @@ defmodule TrialApp.Eams do
       (!Map.get(p, :ends_on) || Date.compare(p.ends_on, Date.utc_today()) != :lt)
     end)
 
-    # Get all unique attachees across all projects via project_attachees join table
+    # Get all unique attachees across all projects via project_attachees OR tasks
     project_ids = Enum.map(projects, & &1.id)
 
     {total_attachees, active_attachees} = if Enum.empty?(project_ids) do
@@ -72,8 +72,9 @@ defmodule TrialApp.Eams do
     else
       try do
         attachees = from(a in Attachee,
-          join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
-          where: pa.project_id in ^project_ids,
+          left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id in ^project_ids,
+          left_join: t in Task, on: t.assignee_id == a.id and t.project_id in ^project_ids,
+          where: not is_nil(pa.id) or not is_nil(t.id),
           distinct: true,
           select: a
         )
@@ -173,12 +174,14 @@ defmodule TrialApp.Eams do
 
   @doc """
   Gets statistics for a project (attachees and tasks).
+  UPDATED: Now includes attachees from both project_attachees AND tasks.
   """
   def get_project_stats(project_id) do
-    # Get all attachees via project_attachees join table
+    # Get all attachees via project_attachees OR tasks
     attachees = from(a in Attachee,
-      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
-      where: pa.project_id == ^project_id,
+      left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id == ^project_id,
+      left_join: t in Task, on: t.assignee_id == a.id and t.project_id == ^project_id,
+      where: not is_nil(pa.id) or not is_nil(t.id),
       distinct: true,
       select: a
     )
@@ -210,14 +213,17 @@ defmodule TrialApp.Eams do
   end
 
   @doc """
-  Lists all attachees assigned to a project via project_attachees.
+  Lists all attachees assigned to a project via project_attachees OR tasks.
+  UPDATED: Now includes attachees who have tasks in the project even if not explicitly added.
   """
   def list_attachees_by_project(project_id) do
     from(a in Attachee,
-      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
-      where: pa.project_id == ^project_id,
+      left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id == ^project_id,
+      left_join: t in Task, on: t.assignee_id == a.id and t.project_id == ^project_id,
+      where: not is_nil(pa.id) or not is_nil(t.id),
+      distinct: true,
       preload: [:user, :department, :organization],
-      order_by: [desc: pa.joined_at]
+      order_by: [asc: a.id]
     )
     |> Repo.all()
   end
@@ -539,10 +545,38 @@ defmodule TrialApp.Eams do
     |> Repo.preload(Map.get(opts_map, :preloads, [:project, :assignee, [assignee: :user]]))
   end
 
+  @doc """
+  Creates a task and automatically adds the assignee to the project if not already there.
+  UPDATED: Now ensures attachees with tasks are visible in the project.
+  """
   def create_task(attrs) do
-    %Task{}
-    |> Task.create_changeset(attrs)
-    |> Repo.insert()
+    result = %Task{}
+      |> Task.create_changeset(attrs)
+      |> Repo.insert()
+
+    # Automatically add attachee to project if not already there
+    case result do
+      {:ok, task} ->
+        if task.assignee_id && task.project_id do
+          # Check if attachee is already in project
+          existing = from(pa in ProjectAttachee,
+            where: pa.project_id == ^task.project_id and pa.attachee_id == ^task.assignee_id
+          )
+          |> Repo.one()
+
+          # Add to project if not already there
+          if is_nil(existing) do
+            add_attachee_to_project(task.project_id, task.assignee_id, %{
+              role: "Intern",
+              joined_at: Date.utc_today()
+            })
+          end
+        end
+        {:ok, task}
+
+      error ->
+        error
+    end
   end
 
   def update_task(%Task{} = task, attrs) do
@@ -611,14 +645,12 @@ defmodule TrialApp.Eams do
     |> Repo.update()
   end
 
+
   # ──────────────────────────────────────────────────────────────────────
   # SUPERVISOR TASKS MANAGEMENT
   # ──────────────────────────────────────────────────────────────────────
 
-  @doc """
-  Lists all tasks for a supervisor across all their projects.
-  Includes full preloading of attachee, user, and project data.
-  """
+
   def list_tasks_for_supervisor(supervisor_id) do
     # Get all projects where supervisor is involved
     projects = list_projects_for_supervisor(supervisor_id)
