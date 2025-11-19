@@ -20,15 +20,29 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:supervisors, Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager"))
      |> assign(:form_data, empty_form())
      |> assign(:errors, %{})
-     # New: Detail view state
+     # Detail view state
      |> assign(:show_detail_view, false)
      |> assign(:selected_project, nil)
      |> assign(:project_attachees, [])
+     |> assign(:project_tasks, [])
+     |> assign(:active_tab, "attachees") # "attachees" | "tasks"
+     # Task creation modal
+     |> assign(:show_task_modal, false)
+     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})
+     |> assign(:task_errors, %{})
+     # Attachee modal
+     |> assign(:show_attachee_modal, false)
      |> assign(:selected_attachee, nil)
      |> assign(:attachee_tasks, [])
      |> assign(:attachee_evaluations, [])
      |> assign(:attachee_stats, %{})
-     |> assign(:detail_level, "projects")}  # "projects" | "attachees" | "tasks"
+     |> assign(:attachee_eval_summary, %{})
+     |> assign(:attachee_active_tab, "overview")
+     |> assign(:show_attachee_eval_modal, false)
+     |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
+     |> assign(:attachee_eval_errors, %{})
+     |> assign(:viewing_evaluation, nil)
+    }
   end
 
   # Form Events
@@ -40,7 +54,8 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:form_data, empty_form())
      |> assign(:departments, [])
      |> assign(:programs, [])
-     |> assign(:errors, %{})}
+     |> assign(:errors, %{})
+    }
   end
 
   def handle_event("close", _params, socket) do
@@ -48,6 +63,9 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      socket
      |> assign(:show_form, false)
      |> assign(:show_detail_view, false)
+     |> assign(:show_task_modal, false)
+     |> assign(:show_attachee_modal, false)
+     |> assign(:show_attachee_eval_modal, false)
      |> assign(:editing_project, nil)
      |> assign(:selected_project, nil)
      |> assign(:selected_attachee, nil)
@@ -55,7 +73,9 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:departments, [])
      |> assign(:programs, [])
      |> assign(:errors, %{})
-     |> assign(:detail_level, "projects")}
+     |> assign(:task_errors, %{})
+     |> assign(:attachee_eval_errors, %{})
+     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})}
   end
 
   def handle_event("search", %{"query" => query}, socket) do
@@ -64,68 +84,182 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   # Detail View Navigation
   def handle_event("view_project_detail", %{"id" => id}, socket) do
-    project = Eams.get_project!(parse_int(id))
-              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+    project_id = parse_int(id)
+    project = Eams.get_project!(project_id)
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor, tasks: [assignee: [:user]]])
 
-    # IMPORTANT: Add stats to the project
-    project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project.id))
+    attachees = Eams.list_attachees_by_project(project_id)
+                |> TrialApp.Repo.preload(:user)
 
-    attachees = Eams.list_attachees_by_project(project.id)
+    project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project_id))
 
     {:noreply,
      socket
      |> assign(:show_detail_view, true)
      |> assign(:selected_project, project_with_stats)
      |> assign(:project_attachees, attachees)
-     |> assign(:selected_attachee, nil)
-     |> assign(:detail_level, "attachees")}
+     |> assign(:project_tasks, project.tasks)
+     |> assign(:active_tab, "attachees")}
   end
 
-  def handle_event("view_attachee_detail", %{"id" => id}, socket) do
-    attachee = Eams.get_attachee_with_details(parse_int(id))
-
-    # Preload the project association if it's not already loaded
-    attachee_with_project = if Ecto.assoc_loaded?(attachee.projects) do
-      attachee
-    else
-      TrialApp.Repo.preload(attachee, [projects: [:program]])
-    end
-
-    # Load tasks with project preloaded
-    tasks = Eams.list_tasks_by_attachee(attachee.id)
-            |> TrialApp.Repo.preload([:project])
-
-    evaluations = Eams.list_evaluations_by_attachee(attachee.id)
-                  |> TrialApp.Repo.preload([:evaluator])
-
-    stats = Eams.get_attachee_stats(attachee.id)
-
-    {:noreply,
-     socket
-     |> assign(:selected_attachee, attachee_with_project)
-     |> assign(:attachee_tasks, tasks)
-     |> assign(:attachee_evaluations, evaluations)
-     |> assign(:attachee_stats, stats)
-     |> assign(:detail_level, "tasks")}
-  end
-
-  def handle_event("back_to_attachees", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:selected_attachee, nil)
-     |> assign(:detail_level, "attachees")}
+  def handle_event("switch_tab", %{"tab" => tab}, socket) when tab in ["attachees", "tasks"] do
+    {:noreply, assign(socket, :active_tab, tab)}
   end
 
   def handle_event("back_to_projects", _params, socket) do
     {:noreply,
      socket
      |> assign(:show_detail_view, false)
-     |> assign(:selected_project, nil)
-     |> assign(:selected_attachee, nil)
-     |> assign(:detail_level, "projects")}
+     |> assign(:selected_project, nil)}
   end
 
-  # CRUD Events
+  def handle_event("open_task_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_task_modal, true)
+     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})
+     |> assign(:task_errors, %{})}
+  end
+
+  def handle_event("close_task_modal", _params, socket) do
+    {:noreply, assign(socket, :show_task_modal, false) |> assign(:task_errors, %{})}
+  end
+
+  def handle_event("create_task", %{"task" => params}, socket) do
+    project = socket.assigns.selected_project
+
+    attrs = %{
+      title: params["title"],
+      description: params["description"],
+      assignee_id: parse_int(params["assignee_id"]),
+      project_id: project.id,
+      due_on: parse_date(params["due_on"]),
+      status: params["status"] || "pending"
+    }
+
+    case Eams.create_task(attrs) do
+      {:ok, _task} ->
+        refreshed_project = Eams.get_project!(project.id)
+                            |> TrialApp.Repo.preload([:tasks, assignee: [:user]], force: true)
+
+        refreshed_attachees = Eams.list_attachees_by_project(project.id)
+                              |> TrialApp.Repo.preload(:user)
+
+        {:noreply,
+         socket
+         |> assign(:project_tasks, refreshed_project.tasks)
+         |> assign(:project_attachees, refreshed_attachees)
+         |> assign(:show_task_modal, false)
+         |> put_flash(:info, "Task created successfully")}
+
+      {:error, changeset} ->
+        errors = changeset.errors |> Enum.into(%{})
+        {:noreply, assign(socket, :task_errors, errors)}
+    end
+  end
+
+  def handle_event("view_attachee_detail", %{"id" => id}, socket) do
+    attachee_id = parse_int(id)
+    attachee = Eams.get_attachee_with_details(attachee_id)
+    tasks = Eams.list_tasks_by_attachee(attachee_id)
+    evaluations = Eams.list_evaluations_by_attachee(attachee_id)
+    stats = Eams.get_attachee_stats(attachee_id)
+    eval_summary = Eams.get_evaluation_summary(attachee_id)
+
+    {:noreply,
+     socket
+     |> assign(:show_attachee_modal, true)
+     |> assign(:selected_attachee, attachee)
+     |> assign(:attachee_tasks, tasks)
+     |> assign(:attachee_evaluations, evaluations)
+     |> assign(:attachee_stats, stats)
+     |> assign(:attachee_eval_summary, eval_summary)
+     |> assign(:attachee_active_tab, "overview")
+     |> assign(:show_attachee_eval_modal, false)
+     |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
+     |> assign(:attachee_eval_errors, %{})
+     |> assign(:viewing_evaluation, nil)}
+  end
+
+  def handle_event("close_attachee_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_attachee_modal, false)
+     |> assign(:selected_attachee, nil)
+     |> assign(:attachee_tasks, [])
+     |> assign(:attachee_evaluations, [])
+     |> assign(:attachee_stats, %{})
+     |> assign(:attachee_eval_summary, %{})}
+  end
+
+  def handle_event("switch_attachee_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :attachee_active_tab, tab)}
+  end
+
+  def handle_event("open_attachee_eval_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_attachee_eval_modal, true)
+     |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
+     |> assign(:attachee_eval_errors, %{})}
+  end
+
+  def handle_event("close_attachee_eval_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_attachee_eval_modal, false)
+     |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
+     |> assign(:attachee_eval_errors, %{})}
+  end
+
+  def handle_event("update_attachee_eval_form", %{"eval" => params}, socket) do
+    {:noreply, assign(socket, :attachee_eval_form, params)}
+  end
+
+  def handle_event("submit_attachee_evaluation", %{"eval" => params}, socket) do
+    attrs = %{
+      score: parse_int(params["score"]),
+      comments: params["comments"],
+      attachee_id: socket.assigns.selected_attachee.id,
+      evaluator_id: socket.assigns.current_scope.id
+    }
+
+    case Eams.create_evaluation(attrs, socket.assigns.current_scope) do
+      {:ok, _evaluation} ->
+        evaluations = Eams.list_evaluations_by_attachee(socket.assigns.selected_attachee.id)
+        stats = Eams.get_attachee_stats(socket.assigns.selected_attachee.id)
+        eval_summary = Eams.get_evaluation_summary(socket.assigns.selected_attachee.id)
+
+        {:noreply,
+         socket
+         |> assign(:attachee_evaluations, evaluations)
+         |> assign(:attachee_stats, stats)
+         |> assign(:attachee_eval_summary, eval_summary)
+         |> assign(:show_attachee_eval_modal, false)
+         |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
+         |> assign(:attachee_eval_errors, %{})
+         |> put_flash(:info, "Evaluation submitted successfully")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        errors =
+          changeset.errors
+          |> Enum.map(fn {field, {msg, _}} -> {field, msg} end)
+          |> Enum.into(%{})
+
+        {:noreply, assign(socket, :attachee_eval_errors, errors)}
+    end
+  end
+
+  def handle_event("view_evaluation", %{"id" => id}, socket) do
+    evaluation = Eams.get_evaluation!(parse_int(id))
+                  |> TrialApp.Repo.preload([:evaluator])
+    {:noreply, assign(socket, :viewing_evaluation, evaluation)}
+  end
+
+  def handle_event("close_eval_view", _params, socket) do
+    {:noreply, assign(socket, :viewing_evaluation, nil)}
+  end
+
   def handle_event("update", %{"project" => params}, socket) do
     org_id = Map.get(params, "organization_id")
     dept_id = Map.get(params, "department_id")
@@ -243,10 +377,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     end
   end
 
-  def handle_event("refresh", _params, socket) do
-    {:noreply, assign(socket, :projects, load_projects_with_stats())}
-  end
-
   # Helpers
   defp load_projects_with_stats do
     try do
@@ -312,6 +442,35 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
       "rejected" -> "bg-red-100 text-red-800"
       _ -> "bg-gray-100 text-gray-800"
     end
+  end
+
+  defp score_bg_color(score) do
+    cond do
+      score >= 81 -> "bg-green-600 text-white"
+      score >= 61 -> "bg-blue-600 text-white"
+      score >= 41 -> "bg-amber-600 text-white"
+      true -> "bg-red-600 text-white"
+    end
+  end
+
+  defp score_color(score) when score >= 81, do: "text-green-600"
+  defp score_color(score) when score >= 61, do: "text-blue-600"
+  defp score_color(score) when score >= 41, do: "text-amber-600"
+  defp score_color(_), do: "text-red-600"
+
+  defp score_label(score) when score >= 81, do: "Excellent"
+  defp score_label(score) when score >= 61, do: "Good"
+  defp score_label(score) when score >= 41, do: "Satisfactory"
+  defp score_label(_), do: "Needs Improvement"
+
+  defp trend_icon("improving") do
+    ~s(<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>)
+  end
+  defp trend_icon("declining") do
+    ~s(<svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>)
+  end
+  defp trend_icon(_) do
+    ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
   end
 
   defp validate_dates(params) do
