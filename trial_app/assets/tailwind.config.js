@@ -1,10 +1,18 @@
 module.exports = {
   content: [
-    "../lib/trial_app_web/**/*.*ex",
-    "./js/**/*.js"
-  ],
+  "./js/**/*.js",
+  "../lib/**/*.*exs",
+  "../lib/**/*.*ex",
+  "../lib/**/*.heex",
+  "../lib/**/*.html.heex",
+  "../lib/**/*.html.eex",
+  "../priv/**/*.html"
+],
+
   theme: {
     extend: {},
   },
-  plugins: [],
+  plugins: [
+    require("daisyui")
+  ],
 }

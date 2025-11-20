@@ -30,7 +30,7 @@
   /* Add your loading styles here */
 }
 
-/* Use the data attribute for dark mode  */
+/* Use the data attribute for da rk mode  */
 [data-theme=dark] {
   --color-base-100: oklch(30.33% 0.016 252.42);
   --color-base-200: oklch(25.26% 0.014 253.1);

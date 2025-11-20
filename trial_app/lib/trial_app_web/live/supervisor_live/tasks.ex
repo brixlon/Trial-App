@@ -174,8 +174,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     end
   end
 
-  # Keep your existing @impl true render/1 function and all helper functions below this line
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -211,7 +209,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
               </div>
             </div>
 
-            <div class="card bg-gradient-to-br from-red-500 to-red-700 text-white shadow-xl" class={if length(@overdue_tasks) > 0, do: "animate-pulse"}>
+            <div class={["card bg-gradient-to-br from-red-500 to-red-700 text-white shadow-xl", length(@overdue_tasks) > 0 && "animate-pulse"]}>
               <div class="card-body">
                 <p class="text-sm opacity-90">Overdue Tasks</p>
                 <p class="text-3xl font-bold"><%= length(@overdue_tasks) %></p>
@@ -233,28 +231,28 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
             <button
               phx-click="select_tab"
               phx-value-tab="all"
-              class={"tab tab-lg #{if @selected_tab == "all", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "all" && "tab-active"]}
             >
               All Tasks (<%= length(@all_tasks) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="pending"
-              class={"tab tab-lg #{if @selected_tab == "pending", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "pending" && "tab-active"]}
             >
               Pending Approval (<%= length(@pending_approval) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="overdue"
-              class={"tab tab-lg #{if @selected_tab == "overdue", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "overdue" && "tab-active"]}
             >
               Overdue (<%= length(@overdue_tasks) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="by_project"
-              class={"tab tab-lg #{if @selected_tab == "by_project", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "by_project" && "tab-active"]}
             >
               By Project
             </button>
