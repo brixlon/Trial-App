@@ -20,6 +20,14 @@ defmodule TrialApp.Eams.Attachee do
       join_through: TrialApp.Eams.AttacheeProgram,
       on_replace: :delete
 
+    # NEW ASSOCIATIONS
+    many_to_many :projects, TrialApp.Eams.Project,
+      join_through: "project_attachees",
+      on_replace: :delete
+
+    has_many :project_attachees, TrialApp.Eams.ProjectAttachee
+    has_many :evaluations, TrialApp.Eams.Evaluation
+
     timestamps()
   end
 

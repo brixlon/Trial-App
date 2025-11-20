@@ -216,6 +216,11 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
     end
   end
 
+  def handle_event("stop_propagation", _params, socket) do
+  {:noreply, socket}
+end
+
+
   # --------------------------------------------------------------------- #
   # HELPERS
   # --------------------------------------------------------------------- #
@@ -359,4 +364,3 @@ defmodule TrialAppWeb.AdminLive.TaskManagement do
   defp in_progress_tasks(tasks), do: Enum.count(tasks, &(&1.status == "in_progress"))
   defp completed_tasks(tasks), do: Enum.count(tasks, &(&1.status == "completed"))
 end
-  

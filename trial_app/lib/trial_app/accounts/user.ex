@@ -1,6 +1,7 @@
 defmodule TrialApp.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
+  import Ecto.Query
 
   schema "users" do
     field :email, :string
@@ -12,7 +13,7 @@ defmodule TrialApp.Accounts.User do
     field :status, :string, default: "pending"
     field :role, :string, default: "user"
     field :roles, {:array, :string}, default: []
-    field :active_role, :string  
+    field :active_role, :string
     field :first_name, :string
     field :last_name, :string
     field :phone_number, :string

@@ -5,7 +5,8 @@ defmodule TrialApp.Orgs do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position, Attachee}
+  alias TrialApp.Orgs.{Organization, Department, Team, Employee, Position}
+  alias TrialApp.Eams.{Attachee, Program}
   alias TrialApp.Accounts.User
 
   # ──────────────────────────────────────────────────────────────────────
@@ -240,20 +241,13 @@ defmodule TrialApp.Orgs do
   end
 
   # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES - NEW
+  # ATTACHEES - NEW (UPDATED FOR EAMS SCHEMA)
   # ──────────────────────────────────────────────────────────────────────
 
   @doc """
-  Creates an attachee with hashed password and associated user account.
-  """
-  # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES - UPDATED FOR EAMS SCHEMA
-  # ──────────────────────────────────────────────────────────────────────
-
-  alias TrialApp.Eams.Attachee
-
-  @doc """
-  Creates an attachee with user account.
+  Creates an attachee with a user account using the Eams.Attachee schema.
+  Generates a plain password, registers a User, ensures or creates the Organization,
+  and inserts an Attachee record; returns the attachee with preloads on success.
   Works with existing Eams.Attachee schema (no full_name, email, password_hash fields).
   """
   def create_attachee(attrs) do
@@ -566,7 +560,12 @@ defmodule TrialApp.Orgs do
     )
     |> Repo.all()
   end
-
+  def list_programs do
+    Program
+    |> where([p], p.is_active == true)
+    |> order_by([p], asc: p.name)
+    |> Repo.all()
+  end
   def teams_with_employee_counts do
     from(t in Team,
       where: t.is_active == true,

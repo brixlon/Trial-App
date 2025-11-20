@@ -20,9 +20,10 @@ defmodule TrialAppWeb.UserLive.Login do
       %User{} = user ->
         cond do
           user.must_change_password ->
+            token = Accounts.generate_force_reset_token(user)
             {:noreply,
-             push_redirect(socket,
-               to: ~p"/users/force_password_change?user_id=#{user.id}"
+             push_navigate(socket,
+               to: ~p"/users/force-reset/#{token}"
              )}
 
           user.status != "active" ->
@@ -38,7 +39,7 @@ defmodule TrialAppWeb.UserLive.Login do
 
   @impl true
   def handle_event("forgot_password", _params, socket) do
-    {:noreply, push_redirect(socket, to: ~p"/users/reset_password")}
+    {:noreply, push_navigate(socket, to: ~p"/users/reset-password/temp")}
   end
 
   @impl true

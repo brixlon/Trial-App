@@ -5,10 +5,20 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
   @impl true
   def mount(_params, _session, socket) do
     current_user = socket.assigns.current_scope.user
+    active_role = Accounts.get_active_role(current_user)
 
-    # Load all tasks for supervisor
-    all_tasks = Eams.list_tasks_for_supervisor(current_user.id)
-    projects = Eams.list_projects_for_supervisor(current_user.id)
+    # FIXED: Load tasks based on role
+    {all_tasks, projects} = case active_role do
+      "admin" ->
+        # Admin sees ALL tasks and ALL projects
+        {Eams.list_tasks(%{preloads: [:project, assignee: :user]}),
+         Eams.list_projects(%{preloads: [:program, :department, :organization]})}
+
+      _ ->
+        # Supervisor sees only their tasks and projects
+        {Eams.list_tasks_for_supervisor(current_user.id),
+         Eams.list_projects_for_supervisor(current_user.id)}
+    end
 
     # Group tasks by status
     pending_approval = Enum.filter(all_tasks, &(&1.status == "submitted"))
@@ -21,6 +31,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      socket
      |> assign(:current_user, current_user)
      |> assign(:current_scope, socket.assigns.current_scope)
+     |> assign(:active_role, active_role)
      |> assign(:all_tasks, all_tasks)
      |> assign(:projects, projects)
      |> assign(:pending_approval, pending_approval)
@@ -37,7 +48,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     {:noreply, assign(socket, :selected_tab, tab)}
   end
 
-  # FIXED: Properly preload the nested user association
   def handle_event("view_task", %{"id" => id}, socket) do
     task = Eams.get_task!(id, %{preloads: [:project, assignee: :user]})
 
@@ -54,7 +64,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      |> assign(:show_task_modal, false)}
   end
 
-  # FIXED: Added stop_propagation handler
   def handle_event("stop_propagation", _params, socket) do
     {:noreply, socket}
   end
@@ -111,7 +120,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-         |> put_flash(:info, "Switched to #{new_role} role")
+       #  |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->
@@ -122,9 +131,18 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     end
   end
 
+  # FIXED: Reload tasks based on current role
   defp reload_tasks(socket) do
     current_user = socket.assigns.current_user
-    all_tasks = Eams.list_tasks_for_supervisor(current_user.id)
+    active_role = socket.assigns.active_role
+
+    all_tasks = case active_role do
+      "admin" ->
+        Eams.list_tasks(%{preloads: [:project, assignee: :user]})
+      _ ->
+        Eams.list_tasks_for_supervisor(current_user.id)
+    end
+
     pending_approval = Enum.filter(all_tasks, &(&1.status == "submitted"))
     overdue_tasks = get_overdue_tasks(all_tasks)
     tasks_by_project = Enum.group_by(all_tasks, & &1.project_id)
@@ -191,7 +209,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
               </div>
             </div>
 
-            <div class="card bg-gradient-to-br from-red-500 to-red-700 text-white shadow-xl" class={if length(@overdue_tasks) > 0, do: "animate-pulse"}>
+            <div class={["card bg-gradient-to-br from-red-500 to-red-700 text-white shadow-xl", length(@overdue_tasks) > 0 && "animate-pulse"]}>
               <div class="card-body">
                 <p class="text-sm opacity-90">Overdue Tasks</p>
                 <p class="text-3xl font-bold"><%= length(@overdue_tasks) %></p>
@@ -213,28 +231,28 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
             <button
               phx-click="select_tab"
               phx-value-tab="all"
-              class={"tab tab-lg #{if @selected_tab == "all", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "all" && "tab-active"]}
             >
               All Tasks (<%= length(@all_tasks) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="pending"
-              class={"tab tab-lg #{if @selected_tab == "pending", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "pending" && "tab-active"]}
             >
               Pending Approval (<%= length(@pending_approval) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="overdue"
-              class={"tab tab-lg #{if @selected_tab == "overdue", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "overdue" && "tab-active"]}
             >
               Overdue (<%= length(@overdue_tasks) %>)
             </button>
             <button
               phx-click="select_tab"
               phx-value-tab="by_project"
-              class={"tab tab-lg #{if @selected_tab == "by_project", do: "tab-active"}"}
+              class={["tab tab-lg", @selected_tab == "by_project" && "tab-active"]}
             >
               By Project
             </button>

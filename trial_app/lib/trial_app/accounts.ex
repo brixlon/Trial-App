@@ -13,16 +13,13 @@ defmodule TrialApp.Accounts do
   @doc """
   Gets a user by email.
   """
-  def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
-  end
+def get_user_by_email(email) when is_binary(email) do
+  Repo.get_by(User, email: email)
+end
 
-  @doc """
-  Gets a user by email and password.
-  Case-insensitive email, constant-time verification.
-  """
-  def get_user_by_email_and_password(email, password)
-      when is_binary(email) and is_binary(password) do
+
+def get_user_by_email_and_password(email, password)
+    when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: String.downcase(email))
     if user && User.valid_password?(user, password) do
       user
@@ -183,7 +180,6 @@ defmodule TrialApp.Accounts do
               end
             end)
 
-            # Mark user as active
             {:ok, _} =
               updated_user
               |> Ecto.Changeset.change(%{status: "active"})
@@ -199,6 +195,11 @@ defmodule TrialApp.Accounts do
       end
     end)
   end
+
+
+
+
+
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(val), do: val
@@ -248,7 +249,7 @@ defmodule TrialApp.Accounts do
   def update_user_email(user, token) do
     context = "change:#{user.email}"
 
-    Repo.transact(fn ->
+  Repo.transaction(fn ->
       with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
            %UserToken{sent_to: email} <- Repo.one(query),
            {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
@@ -527,20 +528,17 @@ defmodule TrialApp.Accounts do
   Gets all roles available to a user.
   Returns the roles array if populated, otherwise returns single role as list.
   """
-  def get_user_roles(%User{roles: roles, role: single_role}) do
-    if Enum.any?(roles || []) do
-      roles
-    else
-      [single_role]
-    end
-    |> Enum.reject(&is_nil/1)
-  end
+def get_user_roles(%User{roles: roles, role: single_role}) do
+  array_roles = if is_list(roles), do: roles || [], else: []
+  single_role_list = if is_binary(single_role) and single_role != "", do: [single_role], else: []
+  (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
+end
 
   @doc """
   Gets the user's active role.
   Falls back to first available role if active_role is not set.
   """
-  def get_active_role(%User{active_role: active_role} = user) when not is_nil(active_role) do
+  def get_active_role(%User{active_role: active_role} = _user) when not is_nil(active_role) do
     active_role
   end
 
@@ -636,56 +634,56 @@ defmodule TrialApp.Accounts do
   def generate_password_reset_token(%User{id: user_id}) do
     Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user_id)
   end
-# ADD THESE TWO FUNCTIONS TO YOUR accounts.ex
 
-def generate_force_reset_token(user) do
-  Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user.id)
-end
-@doc """
-Verifies a force reset token and returns the user.
-"""
-def verify_force_reset_token(token) do
-  case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
-    {:ok, user_id} ->
-      Repo.get(User, user_id)
-    {:error, _} ->
-      nil
+  def generate_force_reset_token(user) do
+    Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user.id)
   end
-end
-def verify_force_reset_token(token) do
-  case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
-    {:ok, user_id} ->
-      Repo.get(User, user_id)
-    {:error, _} ->
-      nil
+
+  @doc """
+  Verifies a force reset token and returns the user.
+  """
+  def verify_force_reset_token(token) do
+    case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
+      {:ok, user_id} ->
+        Repo.get(User, user_id)
+      {:error, _} ->
+        nil
+    end
   end
-end
+
+  @doc """
+  Deletes a user and associated data.
+  """
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
   # Private helpers
   defp update_user_and_delete_all_tokens(changeset) do
-  Repo.transact(fn ->
-    # Sanitize any datetime fields in the changeset to remove microseconds
-    sanitized_changeset =
-      changeset
-      |> Ecto.Changeset.update_change(:password_changed_at, fn
-        nil -> nil
-        dt -> DateTime.truncate(dt, :second)
-      end)
-      |> Ecto.Changeset.update_change(:authenticated_at, fn
-        nil -> nil
-        dt -> DateTime.truncate(dt, :second)
-      end)
-      |> Ecto.Changeset.update_change(:confirmed_at, fn
-        nil -> nil
-        dt -> DateTime.truncate(dt, :second)
-      end)
+    Repo.transaction(fn ->
+      # Sanitize any datetime fields in the changeset to remove microseconds
+      sanitized_changeset =
+        changeset
+        |> Ecto.Changeset.update_change(:password_changed_at, fn
+          nil -> nil
+          dt -> DateTime.truncate(dt, :second)
+        end)
+        |> Ecto.Changeset.update_change(:authenticated_at, fn
+          nil -> nil
+          dt -> DateTime.truncate(dt, :second)
+        end)
+        |> Ecto.Changeset.update_change(:confirmed_at, fn
+          nil -> nil
+          dt -> DateTime.truncate(dt, :second)
+        end)
 
-    with {:ok, user} <- Repo.update(sanitized_changeset) do
-      tokens_to_expire =
-        Repo.all(from(t in UserToken, where: t.user_id == ^user.id))
+      with {:ok, user} <- Repo.update(sanitized_changeset) do
+        tokens_to_expire =
+          Repo.all(from(t in UserToken, where: t.user_id == ^user.id))
 
-      Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
-      {:ok, {user, tokens_to_expire}}
-    end
-  end)
-end
+        Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
+        {:ok, {user, tokens_to_expire}}
+      end
+    end)
+  end
 end

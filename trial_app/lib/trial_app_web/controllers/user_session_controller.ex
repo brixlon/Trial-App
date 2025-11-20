@@ -29,16 +29,17 @@ defmodule TrialAppWeb.UserSessionController do
     user = Accounts.get_user!(user_id)
 
     if user.must_change_password do
+      token = Accounts.generate_force_reset_token(user)
       conn
       |> put_flash(:info, "You must change your password before continuing.")
-      |> redirect(to: ~p"/users/force_password_change?user_id=#{user.id}")
+      |> redirect(to: ~p"/users/force-reset/#{token}")
     else
       # CRITICAL FIX: Ensure active_role is set before getting dashboard path
       {:ok, user_with_role} = Accounts.ensure_active_role(user)
       redirect_path = get_dashboard_for_active_role(user_with_role)
 
       conn
-      |> put_flash(:info, "Welcome back, #{user_with_role.username}!")
+      #|> put_flash(:info, "Welcome back, #{user_with_role.username}!")
       |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
     end
   end
@@ -50,16 +51,17 @@ defmodule TrialAppWeb.UserSessionController do
     case Accounts.get_user_by_email_and_password(email, password) do
       %Accounts.User{} = user ->
         if user.must_change_password do
+          token = Accounts.generate_force_reset_token(user)
           conn
           |> put_flash(:info, "You must change your password before continuing.")
-          |> redirect(to: ~p"/users/force_password_change?user_id=#{user.id}")
+          |> redirect(to: ~p"/users/force-reset/#{token}")
         else
           # CRITICAL FIX: Ensure active_role is set before getting dashboard path
           {:ok, user_with_role} = Accounts.ensure_active_role(user)
           redirect_path = get_dashboard_for_active_role(user_with_role)
 
           conn
-          |> put_flash(:info, "Welcome back!")
+        #  |> put_flash(:info, "Welcome back!")
           |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
         end
 
@@ -77,15 +79,16 @@ defmodule TrialAppWeb.UserSessionController do
     if user = Accounts.get_user_by_username_or_email_and_password(username_or_email, password) do
       # Check if user must change password
       if user.must_change_password do
+        token = Accounts.generate_force_reset_token(user)
         conn
         |> put_flash(:info, "You must change your password before continuing.")
-        |> redirect(to: ~p"/users/force_password_change?user_id=#{user.id}")
+        |> redirect(to: ~p"/users/force-reset/#{token}")
       else
         {:ok, user_with_role} = Accounts.ensure_active_role(user)
         redirect_path = get_dashboard_for_active_role(user_with_role)
 
         conn
-        |> put_flash(:info, "Welcome back!")
+       # |> put_flash(:info, "Welcome back!")
         |> UserAuth.log_in_user(user_with_role, user_params)
       end
     else
@@ -137,9 +140,10 @@ defmodule TrialAppWeb.UserSessionController do
     user = Accounts.get_user!(user_id)
 
     if user.must_change_password do
+      token = Accounts.generate_force_reset_token(user)
       conn
       |> put_flash(:info, "You must change your password before continuing.")
-      |> redirect(to: ~p"/users/force_password_change?user_id=#{user.id}")
+      |> redirect(to: ~p"/users/force-reset/#{token}")
     else
       {:ok, user_with_role} = Accounts.ensure_active_role(user)
       redirect_path = get_dashboard_for_active_role(user_with_role)
@@ -185,9 +189,10 @@ defmodule TrialAppWeb.UserSessionController do
         |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
 
       {:error, _changeset} ->
+        token = Accounts.generate_force_reset_token(user)
         conn
         |> put_flash(:error, "Failed to update password. Please try again.")
-        |> redirect(to: ~p"/users/force_password_change?user_id=#{user_id}")
+        |> redirect(to: ~p"/users/force-reset/#{token}")
     end
   end
 
@@ -221,14 +226,15 @@ defmodule TrialAppWeb.UserSessionController do
           "Password must be at least 8 characters"
         end
 
+        token = Accounts.generate_force_reset_token(user)
         conn
         |> put_flash(:error, error_msg)
-        |> redirect(to: ~p"/users/force_password_change?user_id=#{user_id}")
+        |> redirect(to: ~p"/users/force-reset/#{token}")
       end
     else
       conn
       |> put_flash(:error, "Current password is incorrect")
-      |> redirect(to: ~p"/users/force_password_change?user_id=#{user_id}")
+      |> redirect(to: ~p"/users/force-reset/#{Accounts.generate_force_reset_token(user)}")
     end
   end
 
@@ -237,7 +243,7 @@ defmodule TrialAppWeb.UserSessionController do
   # -------------------------------------------------------------------------
   def delete(conn, _params) do
     conn
-    |> put_flash(:info, "Logged out successfully.")
+    #|> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
   end
 
