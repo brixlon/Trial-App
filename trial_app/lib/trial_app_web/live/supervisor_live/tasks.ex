@@ -139,7 +139,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-base-200">
-      <div class="lg:ml-64 p-8">
+      <div class="lg:ml-45 p-8">
         <div class="max-w-7xl mx-auto">
           <!-- Header -->
           <div class="flex justify-between items-center mb-8">
@@ -173,7 +173,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
             </div>
           </div>
           <!-- Tabs -->
-          <div class="bg-white rounded-xl shadow-md p-2 mb-6 inline-flex gap-1">
+          <div class="bg-white rounded-3xl shadow-md p-2 mb-9 inline-flex gap-1">
             <button
               phx-click="select_tab"
               phx-value-tab="all"

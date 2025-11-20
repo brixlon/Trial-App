@@ -49,7 +49,7 @@ defmodule TrialAppWeb.AdminLive.ProgramShow do
 
  def render(assigns) do
   ~H"""
-    <div class="max-w-7xl mx-auto space-y-8">
+    <div class="max-w-45 mx-auto space-y-8">
 
     <!-- Breadcrumb — restored! -->
       <div class="text-sm breadcrumbs">

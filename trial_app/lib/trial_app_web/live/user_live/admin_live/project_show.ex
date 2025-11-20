@@ -148,7 +148,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
     <div class="min-h-screen bg-white">
       <div class="flex">
         <!-- Main Content -->
-        <main class="ml-64 w-full p-8">
+        <main class="ml-45 w-full p-8">
           <div class="max-w-7xl mx-auto space-y-6">
             <!-- Breadcrumb -->
             <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />

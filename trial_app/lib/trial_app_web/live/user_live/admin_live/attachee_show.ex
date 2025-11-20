@@ -172,7 +172,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
     ~H"""
     <div class="min-h-screen bg-white">
 
-      <div class="ml-64 p-8">
+      <div class="ml-45 p-8">
         <div class="max-w-7xl mx-auto space-y-6">
           <!-- Breadcrumb -->
           <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />

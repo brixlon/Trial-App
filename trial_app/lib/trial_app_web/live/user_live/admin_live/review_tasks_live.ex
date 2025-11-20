@@ -124,7 +124,7 @@ defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
   # --------------------------------------------------------------------
   def render(assigns) do
     ~H"""
-    <div class="ml-64 p-8">
+    <div class="ml-45 p-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Review Submitted Tasks</h1>
       <p class="text-gray-600 mb-6">Approve or send back tasks with feedback</p>
 
