@@ -1,6 +1,4 @@
 <div class="min-h-screen bg-white">
-  <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
-
   <div class="lg:ml-64 p-8">
     <div class="max-w-7xl mx-auto space-y-8">
       <!-- Breadcrumb -->
@@ -9,7 +7,6 @@
         <span class="text-gray-300">/</span>
         <a href="#" class="hover:text-gray-700"><%= @department.name %></a>
         <span class="text-gray-300">/</span>
-        <span class="text-purple-600 font-medium"><%= hd(@programs).name %></span>
       </nav>
 
       <!-- Header -->

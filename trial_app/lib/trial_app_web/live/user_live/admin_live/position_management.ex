@@ -1,23 +1,35 @@
 defmodule TrialAppWeb.AdminLive.PositionManagement do
   use TrialAppWeb, :live_view
   alias TrialApp.Orgs
+  alias TrialApp.Accounts
 
   @impl true
   def mount(_params, _session, socket) do
-    positions = Orgs.list_positions()
+    # Add role-based access control
+    user = socket.assigns.current_scope.user
+    active_role = Accounts.get_active_role(user)
 
-    {:ok,
-     socket
-     |> assign(:page_title, "Position Management")
-     |> assign(:positions, positions)
-     |> assign(:filtered_positions, positions)
-     |> assign(:search, "")
-     |> assign(:editing, nil)
-     |> assign(:show_form, false)
-     |> assign(:form, %{name: "", description: ""})
-     |> assign(:sort_by, "name")
-     |> assign(:sort_order, "asc")
-     |> assign(:stats, calculate_stats(positions))}
+    if active_role != "admin" do
+      {:ok,
+       socket
+       |> put_flash(:error, "You don't have permission to access this page")
+       |> redirect(to: get_redirect_path(active_role))}
+    else
+      positions = Orgs.list_positions()
+
+      {:ok,
+       socket
+       |> assign(:page_title, "Position Management")
+       |> assign(:positions, positions)
+       |> assign(:filtered_positions, positions)
+       |> assign(:search, "")
+       |> assign(:editing, nil)
+       |> assign(:show_form, false)
+       |> assign(:form, %{name: "", description: ""})
+       |> assign(:sort_by, "name")
+       |> assign(:sort_order, "asc")
+       |> assign(:stats, calculate_stats(positions))}
+    end
   end
 
   @impl true
@@ -161,6 +173,14 @@ defmodule TrialAppWeb.AdminLive.PositionManagement do
   end
 
   # Private helper functions
+  defp get_redirect_path(role) do
+    case role do
+      "supervisor" -> ~p"/supervisor/dashboard"
+      "attachee" -> ~p"/attachee"
+      _ -> ~p"/dashboard"
+    end
+  end
+
   defp calculate_stats(positions) do
     total = length(positions)
     with_description = Enum.count(positions, fn p -> p.description && p.description != "" end)

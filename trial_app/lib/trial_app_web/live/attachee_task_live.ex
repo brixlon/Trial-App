@@ -337,13 +337,6 @@ defmodule TrialAppWeb.AttacheeTasksLive do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-        <!-- Sidebar -->
-        <.live_component
-          module={TrialAppWeb.SidebarComponent}
-          id="sidebar"
-          current_scope={@current_scope}
-        />
-
         <!-- Main content -->
         <main class="ml-64 w-full p-8">
           <div class="max-w-7xl mx-auto space-y-8">

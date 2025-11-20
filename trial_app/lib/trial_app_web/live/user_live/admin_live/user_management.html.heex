@@ -1,479 +1,495 @@
+<div class="min-h-screen bg-white text-gray-900">
+  <div class="flex">
+    <main class="ml-64 w-full p-8">
+      <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-purple-700">User Management</h1>
+          <p class="text-base-content/70 mt-2">Manage user accounts, roles, and team assignments</p>
+          <button
+            phx-click="open_add_modal"
+            class="btn btn-primary bg-gradient-to-r from-purple-500 to-purple-700 text-white border-none hover:from-purple-600 hover:to-purple-800 mt-4"
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add user
+          </button>
+        </div>
 
-  <div class="min-h-screen bg-white text-gray-900">
-    <div class="flex">
-      <.live_component
-        module={TrialAppWeb.SidebarComponent}
-        id="sidebar"
-        current_scope={@current_scope}
-      />
-      <main class="ml-64 w-full p-8">
-        <div class="max-w-7xl mx-auto">
-          <!-- Header -->
-          <div class="mb-8">
-            <h1 class="text-3xl font-bold text-purple-700">User Management</h1>
-            <p class="text-gray-500 mt-2">Manage user accounts, roles, and team assignments</p>
-            <button
-              phx-click="open_add_modal"
-              class="mt-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg hover:from-purple-600 hover:to-purple-800 transition-colors flex items-center"
-            >
-              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Add user
-            </button>
-          </div>
-          <!-- Filter Tabs -->
-          <div class="mb-6">
-            <div class="border-b border-gray-200">
-              <nav class="-mb-px flex space-x-8">
-                <.link
-                  patch={~p"/admin/users?filter=all"}
-                  class={[
-                    "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
-                    @filter == "all" && "border-blue-500 text-blue-600",
-                    @filter != "all" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  ]}
-                >
-                  All Users
-                  <span class="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs">
-                    <%= Enum.count(@users) %>
-                  </span>
-                </.link>
-                <.link
-                  patch={~p"/admin/users?filter=pending"}
-                  class={[
-                    "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
-                    @filter == "pending" && "border-yellow-500 text-yellow-600",
-                    @filter != "pending" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  ]}
-                >
-                  Pending Approval
-                  <span class="ml-2 bg-yellow-100 text-yellow-800 py-0.5 px-2 rounded-full text-xs">
-                    <%= Enum.count(@users, &(&1.status == "pending")) %>
-                  </span>
-                </.link>
-                <.link
-                  patch={~p"/admin/users?filter=active"}
-                  class={[
-                    "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
-                    @filter == "active" && "border-green-500 text-green-600",
-                    @filter != "active" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  ]}
-                >
-                  Active Users
-                  <span class="ml-2 bg-green-100 text-green-800 py-0.5 px-2 rounded-full text-xs">
-                    <%= Enum.count(@users, &(&1.status == "active")) %>
-                  </span>
-                </.link>
-              </nav>
-            </div>
-          </div>
-          <!-- Users Table -->
-          <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-            <table class="w-full divide-y divide-gray-200 border-4 border-gray-200">
-              <thead>
-                <tr class="bg-purple-600 text-white">
-                  <th class="px-4 py-2 text-left text-base font-bold">User</th>
-                  <th class="px-4 py-2 text-left text-base font-bold">Status</th>
-                  <th class="px-4 py-2 text-left text-base font-bold">Registered</th>
-                  <th class="px-4 py-2 text-left text-base font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200">
-                <%= for user <- @users do %>
-                  <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-2">
-                      <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0">
-                          <div class="bg-purple-100 text-purple-700 rounded-full w-10 h-10 flex items-center justify-center">
-                            <span class="font-semibold text-sm leading-none">
-                              <%= String.at(user.username, 0) |> String.upcase() %>
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <div class="font-semibold text-gray-900"><%= user.username %></div>
-                          <div class="text-sm text-gray-500"><%= user.email %></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="px-4 py-2">
-                      <span class={["px-2 py-1 rounded-full text-xs font-medium", user_status_class(user.status)]}>
-                        <%= user_status_label(user.status) %>
-                      </span>
-                    </td>
-                    <td class="px-4 py-2 text-gray-500">
-                      <%= Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}") %>
-                    </td>
-                    <td class="px-4 py-2">
-                      <div class="flex gap-2">
-                        <%= if user.status == "active" && user.role == "employee" do %>
-                          <button
-                            phx-click="make_admin"
-                            phx-value-user-id={user.id}
-                            class="px-2 py-1 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                          >
-                            Make Admin
-                          </button>
-                        <% end %>
-                        <button
-                          phx-click="edit_user"
-                          phx-value-user-id={user.id}
-                          class="px-2 py-1 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          phx-click="view_user"
-                          phx-value-user-id={user.id}
-                          class="px-2 py-1 text-sm font-medium bg-transparent text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                        >
-                          View
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-            <%= if Enum.empty?(@users) do %>
-              <div class="text-center py-12">
-                <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-                <p class="mt-1 text-sm text-gray-500">
-                  <%= if @filter == "pending" do %>
-                    No users are waiting for approval.
-                  <% else %>
-                    Get started by creating a new user.
-                  <% end %>
-                </p>
-              </div>
-            <% end %>
+        <!-- Filter Tabs -->
+        <div class="mb-6">
+          <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+              <.link
+                patch={~p"/admin/users?filter=all"}
+                class={[
+                  "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+                  @filter == "all" && "border-blue-500 text-blue-600",
+                  @filter != "all" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ]}
+              >
+                All Users
+                <span class="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs">
+                  {Enum.count(@users)}
+                </span>
+              </.link>
+              <.link
+                patch={~p"/admin/users?filter=pending"}
+                class={[
+                  "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+                  @filter == "pending" && "border-yellow-500 text-yellow-600",
+                  @filter != "pending" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ]}
+              >
+                Pending Approval
+                <span class="ml-2 bg-yellow-100 text-yellow-800 py-0.5 px-2 rounded-full text-xs">
+                  {Enum.count(@users, &(&1.status == "pending"))}
+                </span>
+              </.link>
+              <.link
+                patch={~p"/admin/users?filter=active"}
+                class={[
+                  "whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+                  @filter == "active" && "border-green-500 text-green-600",
+                  @filter != "active" && "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ]}
+              >
+                Active Users
+                <span class="ml-2 bg-green-100 text-green-800 py-0.5 px-2 rounded-full text-xs">
+                  {Enum.count(@users, &(&1.status == "active"))}
+                </span>
+              </.link>
+            </nav>
           </div>
         </div>
-      </main>
-    </div>
-    <!-- ==================== VIEW USER MODAL ==================== -->
-    <%= if @show_view_modal && @selected_user do %>
-      <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white p-5 rounded-md shadow-lg max-w-4xl w-full">
-          <div class="mt-3">
-            <div class="flex justify-between items-center pb-4 border-b border-gray-200">
-              <h3 class="text-lg font-medium text-gray-900">
-                User Details: <%= @selected_user.username %>
-              </h3>
-              <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
-              <!-- Avatar + Header -->
-              <div class="flex items-center gap-6 pb-6 border-b border-purple-100">
-                <div class="bg-purple-100 text-purple-700 rounded-full w-20 h-20 flex items-center justify-center">
-                  <span class="font-bold text-3xl">
-                    <%= String.at(@selected_user.username, 0) |> String.upcase() %>
-                  </span>
-                </div>
-                <div>
-                  <h2 class="text-2xl font-bold text-purple-800"><%= @selected_user.username %></h2>
-                  <p class="text-gray-600"><%= @selected_user.email %></p>
-                  <div class="flex gap-2 mt-2">
-                    <span class={["px-2 py-1 rounded-full text-xs font-medium", user_status_class(@selected_user.status)]}>
-                      <%= user_status_label(@selected_user.status) %>
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <!-- Account Info Grid -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-4 rounded-lg border border-purple-100">
-                  <label class="block text-sm font-semibold text-purple-700 mb-2">Email Address</label>
-                  <p class="text-gray-800"><%= @selected_user.email %></p>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-purple-100">
-                  <label class="block text-sm font-semibold text-purple-700 mb-2">Username</label>
-                  <p class="text-gray-800"><%= @selected_user.username %></p>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-purple-100">
-                  <label class="block text-sm font-semibold text-purple-700 mb-2">Status</label>
-                  <p class="text-gray-800"><%= user_status_label(@selected_user.status) %></p>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-purple-100">
-                  <label class="block text-sm font-semibold text-purple-700 mb-2">Registered On</label>
-                  <p class="text-gray-800"><%= Timex.format!(@selected_user.inserted_at, "{Mfull} {D}, {YYYY}") %></p>
-                </div>
-                <div class="bg-white p-4 rounded-lg border border-purple-100">
-                  <label class="block text-sm font-semibold text-purple-700 mb-2">Last Updated</label>
-                  <p class="text-gray-800"><%= Timex.format!(@selected_user.updated_at, "{Mfull} {D}, {YYYY}") %></p>
-                </div>
-              </div>
-              <!-- Team Assignments -->
-              <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-                <label class="block text-sm font-semibold text-purple-700 mb-4">Team Assignments</label>
-                <%= if map_size(@team_assignments) > 0 do %>
-                  <div class="space-y-3">
-                    <%= for {_team_id, assignment} <- @team_assignments do %>
-                      <div class="bg-gradient-to-r from-purple-50 to-white p-4 rounded-lg border border-purple-200 shadow-sm">
-                        <div class="flex items-start justify-between">
-                          <div>
-                            <h4 class="font-semibold text-purple-800 text-lg"><%= assignment.team_name %></h4>
-                            <p class="text-sm text-purple-600 mt-1">
-                              <span class="font-medium">Department:</span> <%= assignment.department_name %>
-                            </p>
-                            <p class="text-sm text-purple-600">
-                              <span class="font-medium">Organization:</span> <%= assignment.organization_name %>
-                            </p>
-                          </div>
-                          <span class="px-3 py-1.5 rounded-full text-sm font-medium bg-purple-100 text-purple-800 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                            Member
+
+        <!-- Users Table -->
+        <div class="card bg-base-100 shadow-lg">
+          <table class="table table-zebra">
+            <thead>
+              <tr class="bg-primary text-primary-content">
+                <th class="text-base font-bold">User</th>
+                <th class="text-base font-bold">Status</th>
+                <th class="text-base font-bold">Registered</th>
+                <th class="text-base font-bold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for user <- @users do %>
+                <tr class="hover">
+                  <td>
+                    <div class="flex items-center gap-3">
+                      <div class="flex-shrink-0">
+                        <div class="bg-purple-100 text-purple-700 rounded-full w-10 h-10 flex items-center justify-center">
+                          <span class="font-semibold text-sm leading-none">
+                            {String.at(user.username, 0) |> String.upcase()}
                           </span>
                         </div>
                       </div>
-                    <% end %>
-                  </div>
+                      <div>
+                        <div class="font-semibold">{user.username}</div>
+                        <div class="text-sm text-base-content/70">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class={["badge", user_status_class(user.status)]}>
+                      {user_status_label(user.status)}
+                    </span>
+                  </td>
+                  <td class="text-base-content/70">
+                    {Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}")}
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                      <%= if user.status == "active" && user.role == "employee" do %>
+                        <button
+                          phx-click="make_admin"
+                          phx-value-user-id={user.id}
+                          class="btn btn-sm"
+                        >
+                          Make Admin
+                        </button>
+                      <% end %>
+                      <button
+                        phx-click="edit_user"
+                        phx-value-user-id={user.id}
+                        class="btn btn-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        phx-click="view_user"
+                        phx-value-user-id={user.id}
+                        class="btn btn-sm btn-ghost"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+
+          <%= if Enum.empty?(@users) do %>
+            <div class="text-center py-12">
+              <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+              <p class="mt-1 text-sm text-gray-500">
+                <%= if @filter == "pending" do %>
+                  No users are waiting for approval.
                 <% else %>
-                  <div class="text-center py-8">
-                    <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <p class="text-gray-500 mt-3 font-medium">No team assignments</p>
-                    <p class="text-gray-400 text-sm">This user is not currently assigned to any teams</p>
-                  </div>
+                  Get started by creating a new user.
                 <% end %>
-              </div>
-              <!-- Action Buttons -->
-              <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
-                <button type="button" phx-click="close_modal"
-                  class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition-colors">
-                  Close
-                </button>
-                <button type="button" phx-click="edit_user" phx-value-user-id={@selected_user.id}
-                  class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition-colors">
-                  Edit User
-                </button>
-              </div>
+              </p>
             </div>
-          </div>
+          <% end %>
         </div>
       </div>
-    <% end %>
-    <!-- ==================== EDIT USER MODAL ==================== -->
-    <%= if @show_edit_modal && @selected_user do %>
-      <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white p-5 rounded-md shadow-lg max-w-4xl w-full">
-          <div class="mt-3">
-            <div class="flex justify-between items-center pb-4 border-b border-gray-200">
-              <h3 class="text-lg font-medium text-gray-900">
-                Edit User: <%= @selected_user.username %>
-              </h3>
-              <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+    </main>
+  </div>
+
+  <!-- ==================== VIEW USER MODAL ==================== -->
+  <%= if @show_view_modal && @selected_user do %>
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <div class="flex justify-between items-center pb-4 border-b">
+            <h3 class="text-lg font-medium text-gray-900">
+              User Details: {@selected_user.username}
+            </h3>
+            <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
+            <!-- Avatar + Header -->
+            <div class="flex items-center gap-6 pb-6 border-b border-purple-100">
+              <div class="bg-purple-100 text-purple-700 rounded-full w-20 h-20 flex items-center justify-center">
+                <span class="font-bold text-3xl">
+                  {String.at(@selected_user.username, 0) |> String.upcase()}
+                </span>
+              </div>
+              <div>
+                <h2 class="text-2xl font-bold text-purple-800">{@selected_user.username}</h2>
+                <p class="text-gray-600">{@selected_user.email}</p>
+                <div class="flex gap-2 mt-2">
+                  <span class={["badge", user_status_class(@selected_user.status)]}>
+                    {user_status_label(@selected_user.status)}
+                  </span>
+                </div>
+              </div>
             </div>
-            <form phx-submit="save_user"
-              class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
-              <!-- Email & Username -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">Email</label>
-                  <input type="email" name="email" value={@user_form.email} placeholder="user@example.com"
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">Username</label>
-                  <input type="text" name="username" value={@user_form.username} placeholder="username"
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-                </div>
+
+            <!-- Account Info Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="bg-white p-4 rounded-lg border border-purple-100">
+                <label class="block text-sm font-semibold text-purple-700 mb-2">Email Address</label>
+                <p class="text-gray-800">{@selected_user.email}</p>
               </div>
-              <!-- Role & Status -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">Role</label>
-                  <select name="role"
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="employee" selected={@user_form.role == "employee"}>Employee</option>
-                    <option value="manager" selected={@user_form.role == "manager"}>Manager</option>
-                    <option value="admin" selected={@user_form.role == "admin"}>Admin</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">Status</label>
-                  <select name="status"
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="pending" selected={@user_form.status == "pending"}>Pending</option>
-                    <option value="active" selected={@user_form.status == "active"}>Active</option>
-                    <option value="suspended" selected={@user_form.status == "suspended"}>Suspended</option>
-                  </select>
-                </div>
+              <div class="bg-white p-4 rounded-lg border border-purple-100">
+                <label class="block text-sm font-semibold text-purple-700 mb-2">Username</label>
+                <p class="text-gray-800">{@selected_user.username}</p>
               </div>
-              <!-- Attachee Enrollment -->
-              <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-                <label class="block text-sm font-semibold text-purple-700 mb-3">Attachee Enrollment</label>
-                <div class="flex items-center gap-3 mb-4">
-                  <input type="checkbox" id="is_attachee" name="is_attachee" value="true" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                  <label for="is_attachee" class="text-sm text-gray-700">Enroll this user as an attachee</label>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-sm font-medium text-purple-600 mb-1">Start date (optional)</label>
-                    <input type="date" name="attachee_starts_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-purple-600 mb-1">End date (optional)</label>
-                    <input type="date" name="attachee_ends_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
-                  </div>
-                </div>
-                <p class="mt-2 text-xs text-gray-500">If checked, an Attachee record will be created for each selected team/department.</p>
+              <div class="bg-white p-4 rounded-lg border border-purple-100">
+                <label class="block text-sm font-semibold text-purple-700 mb-2">Status</label>
+                <p class="text-gray-800">{user_status_label(@selected_user.status)}</p>
               </div>
-              <!-- Team Assignments -->
-              <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-                <label class="block text-sm font-semibold text-purple-700 mb-3">Team Assignments</label>
-                <!-- Filters -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Organization</label>
-                    <select phx-change="select_organization" name="filter_organization_id"
-                      value={@selected_org_id || ""}
-                      class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                      <option value="">All Organizations</option>
-                      <%= for org <- @organizations do %>
-                        <option value={org.id} selected={@selected_org_id == org.id}><%= org.name %></option>
-                      <% end %>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Department</label>
-                    <select phx-change="select_department" name="filter_department_id"
-                      value={@selected_dept_id || ""}
-                      class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                      <option value="">All Departments</option>
-                      <%= for dept <- @available_departments do %>
-                        <option value={dept.id} selected={@selected_dept_id == dept.id}><%= dept.name %> - <%= dept.organization.name %></option>
-                      <% end %>
-                    </select>
-                  </div>
-                </div>
-                <!-- Teams Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto p-3 border border-purple-100 rounded-lg bg-purple-50/50">
-                  <%= for team <- @available_teams do %>
-                    <div class="flex items-start">
-                      <input type="checkbox"
-                        id={"team_#{team.id}"}
-                        name={"team_assignment[#{team.id}]"}
-                        value="true"
-                        checked={Map.has_key?(@team_assignments, to_string(team.id))}
-                        phx-click="toggle_team_assignment"
-                        phx-value-team-id={team.id}
-                        class="h-4 w-4 mt-1 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                      <label for={"team_#{team.id}"} class="ml-2 text-sm text-gray-700">
-                        <div class="font-semibold"><%= team.name %></div>
-                        <div class="text-xs text-purple-600">
-                          <%= team.department.name %> - <%= team.department.organization.name %>
+              <div class="bg-white p-4 rounded-lg border border-purple-100">
+                <label class="block text-sm font-semibold text-purple-700 mb-2">Registered On</label>
+                <p class="text-gray-800">{Timex.format!(@selected_user.inserted_at, "{Mfull} {D}, {YYYY}")}</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg border border-purple-100">
+                <label class="block text-sm font-semibold text-purple-700 mb-2">Last Updated</label>
+                <p class="text-gray-800">{Timex.format!(@selected_user.updated_at, "{Mfull} {D}, {YYYY}")}</p>
+              </div>
+            </div>
+
+            <!-- Team Assignments -->
+            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
+              <label class="block text-sm font-semibold text-purple-700 mb-4">Team Assignments</label>
+              <%= if map_size(@team_assignments) > 0 do %>
+                <div class="space-y-3">
+                  <%= for {_team_id, assignment} <- @team_assignments do %>
+                    <div class="bg-gradient-to-r from-purple-50 to-white p-4 rounded-lg border border-purple-200 shadow-sm">
+                      <div class="flex items-start justify-between">
+                        <div>
+                          <h4 class="font-semibold text-purple-800 text-lg">{assignment.team_name}</h4>
+                          <p class="text-sm text-purple-600 mt-1">
+                            <span class="font-medium">Department:</span> {assignment.department_name}
+                          </p>
+                          <p class="text-sm text-purple-600">
+                            <span class="font-medium">Organization:</span> {assignment.organization_name}
+                          </p>
                         </div>
-                      </label>
+                        <span class="badge badge-lg badge-primary">
+                          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          Member
+                        </span>
+                      </div>
                     </div>
                   <% end %>
-                  <%= if Enum.empty?(@available_teams) do %>
-                    <div class="col-span-full text-center py-6 text-gray-500 italic">No teams available</div>
-                  <% end %>
                 </div>
-                <!-- Hidden inputs for selected teams -->
-                <%= for {team_id, _} <- @team_assignments do %>
-                  <input type="hidden" name="team_ids[]" value={team_id} />
-                <% end %>
-              </div>
-              <!-- Form Actions -->
-              <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
-                <button type="button" phx-click="close_modal"
-                  class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit"
-                  class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition-colors">
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    <% end %>
-    <!-- ==================== ADD USER MODAL ==================== -->
-    <%= if @show_add_modal do %>
-      <div class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white p-5 rounded-md shadow-lg max-w-2xl w-full">
-          <div class="mt-3">
-            <div class="flex justify-between items-center pb-4 border-b border-gray-200">
-              <h3 class="text-lg font-medium text-gray-900">Add New User</h3>
-              <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <% else %>
+                <div class="text-center py-8">
+                  <svg class="w-12 h-12 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <p class="text-gray-500 mt-3 font-medium">No team assignments</p>
+                  <p class="text-gray-400 text-sm">This user is not currently assigned to any teams</p>
+                </div>
+              <% end %>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
+              <button type="button" phx-click="close_modal"
+                class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition">
+                Close
+              </button>
+              <button type="button" phx-click="edit_user" phx-value-user-id={@selected_user.id}
+                class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition">
+                Edit User
               </button>
             </div>
-            <form phx-submit="create_user"
-              class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-6 border border-purple-100">
-              <!-- Email -->
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Email <span class="text-red-500">*</span></label>
-                <input type="email" name="email" value={@user_form["email"] || ""}
-                  phx-blur="update_form_field" phx-value-field="email"
-                  placeholder="user@example.com" required
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-              </div>
-              <!-- First Name & Last Name -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">First Name <span class="text-red-500">*</span></label>
-                  <input type="text" name="first_name" value={@user_form["first_name"] || ""}
-                    phx-blur="update_form_field" phx-value-field="first_name"
-                    placeholder="John" required
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold text-purple-700">Last Name <span class="text-red-500">*</span></label>
-                  <input type="text" name="last_name" value={@user_form["last_name"] || ""}
-                    phx-blur="update_form_field" phx-value-field="last_name"
-                    placeholder="Doe" required
-                    class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-                </div>
-              </div>
-              <!-- Phone Number -->
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Phone Number <span class="text-red-500">*</span></label>
-                <input type="tel" name="phone_number" value={@user_form["phone_number"] || ""}
-                  phx-blur="update_form_field" phx-value-field="phone_number"
-                  placeholder="+254 712 345 678" required
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-              </div>
-              <!-- Form Actions -->
-              <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
-                <button type="button" phx-click="close_modal"
-                  class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit"
-                  class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition-colors">
-                  Add User
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       </div>
-    <% end %>
-  </div>
-  """
-end
+    </div>
+  <% end %>
+
+  <!-- ==================== EDIT USER MODAL ==================== -->
+  <%= if @show_edit_modal && @selected_user do %>
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <div class="flex justify-between items-center pb-4 border-b">
+            <h3 class="text-lg font-medium text-gray-900">
+              Edit User: {@selected_user.username}
+            </h3>
+            <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form phx-submit="save_user"
+            class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
+
+            <!-- Email & Username -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">Email</label>
+                <input type="email" name="email" value={@user_form.email} placeholder="user@example.com"
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">Username</label>
+                <input type="text" name="username" value={@user_form.username} placeholder="username"
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+              </div>
+            </div>
+
+            <!-- Role & Status -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">Role</label>
+                <select name="role"
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
+                  <option value="employee" selected={@user_form.role == "employee"}>Employee</option>
+                  <option value="manager" selected={@user_form.role == "manager"}>Manager</option>
+                  <option value="admin" selected={@user_form.role == "admin"}>Admin</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">Status</label>
+                <select name="status"
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
+                  <option value="pending" selected={@user_form.status == "pending"}>Pending</option>
+                  <option value="active" selected={@user_form.status == "active"}>Active</option>
+                  <option value="suspended" selected={@user_form.status == "suspended"}>Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Attachee Enrollment -->
+            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
+              <label class="block text-sm font-semibold text-purple-700 mb-3">Attachee Enrollment</label>
+              <div class="flex items-center gap-3 mb-4">
+                <input type="checkbox" id="is_attachee" name="is_attachee" value="true" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
+                <label for="is_attachee" class="text-sm text-gray-700">Enroll this user as an attachee</label>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">Start date (optional)</label>
+                  <input type="date" name="attachee_starts_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">End date (optional)</label>
+                  <input type="date" name="attachee_ends_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-gray-500">If checked, an Attachee record will be created for each selected team/department.</p>
+            </div>
+
+            <!-- Team Assignments -->
+            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
+              <label class="block text-sm font-semibold text-purple-700 mb-3">Team Assignments</label>
+
+              <!-- Filters -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Organization</label>
+                  <select phx-change="select_organization" name="filter_organization_id"
+                    value={@selected_org_id || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
+                    <option value="">All Organizations</option>
+                    <%= for org <- @organizations do %>
+                      <option value={org.id} selected={@selected_org_id == org.id}>{org.name}</option>
+                    <% end %>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Department</label>
+                  <select phx-change="select_department" name="filter_department_id"
+                    value={@selected_dept_id || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
+                    <option value="">All Departments</option>
+                    <%= for dept <- @available_departments do %>
+                      <option value={dept.id} selected={@selected_dept_id == dept.id}>{dept.name} - {dept.organization.name}</option>
+                    <% end %>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Teams Grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto p-3 border border-purple-100 rounded-lg bg-purple-50/50">
+                <%= for team <- @available_teams do %>
+                  <div class="flex items-start">
+                    <input type="checkbox"
+                      id={"team_#{team.id}"}
+                      name={"team_assignment[#{team.id}]"}
+                      value="true"
+                      checked={Map.has_key?(@team_assignments, to_string(team.id))}
+                      phx-click="toggle_team_assignment"
+                      phx-value-team-id={team.id}
+                      class="h-4 w-4 mt-1 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
+                    <label for={"team_#{team.id}"} class="ml-2 text-sm text-gray-700">
+                      <div class="font-semibold">{team.name}</div>
+                      <div class="text-xs text-purple-600">
+                        {team.department.name} - {team.department.organization.name}
+                      </div>
+                    </label>
+                  </div>
+                <% end %>
+                <%= if Enum.empty?(@available_teams) do %>
+                  <div class="col-span-full text-center py-6 text-gray-500 italic">No teams available</div>
+                <% end %>
+              </div>
+
+              <!-- Hidden inputs for selected teams -->
+              <%= for {team_id, _} <- @team_assignments do %>
+                <input type="hidden" name="team_ids[]" value={team_id} />
+              <% end %>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
+              <button type="button" phx-click="close_modal"
+                class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition">
+                Cancel
+              </button>
+              <button type="submit"
+                class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- ==================== ADD USER MODAL ==================== -->
+  <%= if @show_add_modal do %>
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <div class="flex justify-between items-center pb-4 border-b">
+            <h3 class="text-lg font-medium text-gray-900">Add New User</h3>
+            <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <form phx-submit="create_user"
+            class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-6 border border-purple-100">
+
+            <!-- Email -->
+            <div>
+              <label class="block text-sm font-semibold text-purple-700">Email <span class="text-red-500">*</span></label>
+              <input type="email" name="email" value={@user_form["email"] || ""} 
+                phx-blur="update_form_field" phx-value-field="email"
+                placeholder="user@example.com" required
+                class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+            </div>
+
+            <!-- First Name & Last Name -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">First Name <span class="text-red-500">*</span></label>
+                <input type="text" name="first_name" value={@user_form["first_name"] || ""}
+                  phx-blur="update_form_field" phx-value-field="first_name"
+                  placeholder="John" required
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-purple-700">Last Name <span class="text-red-500">*</span></label>
+                <input type="text" name="last_name" value={@user_form["last_name"] || ""}
+                  phx-blur="update_form_field" phx-value-field="last_name"
+                  placeholder="Doe" required
+                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+              </div>
+            </div>
+
+            <!-- Phone Number -->
+            <div>
+              <label class="block text-sm font-semibold text-purple-700">Phone Number <span class="text-red-500">*</span></label>
+              <input type="tel" name="phone_number" value={@user_form["phone_number"] || ""}
+                phx-blur="update_form_field" phx-value-field="phone_number"
+                placeholder="+254 712 345 678" required
+                class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
+              <button type="button" phx-click="close_modal"
+                class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition">
+                Cancel
+              </button>
+              <button type="submit"
+                class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition">
+                Add User
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

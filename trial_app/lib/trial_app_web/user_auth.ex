@@ -149,6 +149,7 @@ defmodule TrialAppWeb.UserAuth do
 
   defp user_session_topic(token), do: "users_sessions:#{Base.url_encode64(token)}"
 
+  # LIVEVIEW ON_MOUNT HOOKS
   def on_mount(:mount_current_scope, _params, session, socket) do
     {:cont, mount_current_scope(socket, session)}
   end
@@ -170,7 +171,6 @@ defmodule TrialAppWeb.UserAuth do
 
   def on_mount(:require_admin, _params, session, socket) do
     socket = mount_current_scope(socket, session)
-
 
     if socket.assigns.current_scope && socket.assigns.current_scope.user &&
          socket.assigns.current_scope.user.role == "admin" do
@@ -222,30 +222,33 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
+
   defp mount_current_scope(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      user =
-        case session["user_token"] do
-          nil ->
-            nil
+    scope =
+      case session["user_token"] do
+        nil ->
+          Scope.for_user(nil)
 
-          token ->
-            case Accounts.get_user_by_session_token(token)
-   do
-              {u, _} ->
-                case Accounts.ensure_active_role(u) do
-                  {:ok, user_with_role} -> user_with_role
-                  _ -> u
-                end
+        token ->
+          case Accounts.get_user_by_session_token(token) do
+            {u, _} ->
+              case Accounts.ensure_active_role(u) do
+                {:ok, user_with_role} -> Scope.for_user(user_with_role)
+                _ -> Scope.for_user(u)
+              end
 
-              nil ->
-                nil
-            end
-        end
+            nil ->
+              Scope.for_user(nil)
+          end
+      end
 
-      Scope.for_user(user)
-    end)
+    # Use assign instead of assign_new to force update on every mount
+    Phoenix.Component.assign(socket, :current_scope, scope)
   end
+
+  # ============================================================================
+  # SIGNED IN PATH HELPERS
+  # ============================================================================
 
   def signed_in_path(%Plug.Conn{
         assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
@@ -257,7 +260,6 @@ defmodule TrialAppWeb.UserAuth do
       "attachee" -> ~p"/attachee"
       "manager" -> ~p"/dashboard"
       _ -> ~p"/dashboard"
-
     end
   end
 
@@ -271,14 +273,16 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{} }}}) do
-    ~p"/dashboard"
-  end
+  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}),
+    do: ~p"/dashboard"
 
   def signed_in_path(_), do: ~p"/dashboard"
 
+  # ============================================================================
+  # PLUG-BASED AUTHENTICATION
+  # ============================================================================
+
   def require_authenticated_user(conn, _opts) do
-    IO.inspect(conn, label: "require_authenticated_user CONN")
     if conn.assigns.current_scope && conn.assigns.current_scope.user do
       conn
     else
@@ -290,7 +294,6 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-  # FIXED: Use `conn`, not `socket`
   def require_admin_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user &&
          "admin" in conn.assigns.current_scope.user.roles do

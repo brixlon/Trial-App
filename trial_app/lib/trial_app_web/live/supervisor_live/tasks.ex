@@ -138,8 +138,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-gray-50">
-      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
+    <div class="min-h-screen bg-base-200">
       <div class="lg:ml-64 p-8">
         <div class="max-w-7xl mx-auto">
           <!-- Header -->
