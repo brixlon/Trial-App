@@ -95,9 +95,9 @@ defmodule TrialAppWeb.SidebarComponent do
     exact = Keyword.get(opts, :exact, false)
 
     if active_link?(current_path, link_path, exact: exact) do
-      "block py-2.5 px-4 rounded-xl bg-purple-600 text-white font-bold shadow-md"
+      "block py-2.5 px-2 rounded-xl bg-purple-600 text-white font-bold shadow-md"
     else
-      "block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
+      "block py-2.5 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
     end
   end
 

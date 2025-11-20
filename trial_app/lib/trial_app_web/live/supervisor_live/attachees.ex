@@ -28,6 +28,20 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       |> assign(:evaluations, [])
       |> assign(:avg_score, 0.0)
       |> assign(:eval_count, 0)
+      |> assign(:attachee_tasks, [])
+      |> assign(:attachee_projects, [])
+      |> assign(:task_scores, %{})
+      |> assign(:profile_tab, "overview")
+      # Exactly 7 criteria for non-task evaluation items
+      |> assign(:evaluation_criteria, [
+        "Teamwork",
+        "Communication",
+        "Problem Solving",
+        "Initiative",
+        "Time Management",
+        "Professionalism",
+        "Technical Skills"
+      ])
 
     socket = load_data(socket, current_user, current_role)
 
@@ -56,7 +70,16 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
      |> assign(:evaluations, [])
      |> assign(:avg_score, 0.0)
      |> assign(:eval_count, 0)
+     |> assign(:attachee_tasks, [])
+     |> assign(:attachee_projects, [])
+     |> assign(:task_scores, %{})
+     |> assign(:profile_tab, "overview")
      |> load_data(user, role)}
+  end
+
+  # Tab switching inside attachee profile
+  def handle_event("change_profile_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :profile_tab, tab)}
   end
 
   # --------------------- DATA LOADING ---------------------
@@ -70,6 +93,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       |> assign(:is_admin, true)
     else
       attachee_list = load_supervisor_attachees(user.id)
+
       socket
       |> assign(:all_attachees, attachee_list)
       |> assign(:total_attachees, length(attachee_list))
@@ -155,7 +179,11 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     else
       Enum.map(result, fn attachee ->
         project_ids =
-          from(t in Eams.Task, where: t.assignee_id == ^attachee.id, distinct: t.project_id, select: t.project_id)
+          from(t in Eams.Task,
+            where: t.assignee_id == ^attachee.id,
+            distinct: t.project_id,
+            select: t.project_id
+          )
           |> Repo.all()
 
         project =
@@ -193,37 +221,68 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     attachee = Eams.get_attachee!(id, %{preloads: [:user, :department, :organization]})
 
     project_ids =
-      from(t in Eams.Task, where: t.assignee_id == ^id, distinct: t.project_id, select: t.project_id)
+      from(t in Eams.Task,
+        where: t.assignee_id == ^id,
+        distinct: t.project_id,
+        select: t.project_id
+      )
       |> Repo.all()
 
-    project =
-      if length(project_ids) > 0 do
-        Repo.get(Eams.Project, hd(project_ids)) |> Repo.preload(:program)
+    projects =
+      if project_ids == [] do
+        []
       else
-        nil
+        from(p in Eams.Project,
+          where: p.id in ^project_ids,
+          preload: [:program]
+        )
+        |> Repo.all()
       end
 
-    attachee = Map.put(attachee, :project, project)
+    primary_project = List.first(projects)
+
+    attachee = Map.put(attachee, :project, primary_project)
 
     tasks = Eams.list_tasks_for_attachee(attachee.id)
     evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-    avg_score = Eams.get_average_evaluation_score(attachee.id) |> safe_round_decimal()
+
+    avg_score =
+      Eams.get_average_evaluation_score(attachee.id)
+      |> safe_round_decimal()
+
     eval_count = Eams.count_evaluations_for_attachee(attachee.id)
     stats = calculate_attachee_stats(attachee)
+
+    task_scores = build_task_scores(evaluations)
 
     {:noreply,
      socket
      |> assign(:selected_attachee, attachee)
      |> assign(:attachee_tasks, tasks)
+     |> assign(:attachee_projects, projects)
+     |> assign(:task_scores, task_scores)
      |> assign(:attachee_stats, stats)
      |> assign(:evaluations, evaluations)
      |> assign(:avg_score, avg_score)
-     |> assign(:eval_count, eval_count)}
+     |> assign(:eval_count, eval_count)
+     |> assign(:profile_tab, "overview")}
   end
 
-  def handle_event("close_profile", _, socket), do: {:noreply, assign(socket, :selected_attachee, nil)}
-  def handle_event("toggle_evaluation_form", _, socket), do: {:noreply, assign(socket, :show_evaluation_form, !socket.assigns.show_evaluation_form)}
-  def handle_event("close_modal", _, socket), do: {:noreply, assign(socket, :show_evaluation_form, false)}
+  def handle_event("close_profile", _, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(:selected_attachee, nil)
+       |> assign(:attachee_tasks, [])
+       |> assign(:attachee_projects, [])
+       |> assign(:task_scores, %{})
+       |> assign(:profile_tab, "overview")}
+
+  def handle_event("toggle_evaluation_form", _, socket),
+    do: {:noreply, assign(socket, :show_evaluation_form, !socket.assigns.show_evaluation_form)}
+
+  def handle_event("close_modal", _, socket),
+    do: {:noreply, assign(socket, :show_evaluation_form, false)}
 
   def handle_info({:evaluation_submitted, attachee_id}, socket) do
     send(self(), {:select_attachee, attachee_id})
@@ -234,8 +293,11 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     handle_event("select_attachee", %{"id" => to_string(id)}, socket)
   end
 
-  def handle_info({:close_modal, _}, socket), do: {:noreply, assign(socket, :show_evaluation_form, false)}
-  def handle_info(:close_modal, socket), do: {:noreply, assign(socket, :show_evaluation_form, false)}
+  def handle_info({:close_modal, _}, socket),
+    do: {:noreply, assign(socket, :show_evaluation_form, false)}
+
+  def handle_info(:close_modal, socket),
+    do: {:noreply, assign(socket, :show_evaluation_form, false)}
 
   # --------------------- HELPERS ---------------------
   defp safe_round_decimal(nil), do: 0.0
@@ -247,7 +309,11 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     tasks = Eams.list_tasks_for_attachee(attachee.id)
     total_tasks = length(tasks)
     completed = Enum.count(tasks, &(&1.status == "completed"))
-    completion_rate = if total_tasks > 0, do: Float.round(completed * 100.0 / total_tasks, 1), else: 0.0
+
+    completion_rate =
+      if total_tasks > 0,
+        do: Float.round(completed * 100.0 / total_tasks, 1),
+        else: 0.0
 
     %{
       total_tasks: total_tasks,
@@ -257,6 +323,19 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       in_progress: Enum.count(tasks, &(&1.status == "in_progress")),
       completion_rate: completion_rate
     }
+  end
+
+  # Build task score map from evaluations (expects evaluations to have :task_id)
+  defp build_task_scores(evaluations) do
+    evaluations
+    |> Enum.filter(fn eval ->
+      Map.has_key?(eval, :task_id) && eval.task_id
+    end)
+    |> Enum.group_by(& &1.task_id)
+    |> Enum.into(%{}, fn {task_id, evals} ->
+      latest = Enum.max_by(evals, & &1.inserted_at)
+      {task_id, %{score: latest.score, label: score_label(latest.score)}}
+    end)
   end
 
   # --------------------- STYLING ---------------------
@@ -293,8 +372,10 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
 
   # --------------------- FILTER HELPERS ---------------------
   defp filter_by_search(list, search) when search == "" or is_nil(search), do: list
+
   defp filter_by_search(list, search) do
     term = String.downcase(search)
+
     Enum.filter(list, fn a ->
       name = (a.user.username || a.user.email || "") |> String.downcase()
       email = (a.user.email || "") |> String.downcase()
@@ -303,10 +384,10 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       prog = (a.program_name || "") |> String.downcase()
 
       String.contains?(name, term) or
-      String.contains?(email, term) or
-      String.contains?(dept, term) or
-      String.contains?(proj, term) or
-      String.contains?(prog, term)
+        String.contains?(email, term) or
+        String.contains?(dept, term) or
+        String.contains?(proj, term) or
+        String.contains?(prog, term)
     end)
   end
 
@@ -315,18 +396,21 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   defp group_attachees(attachees, "none"), do: %{"All Attachees" => attachees}
+
   defp group_attachees(attachees, "department") do
     attachees
     |> Enum.group_by(& &1.department_name)
     |> Enum.sort_by(fn {name, _} -> name end)
     |> Enum.into(%{})
   end
+
   defp group_attachees(attachees, "program") do
     attachees
     |> Enum.group_by(& &1.program_name)
     |> Enum.sort_by(fn {name, _} -> name end)
     |> Enum.into(%{})
   end
+
   defp group_attachees(attachees, "project") do
     attachees
     |> Enum.group_by(& &1.project_name)
@@ -586,129 +670,264 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           <p class="text-sm font-semibold text-gray-900 mt-1"><%= @selected_attachee.organization.name %></p>
                         </div>
                         <div>
-                          <p class="text-xs text-gray-500 font-medium uppercase">Project</p>
+                          <p class="text-xs text-gray-500 font-medium uppercase">Primary Project</p>
                           <p class="text-sm font-semibold text-gray-900 mt-1"><%= if @selected_attachee.project, do: @selected_attachee.project.name, else: "N/A" %></p>
                         </div>
                         <div>
                           <p class="text-xs text-gray-500 font-medium uppercase">Program</p>
-                          <p class="text-sm font-semibold text-gray-900 mt-1"><%= if @selected_attachee.project && @selected_attachee.project.program, do: @selected_attachee.project.program.name, else: "N/A" %></p>
+                          <p class="text-sm font-semibold text-gray-900 mt-1">
+                            <%= if @selected_attachee.project && @selected_attachee.project.program, do: @selected_attachee.project.program.name, else: "N/A" %>
+                          </p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Performance Stats -->
-                  <div class="bg-white shadow rounded-xl overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                      <h3 class="text-lg font-semibold text-gray-900">Performance Overview</h3>
-                    </div>
-                    <div class="p-6">
-                      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <p class="text-xs text-gray-500 font-medium uppercase">Total Tasks</p>
-                          <p class="text-2xl font-bold text-gray-900 mt-2"><%= @attachee_stats.total_tasks %></p>
-                        </div>
-                        <div class="bg-green-50 p-4 rounded-lg border border-green-200">
-                          <p class="text-xs text-green-600 font-medium uppercase">Completed</p>
-                          <p class="text-2xl font-bold text-green-700 mt-2"><%= @attachee_stats.completed %></p>
-                        </div>
-                        <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
-                          <p class="text-xs text-amber-600 font-medium uppercase">Pending</p>
-                          <p class="text-2xl font-bold text-amber-700 mt-2"><%= @attachee_stats.pending %></p>
-                        </div>
-                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                          <p class="text-xs text-blue-600 font-medium uppercase">Submitted</p>
-                          <p class="text-2xl font-bold text-blue-700 mt-2"><%= @attachee_stats.submitted %></p>
-                        </div>
-                      </div>
-
-                      <!-- Completion Rate -->
-                      <div class="mt-6">
-                        <div class="flex justify-between items-center mb-2">
-                          <span class="text-sm font-medium text-gray-700">Completion Rate</span>
-                          <span class="text-sm font-bold text-gray-900"><%= @attachee_stats.completion_rate %>%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
-                          <div
-                            class="bg-green-600 h-2.5 rounded-full transition-all"
-                            style={"width: #{@attachee_stats.completion_rate}%"}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
+                  <!-- Profile Tabs -->
+                  <div class="flex gap-2 border-b border-gray-200">
+                    <button
+                      phx-click="change_profile_tab"
+                      phx-value-tab="overview"
+                      class={[
+                        "px-4 py-2 text-sm font-medium border-b-2 -mb-px",
+                        @profile_tab == "overview" && "border-purple-600 text-purple-700",
+                        @profile_tab != "overview" && "border-transparent text-gray-500 hover:text-gray-700"
+                      ]}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      phx-click="change_profile_tab"
+                      phx-value-tab="projects"
+                      class={[
+                        "px-4 py-2 text-sm font-medium border-b-2 -mb-px",
+                        @profile_tab == "projects" && "border-purple-600 text-purple-700",
+                        @profile_tab != "projects" && "border-transparent text-gray-500 hover:text-gray-700"
+                      ]}
+                    >
+                      Projects
+                    </button>
+                    <button
+                      phx-click="change_profile_tab"
+                      phx-value-tab="tasks"
+                      class={[
+                        "px-4 py-2 text-sm font-medium border-b-2 -mb-px",
+                        @profile_tab == "tasks" && "border-purple-600 text-purple-700",
+                        @profile_tab != "tasks" && "border-transparent text-gray-500 hover:text-gray-700"
+                      ]}
+                    >
+                      Tasks & Scores
+                    </button>
                   </div>
 
-                  <!-- Evaluation History -->
-                  <div class="bg-white shadow rounded-xl overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                      <div class="flex justify-between items-center">
-                        <h3 class="text-lg font-semibold text-gray-900">Evaluation History</h3>
-                        <div class="flex items-center gap-6">
-                          <div class="text-center">
-                            <div class="text-2xl font-bold text-purple-600"><%= @avg_score %></div>
-                            <div class="text-xs text-gray-500 uppercase">Average Score</div>
+                  <!-- Overview Tab: Performance + Evaluation History -->
+                  <%= if @profile_tab == "overview" do %>
+                    <!-- Performance Stats -->
+                    <div class="bg-white shadow rounded-xl overflow-hidden">
+                      <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Performance Overview</h3>
+                      </div>
+                      <div class="p-6">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-xs text-gray-500 font-medium uppercase">Total Tasks</p>
+                            <p class="text-2xl font-bold text-gray-900 mt-2"><%= @attachee_stats.total_tasks %></p>
                           </div>
-                          <div class="text-center">
-                            <div class="text-2xl font-bold text-gray-900"><%= @eval_count %></div>
-                            <div class="text-xs text-gray-500 uppercase">Total Evaluations</div>
+                          <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <p class="text-xs text-green-600 font-medium uppercase">Completed</p>
+                            <p class="text-2xl font-bold text-green-700 mt-2"><%= @attachee_stats.completed %></p>
+                          </div>
+                          <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                            <p class="text-xs text-amber-600 font-medium uppercase">Pending</p>
+                            <p class="text-2xl font-bold text-amber-700 mt-2"><%= @attachee_stats.pending %></p>
+                          </div>
+                          <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <p class="text-xs text-blue-600 font-medium uppercase">Submitted</p>
+                            <p class="text-2xl font-bold text-blue-700 mt-2"><%= @attachee_stats.submitted %></p>
+                          </div>
+                        </div>
+
+                        <!-- Completion Rate -->
+                        <div class="mt-6">
+                          <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700">Completion Rate</span>
+                            <span class="text-sm font-bold text-gray-900"><%= @attachee_stats.completion_rate %>%</span>
+                          </div>
+                          <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                              class="bg-green-600 h-2.5 rounded-full transition-all"
+                              style={"width: #{@attachee_stats.completion_rate}%"}
+                            ></div>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div class="p-6">
-                      <%= if @evaluations == [] do %>
-                        <div class="text-center py-12">
-                          <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <p class="text-gray-500 font-medium">No evaluations yet</p>
-                          <p class="text-sm text-gray-400 mt-1">Click "Evaluate" to submit the first evaluation</p>
-                        </div>
-                      <% else %>
-                        <div class="space-y-4 max-h-96 overflow-y-auto">
-                          <%= for evaluation <- @evaluations do %>
-                            <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
-                              <div class="flex justify-between items-start mb-3">
-                                <div class="flex items-center gap-3">
-                                  <div class={"w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold #{score_bg_color(evaluation.score)}"}>
-                                    <%= evaluation.score %>
-                                  </div>
-                                  <div>
-                                    <p class="font-semibold text-gray-900">
-                                      Score: <%= evaluation.score %>/100
-                                    </p>
-                                    <p class="text-sm text-gray-500">
-                                      by <%= evaluation.evaluator.username || evaluation.evaluator.email %>
-                                    </p>
-                                  </div>
-                                </div>
-                                <div class="text-right">
-                                  <p class="text-sm text-gray-700 font-medium">
-                                    <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
-                                  </p>
-                                  <p class="text-xs text-gray-500">
-                                    <%= Timex.from_now(evaluation.inserted_at) %>
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                <p class="text-xs font-semibold text-gray-600 uppercase mb-1">Comments:</p>
-                                <p class="text-sm text-gray-800"><%= evaluation.comments %></p>
-                              </div>
-
-                              <div class="flex justify-end mt-3">
-                                <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(evaluation.score)}"}>
-                                  <%= score_label(evaluation.score) %>
-                                </span>
-                              </div>
+                    <!-- Evaluation History -->
+                    <div class="bg-white shadow rounded-xl overflow-hidden">
+                      <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                          <h3 class="text-lg font-semibold text-gray-900">Evaluation History</h3>
+                          <div class="flex items-center gap-6">
+                            <div class="text-center">
+                              <div class="text-2xl font-bold text-purple-600"><%= @avg_score %></div>
+                              <div class="text-xs text-gray-500 uppercase">Average Score</div>
                             </div>
-                          <% end %>
+                            <div class="text-center">
+                              <div class="text-2xl font-bold text-gray-900"><%= @eval_count %></div>
+                              <div class="text-xs text-gray-500 uppercase">Total Evaluations</div>
+                            </div>
+                          </div>
                         </div>
-                      <% end %>
+                      </div>
+
+                      <div class="p-6">
+                        <%= if @evaluations == [] do %>
+                          <div class="text-center py-12">
+                            <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="text-gray-500 font-medium">No evaluations yet</p>
+                            <p class="text-sm text-gray-400 mt-1">Click "Evaluate" to submit the first evaluation</p>
+                          </div>
+                        <% else %>
+                          <div class="space-y-4 max-h-96 overflow-y-auto">
+                            <%= for evaluation <- @evaluations do %>
+                              <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                                <div class="flex justify-between items-start mb-3">
+                                  <div class="flex items-center gap-3">
+                                    <div class={"w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold #{score_bg_color(evaluation.score)}"}>
+                                      <%= evaluation.score %>
+                                    </div>
+                                    <div>
+                                      <p class="font-semibold text-gray-900">
+                                        Score: <%= evaluation.score %>/100
+                                      </p>
+                                      <p class="text-sm text-gray-500">
+                                        by <%= evaluation.evaluator.username || evaluation.evaluator.email %>
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div class="text-right">
+                                    <p class="text-sm text-gray-700 font-medium">
+                                      <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                      <%= Timex.from_now(evaluation.inserted_at) %>
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                  <p class="text-xs font-semibold text-gray-600 uppercase mb-1">Comments:</p>
+                                  <p class="text-sm text-gray-800"><%= evaluation.comments %></p>
+                                </div>
+
+                                <div class="flex justify-end mt-3">
+                                  <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(evaluation.score)}"}>
+                                    <%= score_label(evaluation.score) %>
+                                  </span>
+                                </div>
+                              </div>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </div>
                     </div>
-                  </div>
+                  <% end %>
+
+                  <!-- Projects Tab -->
+                  <%= if @profile_tab == "projects" do %>
+                    <div class="bg-white shadow rounded-xl overflow-hidden">
+                      <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Projects</h3>
+                      </div>
+                      <div class="p-6">
+                        <%= if @attachee_projects == [] do %>
+                          <p class="text-sm text-gray-500">No projects found for this attachee.</p>
+                        <% else %>
+                          <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                              <thead>
+                                <tr class="text-left text-xs font-semibold text-gray-500 border-b">
+                                  <th class="py-2 pr-4">Project</th>
+                                  <th class="py-2 pr-4">Program</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <%= for project <- @attachee_projects do %>
+                                  <tr class="border-b last:border-0">
+                                    <td class="py-2 pr-4 font-medium text-gray-900"><%= project.name %></td>
+                                    <td class="py-2 pr-4 text-gray-600">
+                                      <%= if project.program, do: project.program.name, else: "N/A" %>
+                                    </td>
+                                  </tr>
+                                <% end %>
+                              </tbody>
+                            </table>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
+
+                  <!-- Tasks & Scores Tab -->
+                  <%= if @profile_tab == "tasks" do %>
+                    <div class="bg-white shadow rounded-xl overflow-hidden">
+                      <div class="px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Tasks & Scores</h3>
+                      </div>
+                      <div class="p-6">
+                        <%= if @attachee_tasks == [] do %>
+                          <p class="text-sm text-gray-500">No tasks found for this attachee.</p>
+                        <% else %>
+                          <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                              <thead>
+                                <tr class="text-left text-xs font-semibold text-gray-500 border-b">
+                                  <th class="py-2 pr-4">Task</th>
+                                  <th class="py-2 pr-4">Status</th>
+                                  <th class="py-2 pr-4">Latest Score</th>
+                                  <th class="py-2 pr-4">Performance</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <%= for task <- @attachee_tasks do %>
+                                  <% score_info = Map.get(@task_scores, task.id) %>
+                                  <tr class="border-b last:border-0">
+                                    <td class="py-2 pr-4 font-medium text-gray-900">
+                                      <%= Map.get(task, :title) || Map.get(task, :name) || "Task ##{task.id}" %>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                      <span class={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium #{status_color(Map.get(task, :status, "pending"))}"}>
+                                        <%= String.capitalize(Map.get(task, :status, "pending")) %>
+                                      </span>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                      <%= if score_info do %>
+                                        <span class="font-semibold"><%= score_info.score %>/100</span>
+                                      <% else %>
+                                        <span class="text-gray-400 text-xs">Not evaluated</span>
+                                      <% end %>
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                      <%= if score_info do %>
+                                        <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(score_info.score)}"}>
+                                          <%= score_info.label %>
+                                        </span>
+                                      <% else %>
+                                        —
+                                      <% end %>
+                                    </td>
+                                  </tr>
+                                <% end %>
+                              </tbody>
+                            </table>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  <% end %>
                 </div>
               <% else %>
                 <!-- No Selection -->
@@ -738,6 +957,9 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
         id="eval-form"
         attachee={@selected_attachee}
         current_user={@current_user}
+        attachee_tasks={@attachee_tasks}
+        evaluation_criteria={@evaluation_criteria}
+        max_criteria={7}
       />
     </div>
     """
