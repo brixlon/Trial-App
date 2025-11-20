@@ -19,9 +19,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
      |> assign(:project_tasks, [])
      |> assign(:show_project_form, false)
      |> assign(:show_task_form, false)
-     |> assign(:selected_attachee, nil)
-     |> assign(:activity_offset, 0)
-     |> assign(:show_evaluation_form, false)
      |> load_data(current_user, active_role)}
   end
 
@@ -42,7 +39,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     |> assign(:projects, projects)
     |> assign(:stats, load_supervisor_stats_for_admin(all_tasks))
     |> assign(:recent_activities, load_recent_activities_for_admin(all_tasks))
-    |> assign(:selected_attachee, nil)
   end
 
   # FIXED: Supervisor load_data - only their assigned projects
@@ -62,7 +58,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     |> assign(:projects, projects)
     |> assign(:stats, load_supervisor_stats(all_tasks))
     |> assign(:recent_activities, load_recent_activities(all_tasks))
-    |> assign(:selected_attachee, nil)
   end
 
   # Admin stats helper
@@ -77,20 +72,15 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   end
 
   # Supervisor stats helper
- defp load_supervisor_stats(all_tasks) do
-  %{
-    total_projects: length(all_tasks |> Enum.map(& &1.project_id) |> Enum.uniq()),
-    total_attachees: length(all_tasks |> Enum.map(& &1.assignee_id) |> Enum.uniq()),
-    active_tasks: Enum.count(all_tasks, &(&1.status in ["pending", "in_progress"])),
-    pending_reviews: Enum.count(all_tasks, &(&1.status == "submitted")),
-    completed_tasks: Enum.count(all_tasks, &(&1.status == "completed")),
-    completed_this_week: 0,
-    tasks_this_week: 0,
-    overdue_tasks: 0,
-    recent_completed: []
-  }
-end
-
+  defp load_supervisor_stats(all_tasks) do
+    %{
+      total_projects: length(all_tasks |> Enum.map(& &1.project_id) |> Enum.uniq()),
+      total_attachees: length(all_tasks |> Enum.map(& &1.assignee_id) |> Enum.uniq()),
+      active_tasks: Enum.count(all_tasks, &(&1.status in ["pending", "in_progress"])),
+      pending_reviews: Enum.count(all_tasks, &(&1.status == "submitted")),
+      completed_tasks: Enum.count(all_tasks, &(&1.status == "completed"))
+    }
+  end
 
   # Admin activities
   defp load_recent_activities_for_admin(all_tasks) do
@@ -198,9 +188,6 @@ end
     role = socket.assigns.active_role
     {:noreply, socket |> load_data(user, role) |> put_flash(:info, "Task created!") |> assign(:show_task_form, false)}
   end
-
-
-  @impl true
 
   # ─── HELPERS ───
   defp is_overdue?(project), do: project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt
