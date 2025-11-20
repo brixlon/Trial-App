@@ -305,7 +305,7 @@
         <%= if filtered_projects(@projects, @search_query) == [] do %>
           <div class="bg-white rounded-xl shadow-sm p-12 text-center">
             <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
             </svg>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
             <p class="text-gray-600 mb-4">
@@ -325,7 +325,7 @@
             <%= for project <- filtered_projects(@projects, @search_query) do %>
               <div class="relative group">
                 <button
-                  phx-click="view_project_detail"
+                  phx-click="view_project"
                   phx-value-id={project.id}
                   class="w-full bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200 hover:border-purple-300 text-left"
                 >
@@ -341,16 +341,14 @@
                         </span>
                       <% end %>
                       <!-- Status Badge -->
-                      <%= case project_status(project) do %>
-                        <% :active -> %>
+                      <%= cond do %>
+                        <% project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt -> %>
+                          <span class="inline-block px-3 py-1 bg-blue-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">Completed</span>
+                        <% project.starts_on && Date.compare(project.starts_on, Date.utc_today()) == :lt -> %>
+                          <span class="inline-block px-3 py-1 bg-amber-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">In Progress</span>
+                        <% true -> %>
                           <span class="inline-block px-3 py-1 bg-green-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">Active</span>
-                        <% :upcoming -> %>
-                          <span class="inline-block px-3 py-1 bg-blue-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">Upcoming</span>
-                        <% :completed -> %>
-                          <span class="inline-block px-3 py-1 bg-gray-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">Completed</span>
-                        <% :inactive -> %>
-                          <span class="inline-block px-3 py-1 bg-red-400/30 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/20">Inactive</span>
-                      <% end %>
+                    <% end %>
                     </div>
                   </div>
                   <!-- Card Body -->
@@ -376,27 +374,47 @@
                           <span><%= project.supervisor.username || project.supervisor.email %></span>
                         </div>
                       <% end %>
+                      <%= if Ecto.assoc_loaded?(project.organization) && project.organization do %>
+                        <div class="flex items-center gap-2 text-gray-700">
+                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h10"/>
+                          </svg>
+                          <span><%= project.organization.name %></span>
+                        </div>
+                      <% end %>
+                      <%= if Ecto.assoc_loaded?(project.department) && project.department do %>
+                        <div class="flex items-center gap-2 text-gray-700">
+                          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2M7 7h10"/>
+                          </svg>
+                          <span><%= project.department.name %></span>
+                        </div>
+                      <% end %>
                     </div>
-                    <!-- Stats Grid -->
-                    <div class="grid grid-cols-3 gap-3 pt-4 border-t">
-                      <div class="text-center">
-                        <div class="text-2xl font-bold text-purple-600"><%= Map.get(project.stats || %{}, :total_attachees, 0) %></div>
-                        <div class="text-xs text-gray-600">Attachees</div>
+                    <!-- Timeline -->
+                    <%= if project.starts_on || project.ends_on do %>
+                      <div class="pt-3 border-t border-gray-100">
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                          <%= if project.starts_on do %>
+                            <span><%= Calendar.strftime(project.starts_on, "%b %d, %Y") %></span>
+                          <% end %>
+                          <%= if project.starts_on && project.ends_on do %>
+                            <span>-</span>
+                          <% end %>
+                          <%= if project.ends_on do %>
+                            <span><%= Calendar.strftime(project.ends_on, "%b %d, %Y") %></span>
+                          <% end %>
+                        </div>
                       </div>
-                      <div class="text-center">
-                        <div class="text-2xl font-bold text-blue-600"><%= Map.get(project.stats || %{}, :total_tasks, 0) %></div>
-                        <div class="text-xs text-gray-600">Tasks</div>
-                      </div>
-                      <div class="text-center">
-                        <div class="text-2xl font-bold text-green-600"><%= Map.get(project.stats || %{}, :completion_rate, 0) %>%</div>
-                        <div class="text-xs text-gray-600">Complete</div>
-                      </div>
-                    </div>
+                    <% end %>
                   </div>
                   <!-- Card Footer -->
                   <div class="px-6 py-4 bg-gray-50 border-t border-gray-100">
                     <span class="text-purple-600 font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 text-sm">
-                      View Attachees & Tasks
+                      View Details
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                       </svg>

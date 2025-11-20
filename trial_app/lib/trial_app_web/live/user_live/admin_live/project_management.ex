@@ -260,6 +260,34 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     {:noreply, assign(socket, :viewing_evaluation, nil)}
   end
 
+  def handle_event("view_project", %{"id" => id}, socket) do
+    project_id = parse_int(id)
+    project = Eams.get_project!(project_id)
+              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor, tasks: [assignee: [:user]]])
+
+    attachees = Eams.list_attachees_by_project(project_id)
+                |> TrialApp.Repo.preload(:user)
+
+    project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project_id))
+
+    {:noreply,
+     socket
+     |> assign(:show_detail_view, true)
+     |> assign(:selected_project, project_with_stats)
+     |> assign(:project_attachees, attachees)
+     |> assign(:project_tasks, project.tasks)
+     |> assign(:active_tab, "attachees")}
+  end
+
+  def handle_event("refresh", _params, socket) do
+    projects = load_projects_with_stats()
+
+    {:noreply,
+     socket
+     |> assign(:projects, projects)
+     |> put_flash(:info, "Data refreshed successfully")}
+  end
+
   def handle_event("update", %{"project" => params}, socket) do
     org_id = Map.get(params, "organization_id")
     dept_id = Map.get(params, "department_id")

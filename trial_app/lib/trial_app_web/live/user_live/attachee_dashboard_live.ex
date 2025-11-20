@@ -56,7 +56,7 @@ def mount(_params, _session, socket) do
        |> assign(:current_scope, current_scope)
        |> assign(:attachee, nil)
        |> assign(:tasks, [])
-       |> assign(:show_task_modal, false) 
+       |> assign(:show_task_modal, false)
        |> assign(:projects, [])
        |> assign(:programs, [])
        |> assign(:team_mates, [])
@@ -194,7 +194,7 @@ end
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-         |> put_flash(:info, "Switched to #{new_role} role")
+       #  |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->

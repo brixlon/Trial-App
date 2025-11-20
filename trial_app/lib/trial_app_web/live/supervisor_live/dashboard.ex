@@ -169,7 +169,7 @@ end
 
         {:noreply,
          socket
-         |> put_flash(:info, "Switched to #{new_role} role")
+        |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, _} ->

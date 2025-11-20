@@ -39,7 +39,7 @@ defmodule TrialAppWeb.UserSessionController do
       redirect_path = get_dashboard_for_active_role(user_with_role)
 
       conn
-      |> put_flash(:info, "Welcome back, #{user_with_role.username}!")
+      #|> put_flash(:info, "Welcome back, #{user_with_role.username}!")
       |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
     end
   end
@@ -61,7 +61,7 @@ defmodule TrialAppWeb.UserSessionController do
           redirect_path = get_dashboard_for_active_role(user_with_role)
 
           conn
-          |> put_flash(:info, "Welcome back!")
+        #  |> put_flash(:info, "Welcome back!")
           |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
         end
 
@@ -88,7 +88,7 @@ defmodule TrialAppWeb.UserSessionController do
         redirect_path = get_dashboard_for_active_role(user_with_role)
 
         conn
-        |> put_flash(:info, "Welcome back!")
+       # |> put_flash(:info, "Welcome back!")
         |> UserAuth.log_in_user(user_with_role, user_params)
       end
     else
@@ -243,7 +243,7 @@ defmodule TrialAppWeb.UserSessionController do
   # -------------------------------------------------------------------------
   def delete(conn, _params) do
     conn
-    |> put_flash(:info, "Logged out successfully.")
+    #|> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
   end
 

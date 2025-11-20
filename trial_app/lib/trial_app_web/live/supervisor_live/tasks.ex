@@ -120,7 +120,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-         |> put_flash(:info, "Switched to #{new_role} role")
+       #  |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->
