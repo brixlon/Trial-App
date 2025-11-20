@@ -3,38 +3,6 @@ defmodule TrialAppWeb.Layouts do
 
   embed_templates "../components/layouts/*"
 
-  attr :flash, :map, required: true
-  attr :current_scope, :map, default: nil
-  attr :page_title, :string, default: nil
-  slot :inner_block, required: true
-
-  def app(assigns) do
-    ~H"""
-    <!DOCTYPE html>
-    <html lang="en" data-theme="light">
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Trial App</title>
-        <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-        <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}></script>
-      </head>
-
-      <body class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100 text-gray-800 font-inter">
-        <%= if @current_scope && @current_scope.user && @current_scope.user.role == "admin" do %>
-          <.admin_layout flash={@flash} current_user={@current_scope.user}>
-            <%= render_slot(@inner_block) %>
-          </.admin_layout>
-        <% else %>
-          <.public_layout flash={@flash}>
-            <%= render_slot(@inner_block) %>
-          </.public_layout>
-        <% end %>
-      </body>
-    </html>
-    """
-  end
-
   # ——————————————————————————————————
   # ADMIN LAYOUT
   # ——————————————————————————————————

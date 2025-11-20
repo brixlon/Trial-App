@@ -4,47 +4,46 @@ defmodule TrialAppWeb.UserLive.ResetPassword do
   alias TrialApp.Accounts
 
   @impl true
-  def mount(%{"token" => token}, _session, socket) do
-    case Accounts.verify_force_reset_token(token) do
-      %Accounts.User{} = user ->
-        form = Phoenix.Component.to_form(%{"password" => "", "password_confirmation" => ""}, as: "user")
-        {:ok, assign(socket, form: form, user: user, token: token, error_message: nil, show_password: false)}
-
-      nil ->
-        {:ok, put_flash(socket, :error, "Invalid or expired reset token"), redirect(to: "/")}
-    end
-  end
-
   @impl true
-  def handle_event("show_password", _params, socket) do
-    {:noreply, update(socket, :show_password, &not/1)}
+@impl true
+def mount(%{"token" => token}, _session, socket) do
+  case Accounts.verify_force_reset_token(token) do
+    %Accounts.User{} = user ->
+      form =
+        Phoenix.Component.to_form(
+          %{"password" => "", "password_confirmation" => ""},
+          as: "user"
+        )
+
+      {:ok,
+       assign(socket,
+         form: form,
+         user: user,
+         token: token,
+         error_message: nil,
+         show_password: false
+       )}
+
+    nil ->
+      form =
+        Phoenix.Component.to_form(
+          %{"password" => "", "password_confirmation" => ""},
+          as: "user"
+        )
+
+      {:ok,
+       socket
+       |> put_flash(:error, "Invalid or expired reset token")
+       |> assign(
+         form: form,
+         user: nil,
+         token: token,
+         error_message: nil,
+         show_password: false
+       )}
   end
+end
 
-  @impl true
-  def handle_event("reset_password", %{"user" => %{"password" => password, "password_confirmation" => password_confirmation}}, socket) do
-    cond do
-      password != password_confirmation ->
-        {:noreply, assign(socket, :error_message, "Passwords do not match")}
-
-      String.length(password) < 8 ->
-        {:noreply, assign(socket, :error_message, "Password must be at least 8 characters")}
-
-      true ->
-        case Accounts.update_user_password(socket.assigns.user, %{"password" => password}) do
-          {:ok, {_updated_user, tokens}} ->
-            # Create session token from the tokens
-            token = Enum.find_value(tokens, fn t -> if t.context == "session", do: t.token end)
-
-            {:noreply,
-             socket
-             |> put_flash(:info, "Password reset successfully!")
-             |> redirect(to: ~p"/users/login/direct?token=#{Base.url_encode64(token, padding: false)}")}
-
-          {:error, _changeset} ->
-            {:noreply, assign(socket, :error_message, "Failed to reset password. Please try again.")}
-        end
-    end
-  end
 
   @impl true
   def render(assigns) do

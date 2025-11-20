@@ -42,7 +42,7 @@ defmodule TrialAppWeb.Router do
     delete "/users/logout", UserSessionController, :delete
 
     # ──── PUBLIC LIVEVIEW ROUTES ────
-    live_session :current_user,
+    live_session :public,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
       live "/users/register", UserLive.Registration, :new
       live "/users/force-reset/:token", ForcePasswordResetLive, :show
@@ -59,6 +59,8 @@ defmodule TrialAppWeb.Router do
     get "/uploads/task_submissions/:filename", DownloadController, :download_task_submission
 
     live_session :require_authenticated_user,
+      root_layout: {TrialAppWeb.Layouts, :root},
+      layout: {TrialAppWeb.Layouts, :app},
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
 
       live "/dashboard", DashboardLive, :index
@@ -76,8 +78,6 @@ defmodule TrialAppWeb.Router do
       live "/organizations/:id", OrganizationLive.Index, :show
       live "/departments", DepartmentLive.Index, :index
       live "/teams", TeamLive.Index, :index
-      live "/employees", EmployeeLive.Index, :index
-      live "/positions", PositionLive.Index, :index
 
       # SETTINGS
       live "/users/settings", UserLive.Settings, :edit
@@ -86,6 +86,8 @@ defmodule TrialAppWeb.Router do
 
     # SUPERVISOR ROUTES (allows both supervisor AND admin)
     live_session :supervisor_or_admin,
+      root_layout: {TrialAppWeb.Layouts, :root},
+      layout: {TrialAppWeb.Layouts, :app},
       on_mount: [
         {TrialAppWeb.UserAuth, :require_authenticated},
         {TrialAppWeb.UserAuth, :require_supervisor_or_admin}
@@ -103,17 +105,20 @@ defmodule TrialAppWeb.Router do
   # ADMIN-ONLY ROUTES
   # ──────────────────────────────────────────────────────────────────────
   scope "/admin", TrialAppWeb do
-    pipe_through [:browser, :require_authenticated_user, :admin]
+    pipe_through [:browser, :admin]
 
     live_session :admin,
+      root_layout: {TrialAppWeb.Layouts, :root},
+      layout: {TrialAppWeb.Layouts, :app},
       on_mount: [
-        {TrialAppWeb.UserAuth, :require_authenticated},
-        # {TrialAppWeb.UserAuth, :require_admin},
+        {TrialAppWeb.UserAuth, :require_authenticated}
       ] do
 
       live "/dashboard", AdminLive.Dashboard, :index
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
+
+      # ADMIN-ONLY MANAGEMENT PAGES
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
@@ -130,8 +135,10 @@ defmodule TrialAppWeb.Router do
       # Project Management (Level 2 - under program context)
       live "/eams/programs/:program_id/projects/:id", AdminLive.ProjectShow, :show
 
-      # Attachee Management (Level 3 - under project context)
-      live "/eams/programs/:program_id/projects/:project_id/attachees/:id", AdminLive.AttacheeShow, :show
+      # Attachee in Project Context (Level 3 - under project context)
+      # This uses the ORIGINAL AttacheeShow module
+      live "/eams/programs/:program_id/projects/:project_id/attachees/:id",
+           AdminLive.AttacheeShow, :show
 
       # Standalone routes for direct access
       live "/eams/projects", AdminLive.ProjectManagement, :index
@@ -140,8 +147,10 @@ defmodule TrialAppWeb.Router do
       # ADMIN: View attachees in hierarchy (same as supervisor)
       live "/eams/attachees", SupervisorLive.Attachees, :index
 
-      # ADMIN: Full CRUD management of attachees
+      # ADMIN: Full CRUD management of attachees (STANDALONE)
+      # This uses the NEW AttacheeManagementShow module
       live "/eams/attachees/manage", AdminLive.AttacheeManagement, :index
+      live "/eams/attachees/manage/:id", AdminLive.AttacheeManagementShow, :show
     end
   end
 

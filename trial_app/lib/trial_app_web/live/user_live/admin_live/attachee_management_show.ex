@@ -1,32 +1,27 @@
-defmodule TrialAppWeb.AdminLive.AttacheeShow do
+defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
   use TrialAppWeb, :live_view
 
   alias TrialApp.Eams
   alias TrialAppWeb.BreadcrumbComponent
 
-  # Mount for program/project context (with full hierarchy breadcrumbs)
-  def mount(%{"program_id" => program_id, "project_id" => project_id, "id" => id}, _session, socket) do
+  # Mount for STANDALONE attachee management view
+  def mount(%{"id" => id}, _session, socket) do
     attachee = Eams.get_attachee_with_details(String.to_integer(id))
-    program = Eams.get_program!(String.to_integer(program_id))
-    project = Eams.get_project!(String.to_integer(project_id))
 
     tasks = Eams.list_tasks_by_attachee(attachee.id)
     evaluations = Eams.list_evaluations_by_attachee(attachee.id)
     stats = Eams.get_attachee_stats(attachee.id)
     eval_summary = Eams.get_evaluation_summary(attachee.id)
 
+    # Breadcrumbs for STANDALONE management view
     breadcrumbs = [
-      %{label: "Programs", link: ~p"/admin/eams/programs"},
-      %{label: program.name, link: ~p"/admin/eams/programs/#{program.id}"},
-      %{label: project.name, link: ~p"/admin/eams/programs/#{program.id}/projects/#{project.id}"},
+      %{label: "Attachee Management", link: ~p"/admin/eams/attachees/manage"},
       %{label: attachee_name(attachee), link: nil}
     ]
 
     {:ok,
      socket
      |> assign(:attachee, attachee)
-     |> assign(:program, program)
-     |> assign(:project, project)
      |> assign(:tasks, tasks)
      |> assign(:evaluations, evaluations)
      |> assign(:stats, stats)
@@ -34,7 +29,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
      |> assign(:breadcrumbs, breadcrumbs)
      |> assign(:page_title, attachee_name(attachee))
      |> assign(:show_eval_modal, false)
-     |> assign(:show_task_modal, false)
      |> assign(:viewing_evaluation, nil)
      |> assign(:eval_form, %{"score" => "", "comments" => ""})
      |> assign(:eval_errors, %{})
@@ -167,11 +161,9 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
     ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
   end
 
-  # The render function remains exactly the same as your original
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white">
-
       <div class="ml-45 p-8">
         <div class="max-w-7xl mx-auto space-y-6">
           <!-- Breadcrumb -->
@@ -284,7 +276,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
               </div>
             </div>
 
-            <!-- Tab Content (rest of the render remains the same as your original) -->
+            <!-- Tab Content -->
             <div class="p-6">
               <%= case @active_tab do %>
                 <% "overview" -> %>
@@ -500,11 +492,10 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
         </div>
       </div>
 
-      <!-- Evaluation Modal -->
+      <!-- Evaluation Modal (same as before) -->
       <%= if @show_eval_modal do %>
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 class="text-xl font-bold text-gray-900">Evaluate <%= attachee_name(@attachee) %></h2>
@@ -517,10 +508,8 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
               </button>
             </div>
 
-            <!-- Modal Body -->
             <form phx-submit="submit_evaluation" phx-change="update_eval_form">
               <div class="px-6 py-4 space-y-6">
-                <!-- Error Alert -->
                 <%= if @eval_errors != %{} do %>
                   <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div class="flex items-start gap-3">
@@ -539,7 +528,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                   </div>
                 <% end %>
 
-                <!-- Score Input -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Score <span class="text-red-600">*</span>
@@ -561,11 +549,8 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                   <% end %>
                 </div>
 
-                <!-- Comments Textarea -->
                 <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Comments
-                  </label>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Comments</label>
                   <textarea
                     name="eval[comments]"
                     rows="6"
@@ -579,7 +564,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                   <% end %>
                 </div>
 
-                <!-- Score Guide -->
                 <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <h4 class="text-sm font-semibold text-gray-900 mb-3">Scoring Guide</h4>
                   <div class="space-y-2 text-sm">
@@ -603,7 +587,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                 </div>
               </div>
 
-              <!-- Modal Footer -->
               <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
                 <button
                   type="button"
@@ -628,7 +611,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
       <%= if @viewing_evaluation do %>
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <!-- Modal Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 class="text-xl font-bold text-gray-900">Evaluation Details</h2>
@@ -643,9 +625,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
               </button>
             </div>
 
-            <!-- Modal Body -->
             <div class="px-6 py-6 space-y-6">
-              <!-- Score Display -->
               <div class="flex items-center justify-center">
                 <div class="text-center">
                   <div class={"w-32 h-32 rounded-full flex items-center justify-center text-5xl font-bold mx-auto #{score_bg_color(@viewing_evaluation.score)}"}>
@@ -660,7 +640,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                 </div>
               </div>
 
-              <!-- Evaluator Info -->
               <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                 <h3 class="text-sm font-semibold text-gray-600 uppercase mb-4">Evaluator Information</h3>
                 <div class="flex items-center gap-4">
@@ -686,7 +665,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                 </div>
               </div>
 
-              <!-- Comments -->
               <%= if @viewing_evaluation.comments do %>
                 <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
                   <h3 class="text-sm font-semibold text-gray-600 uppercase mb-3">Feedback & Comments</h3>
@@ -703,7 +681,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
                 </div>
               <% end %>
 
-              <!-- Metadata -->
               <div class="grid grid-cols-2 gap-4">
                 <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <div class="text-xs text-blue-600 font-medium uppercase">Submitted On</div>
@@ -724,7 +701,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
               </div>
             </div>
 
-            <!-- Modal Footer -->
             <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
               <button
                 type="button"

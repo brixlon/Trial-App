@@ -64,9 +64,8 @@ defmodule TrialAppWeb.AttacheeProfileLive do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
 
-        <main class="flex-1 ml-64 p-8">
+        <main class="flex-1 ml-45 p-8">
           <div class="max-w-4xl mx-auto space-y-8">
 
             <!-- Header -->

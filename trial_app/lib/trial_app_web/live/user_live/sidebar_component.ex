@@ -383,7 +383,6 @@ defmodule TrialAppWeb.SidebarComponent do
                   <li><.link navigate={~p"/dashboard"} class={link_class(@current_path, "/dashboard", exact: true)}>Dashboard</.link></li>
                   <li><.link navigate={~p"/organizations"} class={link_class(@current_path, "/organizations", exact: true)}>Organizations</.link></li>
                   <li><.link navigate={~p"/employees"} class={link_class(@current_path, "/employees", exact: true)}>Employees</.link></li>
-                  <li><.link navigate={~p"/positions"} class={link_class(@current_path, "/positions", exact: true)}>Positions</.link></li>
                   <li><.link navigate={~p"/users/settings"} class={link_class(@current_path, "/users/settings", exact: true)}>Settings</.link></li>
               <% end %>
 

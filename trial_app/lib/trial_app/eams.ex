@@ -13,9 +13,7 @@ defmodule TrialApp.Eams do
   alias TrialApp.Accounts.User
   alias TrialApp.{Accounts, Orgs}
 
-  # ──────────────────────────────────────────────────────────────────────
   # PROGRAMS
-  # ──────────────────────────────────────────────────────────────────────
   def list_programs(opts \\ %{}) do
     Program
     |> preload(^Map.get(opts, :preloads, [:department, :organization]))
@@ -110,9 +108,7 @@ defmodule TrialApp.Eams do
 
   def delete_program(%Program{} = program), do: Repo.delete(program)
 
-  # ──────────────────────────────────────────────────────────────────────
   # PROJECTS
-  # ──────────────────────────────────────────────────────────────────────
   def list_projects(opts \\ %{}) do
     Project
     |> preload(^Map.get(opts, :preloads, [:program, :department, :organization]))
@@ -190,9 +186,8 @@ defmodule TrialApp.Eams do
     total_attachees = length(attachees)
     active_attachees = Enum.count(attachees, fn a -> a.status == "active" end)
 
-    # Get tasks for this project
-    tasks = from(t in Task, where: t.project_id == ^project_id)
-    |> Repo.all()
+    # Get tasks for this project — THIS WAS CRASHING BEFORE
+    tasks = list_tasks_by_project(project_id)
 
     total_tasks = length(tasks)
     completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
@@ -272,9 +267,7 @@ defmodule TrialApp.Eams do
     Repo.aggregate(Project, :count, :id)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES
-  # ──────────────────────────────────────────────────────────────────────
+  # ATTACHEE
   def list_attachees(opts \\ %{}) do
     Attachee
     |> preload(^Map.get(opts, :preloads, [:user, :department, :organization]))
@@ -313,6 +306,8 @@ defmodule TrialApp.Eams do
     )
     |> Repo.all()
   end
+
+
 
   @doc """
   Lists all attachees assigned to tasks in a specific project.
@@ -526,9 +521,7 @@ defmodule TrialApp.Eams do
     Repo.aggregate(Attachee, :count, :id)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # TASKS
-  # ──────────────────────────────────────────────────────────────────────
+
   def list_tasks(opts \\ %{}) do
     Task
     |> preload(^Map.get(opts, :preloads, [:project, :assignee]))
@@ -586,6 +579,15 @@ defmodule TrialApp.Eams do
   end
 
   def delete_task(%Task{} = task), do: Repo.delete(task)
+
+  # THIS IS THE FUNCTION THAT WAS MISSING AND CRASHING YOUR APP
+  def list_tasks_by_project(project_id) do
+    Task
+    |> where([t], t.project_id == ^project_id)
+    |> preload([:project, assignee: [:user]])
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
+  end
 
   # ──────────────────────────────────────────────────────────────────────
   # TASK SUBMISSION & REJECTION

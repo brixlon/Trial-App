@@ -90,9 +90,8 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-        <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
 
-        <main class="ml-64 w-full p-8">
+        <main class="ml-45 w-full p-8">
           <div class="max-w-7xl mx-auto space-y-8">
             <!-- Header -->
             <div class="flex items-center justify-between">
