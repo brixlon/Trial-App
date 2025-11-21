@@ -45,6 +45,7 @@ defmodule TrialAppWeb.Router do
     live_session :public,
       on_mount: [{TrialAppWeb.UserAuth, :mount_current_scope}] do
       live "/users/register", UserLive.Registration, :new
+      live "/users/forgot-password", UserLive.ForgotPassword
       live "/users/force-reset/:token", ForcePasswordResetLive, :show
       live "/users/reset-password/:token", UserLive.ResetPassword, :show
     end

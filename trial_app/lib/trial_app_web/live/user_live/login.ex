@@ -38,11 +38,6 @@ defmodule TrialAppWeb.UserLive.Login do
   end
 
   @impl true
-  def handle_event("forgot_password", _params, socket) do
-    {:noreply, push_navigate(socket, to: ~p"/users/reset-password/temp")}
-  end
-
-  @impl true
   def render(assigns) do
     ~H"""
     <div class="flex min-h-screen">
@@ -119,9 +114,12 @@ defmodule TrialAppWeb.UserLive.Login do
               <% end %>
 
               <div class="text-left">
-                <a href="#" phx-click="forgot_password" class="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition">
+                <.link
+                  navigate={~p"/users/forgot-password"}
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+                >
                   Forgot Password?
-                </a>
+                </.link>
               </div>
 
               <div>
