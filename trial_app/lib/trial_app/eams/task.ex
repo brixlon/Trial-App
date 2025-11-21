@@ -20,6 +20,8 @@ defmodule TrialApp.Eams.Task do
     belongs_to :project, TrialApp.Eams.Project
     belongs_to :assignee, TrialApp.Eams.Attachee
 
+    has_many :task_evaluations, TrialApp.Eams.Evaluation, foreign_key: :task_id
+
     timestamps()
   end
 

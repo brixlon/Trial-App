@@ -4,6 +4,7 @@ defmodule TrialApp.Eams.Evaluation do
 
   alias TrialApp.Eams.Attachee
   alias TrialApp.Accounts.User
+  alias TrialApp.Eams.Task
 
   schema "evaluations" do
     field :score, :integer
@@ -12,7 +13,7 @@ defmodule TrialApp.Eams.Evaluation do
 
     belongs_to :attachee, Attachee
     belongs_to :evaluator, User, foreign_key: :evaluator_id
-
+    belongs_to :task, Task
     timestamps(type: :utc_datetime)
   end
 
@@ -27,5 +28,6 @@ defmodule TrialApp.Eams.Evaluation do
     |> foreign_key_constraint(:attachee_id)
     |> foreign_key_constraint(:evaluator_id)
     |> foreign_key_constraint(:user_id)
+    |> foreign_key_constraint(:task_id)
   end
 end

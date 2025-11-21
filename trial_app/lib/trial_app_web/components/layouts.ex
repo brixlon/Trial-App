@@ -13,9 +13,7 @@ defmodule TrialAppWeb.Layouts do
   def admin_layout(assigns) do
     ~H"""
     <div class="flex min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100">
-      <!-- Sidebar -->
-      <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={%{user: @current_user}} />
-
+      
       <!-- Main Content Area -->
       <div class="flex flex-col flex-1 ml-64">
         <!-- <.topbar current_user={@current_user} /> -->
