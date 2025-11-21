@@ -79,6 +79,9 @@ defmodule TrialAppWeb.Router do
       live "/departments", DepartmentLive.Index, :index
       live "/teams", TeamLive.Index, :index
 
+      get "/reports/download/:id", ReportController, :download
+
+
       # SETTINGS
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
@@ -136,7 +139,6 @@ defmodule TrialAppWeb.Router do
       live "/eams/programs/:program_id/projects/:id", AdminLive.ProjectShow, :show
 
       # Attachee in Project Context (Level 3 - under project context)
-      # This uses the ORIGINAL AttacheeShow module
       live "/eams/programs/:program_id/projects/:project_id/attachees/:id",
            AdminLive.AttacheeShow, :show
 
@@ -148,7 +150,6 @@ defmodule TrialAppWeb.Router do
       live "/eams/attachees", SupervisorLive.Attachees, :index
 
       # ADMIN: Full CRUD management of attachees (STANDALONE)
-      # This uses the NEW AttacheeManagementShow module
       live "/eams/attachees/manage", AdminLive.AttacheeManagement, :index
       live "/eams/attachees/manage/:id", AdminLive.AttacheeManagementShow, :show
     end

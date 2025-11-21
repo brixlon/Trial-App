@@ -44,13 +44,15 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
      |> assign(:tasks, tasks)
      |> assign(:task_scores, task_scores)
      |> assign(:criteria_scores, criteria_scores)
-     |> assign(:calculated_score, 50)
+     |> assign(:calculated_score, 50.0)
      |> assign(:evaluation_criteria, @evaluation_criteria)}
   end
 
-  def handle_event("update_task_score", %{"task-id" => task_id, "score" => score}, socket) do
-    task_id = String.to_integer(task_id)
-    score = String.to_integer(score)
+  # Handle task score updates
+  def handle_event("update_task_score", %{"task_score" => task_scores_params}, socket) do
+    {task_id_str, score_str} = Enum.at(task_scores_params, 0)
+    task_id = String.to_integer(task_id_str)
+    score = String.to_integer(score_str)
 
     task_scores = Map.put(socket.assigns.task_scores, task_id, score)
     calculated_score = calculate_total_score(task_scores, socket.assigns.criteria_scores, socket.assigns.tasks)
@@ -61,8 +63,10 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
      |> assign(:calculated_score, calculated_score)}
   end
 
-  def handle_event("update_criteria_score", %{"criteria" => criteria_key, "score" => score}, socket) do
-    score = String.to_integer(score)
+  # Handle criteria score updates
+  def handle_event("update_criteria_score", %{"criteria_score" => criteria_params}, socket) do
+    {criteria_key, score_str} = Enum.at(criteria_params, 0)
+    score = String.to_integer(score_str)
 
     criteria_scores = Map.put(socket.assigns.criteria_scores, criteria_key, score)
     calculated_score = calculate_total_score(socket.assigns.task_scores, criteria_scores, socket.assigns.tasks)
@@ -78,7 +82,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
       Map.merge(params, %{
         "attachee_id" => socket.assigns.attachee.id,
         "evaluator_id" => socket.assigns.current_user.id,
-        "score" => socket.assigns.calculated_score
+        "score" => trunc(socket.assigns.calculated_score)
       })
 
     changeset =
@@ -90,31 +94,55 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   end
 
   def handle_event("save", %{"evaluation" => params}, socket) do
-    socket = assign(socket, :submitting, true)
+    # Prevent double submission
+    if socket.assigns.submitting do
+      {:noreply, socket}
+    else
+      socket = assign(socket, :submitting, true)
 
-    # Prepare detailed evaluation data
-    evaluation_details = %{
-      "task_scores" => socket.assigns.task_scores,
-      "criteria_scores" => socket.assigns.criteria_scores,
-      "calculated_score" => socket.assigns.calculated_score
-    }
+      # Prepare detailed evaluation data for the main evaluation
+      evaluation_details = %{
+        "task_scores" => socket.assigns.task_scores,
+        "criteria_scores" => socket.assigns.criteria_scores,
+        "calculated_score" => socket.assigns.calculated_score
+      }
 
-    params =
-      Map.merge(params, %{
+      # Round score to integer since database expects integer type
+      rounded_score = socket.assigns.calculated_score |> Float.round() |> trunc()
+
+      # Create main/overall evaluation (without task_id)
+      main_params = %{
         "attachee_id" => socket.assigns.attachee.id,
         "evaluator_id" => socket.assigns.current_user.id,
-        "score" => socket.assigns.calculated_score,
+        "score" => rounded_score,
+        "comments" => params["comments"],
         "evaluation_details" => Jason.encode!(evaluation_details)
-      })
+      }
 
-    case Eams.create_evaluation(params, socket.assigns.current_user) do
-      {:ok, _eval} ->
-        send(self(), {:evaluation_submitted, socket.assigns.attachee.id})
-        send(self(), :close_modal)
-        {:noreply, socket}
+      case Eams.create_evaluation(main_params, socket.assigns.current_user) do
+        {:ok, _eval} ->
+          # Create individual task evaluations so they show in Tasks & Scores tab
+          Enum.each(socket.assigns.task_scores, fn {task_id, task_score} ->
+            task = Enum.find(socket.assigns.tasks, fn t -> t.id == task_id end)
+            task_title = if task, do: task.title, else: "Task ##{task_id}"
 
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, changeset: changeset, submitting: false)}
+            task_params = %{
+              "attachee_id" => socket.assigns.attachee.id,
+              "evaluator_id" => socket.assigns.current_user.id,
+              "score" => task_score,
+              "task_id" => task_id,
+              "comments" => "Task: #{task_title} - Score: #{task_score}/100"
+            }
+            Eams.create_evaluation(task_params, socket.assigns.current_user)
+          end)
+
+          send(self(), {:evaluation_submitted, socket.assigns.attachee.id})
+          send(self(), :close_modal)
+          {:noreply, socket}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:noreply, assign(socket, changeset: changeset, submitting: false)}
+      end
     end
   end
 
@@ -124,13 +152,13 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   end
 
   # Calculate total score: 50% from tasks, 50% from criteria
-  defp calculate_total_score(task_scores, criteria_scores, tasks) do
+  defp calculate_total_score(task_scores, criteria_scores, _tasks) do
     # Calculate task score average (50% weight)
     task_avg = if map_size(task_scores) > 0 do
       task_sum = task_scores |> Map.values() |> Enum.sum()
       task_sum / map_size(task_scores)
     else
-      50
+      50.0
     end
 
     # Calculate weighted criteria score (50% weight)
@@ -252,9 +280,8 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                         max="100"
                         value={Map.get(@task_scores, task.id, 50)}
                         phx-change="update_task_score"
-                        phx-value-task-id={task.id}
                         phx-target={@myself}
-                        name="score"
+                        name={"task_score[#{task.id}]"}
                         class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                       />
                       <div class="flex gap-1 text-xs text-gray-500">
@@ -300,9 +327,8 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                       max="100"
                       value={Map.get(@criteria_scores, criteria.key, 50)}
                       phx-change="update_criteria_score"
-                      phx-value-criteria={criteria.key}
                       phx-target={@myself}
-                      name="score"
+                      name={"criteria_score[#{criteria.key}]"}
                       class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
                     <div class="flex gap-1 text-xs text-gray-500">
