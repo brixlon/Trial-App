@@ -39,6 +39,8 @@ defmodule TrialApp.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
+       {:pdf_generator, "~> 0.6"},
+      
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
@@ -54,7 +56,7 @@ defmodule TrialApp.MixProject do
        depth: 1},
       {:swoosh, "~> 1.16"},
       {:gen_smtp, "~> 1.2"},
-      {:hackney, "~> 1.18"},  
+      {:hackney, "~> 1.18"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},

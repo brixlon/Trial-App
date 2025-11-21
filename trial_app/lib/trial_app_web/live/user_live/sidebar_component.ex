@@ -95,9 +95,9 @@ defmodule TrialAppWeb.SidebarComponent do
     exact = Keyword.get(opts, :exact, false)
 
     if active_link?(current_path, link_path, exact: exact) do
-      "block py-2.5 px-4 rounded-xl bg-purple-600 text-white font-bold shadow-md"
+      "block py-2.5 px-2 rounded-xl bg-purple-600 text-white font-bold shadow-md"
     else
-      "block py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
+      "block py-2.5 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
     end
   end
 
@@ -137,7 +137,7 @@ defmodule TrialAppWeb.SidebarComponent do
         <div class="p-6 space-y-6 flex-shrink-0">
           <div class="text-center">
             <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
-              trial<span class="text-gray-900">app</span>
+              EAMS<span class="text-gray-900"></span>
             </h1>
             <div class="h-1 w-12 mx-auto bg-purple-300 rounded-full mt-2"></div>
           </div>
@@ -383,7 +383,6 @@ defmodule TrialAppWeb.SidebarComponent do
                   <li><.link navigate={~p"/dashboard"} class={link_class(@current_path, "/dashboard", exact: true)}>Dashboard</.link></li>
                   <li><.link navigate={~p"/organizations"} class={link_class(@current_path, "/organizations", exact: true)}>Organizations</.link></li>
                   <li><.link navigate={~p"/employees"} class={link_class(@current_path, "/employees", exact: true)}>Employees</.link></li>
-                  <li><.link navigate={~p"/positions"} class={link_class(@current_path, "/positions", exact: true)}>Positions</.link></li>
                   <li><.link navigate={~p"/users/settings"} class={link_class(@current_path, "/users/settings", exact: true)}>Settings</.link></li>
               <% end %>
 

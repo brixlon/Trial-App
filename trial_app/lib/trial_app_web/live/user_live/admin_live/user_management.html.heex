@@ -1,19 +1,14 @@
 <div class="min-h-screen bg-white text-gray-900">
   <div class="flex">
-    <.live_component
-      module={TrialAppWeb.SidebarComponent}
-      id="sidebar"
-      current_scope={@current_scope}
-    />
-    <main class="ml-64 w-full p-8">
+    <main class="ml-45 w-full p-8">
       <div class="max-w-7xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
           <h1 class="text-3xl font-bold text-purple-700">User Management</h1>
-          <p class="text-base-content/70 mt-2">Manage user accounts, roles, and team assignments</p>
+          <p class="text-gray-600 mt-2">Manage user accounts, roles, and team assignments</p>
           <button
             phx-click="open_add_modal"
-            class="btn btn-primary bg-gradient-to-r from-purple-500 to-purple-700 text-white border-none hover:from-purple-600 hover:to-purple-800 mt-4"
+            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-md hover:from-purple-600 hover:to-purple-800 transition mt-4 font-medium"
           >
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -70,79 +65,81 @@
         </div>
 
         <!-- Users Table -->
-        <div class="card bg-base-50 shadow-lg">
-          <table class="table bg-green-300 border-4 border-gray-200">
-            <thead>
-              <tr class="bg-primary text-primary-content">
-                <th class="text-base font-bold">User</th>
-                <th class="text-base font-bold">Status</th>
-                <th class="text-base font-bold">Registered</th>
-                <th class="text-base font-bold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for user <- @users do %>
-                <tr class="hover">
-                  <td>
-                    <div class="flex items-center gap-3">
-                      <div class="flex-shrink-0">
-                        <div class="bg-purple-100 text-purple-700 rounded-full w-10 h-10 flex items-center justify-center">
-                          <span class="font-semibold text-sm leading-none">
-                            {String.at(user.username, 0) |> String.upcase()}
-                          </span>
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-purple-700 text-white">
+                <tr>
+                  <th class="px-6 py-3 text-left text-base font-bold">User</th>
+                  <th class="px-6 py-3 text-left text-base font-bold">Status</th>
+                  <th class="px-6 py-3 text-left text-base font-bold">Registered</th>
+                  <th class="px-6 py-3 text-left text-base font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <%= for user <- @users do %>
+                  <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0">
+                          <div class="bg-purple-100 text-purple-700 rounded-full w-10 h-10 flex items-center justify-center">
+                            <span class="font-semibold text-sm leading-none">
+                              {String.at(user.username, 0) |> String.upcase()}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <div class="font-semibold text-gray-900">{user.username}</div>
+                          <div class="text-sm text-gray-600">{user.email}</div>
                         </div>
                       </div>
-                      <div>
-                        <div class="font-semibold">{user.username}</div>
-                        <div class="text-sm text-base-content/70">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span class={["badge", user_status_class(user.status)]}>
-                      {user_status_label(user.status)}
-                    </span>
-                  </td>
-                  <td class="text-base-content/70">
-                    {Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}")}
-                  </td>
-                  <td>
-                    <div class="flex gap-2">
-                      <%= if user.status == "active" && user.role == "employee" do %>
+                    </td>
+                    <td class="px-6 py-4">
+                      <span class={["inline-flex px-2 py-1 text-xs font-semibold rounded-full", user_status_class(user.status)]}>
+                        {user_status_label(user.status)}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-gray-600">
+                      {Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}")}
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="flex gap-2">
+                        <%= if user.status == "active" && user.role == "employee" do %>
+                          <button
+                            phx-click="make_admin"
+                            phx-value-user-id={user.id}
+                            class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition"
+                          >
+                            Make Admin
+                          </button>
+                        <% end %>
                         <button
-                          phx-click="make_admin"
+                          phx-click="edit_user"
                           phx-value-user-id={user.id}
-                          class="btn btn-sm"
+                          class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition"
                         >
-                          Make Admin
+                          Edit
                         </button>
-                      <% end %>
-                      <button
-                        phx-click="edit_user"
-                        phx-value-user-id={user.id}
-                        class="btn btn-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        phx-click="view_user"
-                        phx-value-user-id={user.id}
-                        class="btn btn-sm btn-ghost"
-                      >
-                        View
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
+                        <button
+                          phx-click="view_user"
+                          phx-value-user-id={user.id}
+                          class="px-3 py-1 text-sm bg-transparent hover:bg-gray-100 text-gray-600 rounded-md transition"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
 
           <%= if Enum.empty?(@users) do %>
             <div class="text-center py-12">
               <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 11-5 0 2.5 2.5 0 015 0z" />
+                  d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
               <h3 class="mt-2 text-sm font-medium text-gray-900">No users found</h3>
               <p class="mt-1 text-sm text-gray-500">
@@ -187,7 +184,7 @@
                 <h2 class="text-2xl font-bold text-purple-800">{@selected_user.username}</h2>
                 <p class="text-gray-600">{@selected_user.email}</p>
                 <div class="flex gap-2 mt-2">
-                  <span class={["badge", user_status_class(@selected_user.status)]}>
+                  <span class={["inline-flex px-2 py-1 text-xs font-semibold rounded-full", user_status_class(@selected_user.status)]}>
                     {user_status_label(@selected_user.status)}
                   </span>
                 </div>
@@ -235,7 +232,7 @@
                             <span class="font-medium">Organization:</span> {assignment.organization_name}
                           </p>
                         </div>
-                        <span class="badge badge-lg badge-primary">
+                        <span class="inline-flex items-center px-3 py-1 text-sm font-semibold text-white bg-purple-600 rounded-full">
                           <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />

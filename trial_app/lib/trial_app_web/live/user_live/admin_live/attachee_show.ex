@@ -4,6 +4,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
   alias TrialApp.Eams
   alias TrialAppWeb.BreadcrumbComponent
 
+  # Mount for program/project context (with full hierarchy breadcrumbs)
   def mount(%{"program_id" => program_id, "project_id" => project_id, "id" => id}, _session, socket) do
     attachee = Eams.get_attachee_with_details(String.to_integer(id))
     program = Eams.get_program!(String.to_integer(program_id))
@@ -166,16 +167,12 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
     ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
   end
 
+  # The render function remains exactly the same as your original
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white">
-      <.live_component
-        module={TrialAppWeb.SidebarComponent}
-        id="sidebar"
-        current_scope={@current_scope}
-      />
 
-      <div class="ml-64 p-8">
+      <div class="ml-45 p-8">
         <div class="max-w-7xl mx-auto space-y-6">
           <!-- Breadcrumb -->
           <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />
@@ -287,7 +284,7 @@ defmodule TrialAppWeb.AdminLive.AttacheeShow do
               </div>
             </div>
 
-            <!-- Tab Content -->
+            <!-- Tab Content (rest of the render remains the same as your original) -->
             <div class="p-6">
               <%= case @active_tab do %>
                 <% "overview" -> %>

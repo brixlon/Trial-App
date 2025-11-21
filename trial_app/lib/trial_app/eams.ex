@@ -13,9 +13,7 @@ defmodule TrialApp.Eams do
   alias TrialApp.Accounts.User
   alias TrialApp.{Accounts, Orgs}
 
-  # ──────────────────────────────────────────────────────────────────────
   # PROGRAMS
-  # ──────────────────────────────────────────────────────────────────────
   def list_programs(opts \\ %{}) do
     Program
     |> preload(^Map.get(opts, :preloads, [:department, :organization]))
@@ -110,9 +108,7 @@ defmodule TrialApp.Eams do
 
   def delete_program(%Program{} = program), do: Repo.delete(program)
 
-  # ──────────────────────────────────────────────────────────────────────
   # PROJECTS
-  # ──────────────────────────────────────────────────────────────────────
   def list_projects(opts \\ %{}) do
     Project
     |> preload(^Map.get(opts, :preloads, [:program, :department, :organization]))
@@ -151,6 +147,22 @@ defmodule TrialApp.Eams do
   end
 
   def list_projects_by_programs(_), do: []
+
+  @doc """
+  Lists all projects for a specific attachee.
+  Gets projects via both project_attachees join table AND tasks.
+  """
+  def list_projects_by_attachee(attachee_id) do
+    from(p in Project,
+      left_join: pa in ProjectAttachee, on: pa.project_id == p.id and pa.attachee_id == ^attachee_id,
+      left_join: t in Task, on: t.project_id == p.id and t.assignee_id == ^attachee_id,
+      where: not is_nil(pa.id) or not is_nil(t.id),
+      distinct: true,
+      preload: [:program, :department, :organization, :supervisor],
+      order_by: [desc: p.inserted_at]
+    )
+    |> Repo.all()
+  end
 
   def get_project!(id, opts \\ %{}) do
     Project
@@ -191,8 +203,7 @@ defmodule TrialApp.Eams do
     active_attachees = Enum.count(attachees, fn a -> a.status == "active" end)
 
     # Get tasks for this project
-    tasks = from(t in Task, where: t.project_id == ^project_id)
-    |> Repo.all()
+    tasks = list_tasks_by_project(project_id)
 
     total_tasks = length(tasks)
     completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
@@ -272,9 +283,7 @@ defmodule TrialApp.Eams do
     Repo.aggregate(Project, :count, :id)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # ATTACHEES
-  # ──────────────────────────────────────────────────────────────────────
+  # ATTACHEE
   def list_attachees(opts \\ %{}) do
     Attachee
     |> preload(^Map.get(opts, :preloads, [:user, :department, :organization]))
@@ -288,7 +297,6 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  # FIXED: Use AttacheeProgram join
   def list_attachees_in_program(program_id) do
     from(a in Attachee,
       join: ap in AttacheeProgram,
@@ -389,17 +397,17 @@ defmodule TrialApp.Eams do
   def list_tasks_by_attachee(attachee_id) do
     Task
     |> where([t], t.assignee_id == ^attachee_id)
-    |> preload([:project])
+    |> preload([:project, task_evaluations: [:evaluator]])
     |> order_by([t], desc: t.inserted_at)
     |> Repo.all()
   end
 
   @doc """
-  Lists all evaluations for a specific attachee.
+  Lists all evaluations for a specific attachee (general evaluations only, not task-specific).
   """
   def list_evaluations_by_attachee(attachee_id) do
     Evaluation
-    |> where([e], e.attachee_id == ^attachee_id)
+    |> where([e], e.attachee_id == ^attachee_id and is_nil(e.task_id))
     |> preload([:evaluator])
     |> order_by([e], desc: e.inserted_at)
     |> Repo.all()
@@ -437,7 +445,7 @@ defmodule TrialApp.Eams do
   end
 
   @doc """
-  Gets evaluation summary with averages and trends.
+  Gets evaluation summary with averages and trends (general evaluations only).
   """
   def get_evaluation_summary(attachee_id) do
     evaluations = list_evaluations_by_attachee(attachee_id)
@@ -526,16 +534,13 @@ defmodule TrialApp.Eams do
     Repo.aggregate(Attachee, :count, :id)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
   # TASKS
-  # ──────────────────────────────────────────────────────────────────────
   def list_tasks(opts \\ %{}) do
     Task
     |> preload(^Map.get(opts, :preloads, [:project, :assignee]))
     |> Repo.all()
   end
 
-  # FIXED: Handle both map and keyword list opts
   def get_task!(id, opts \\ %{}) do
     # Convert keyword list to map if needed
     opts_map = if is_list(opts), do: Enum.into(opts, %{}), else: opts
@@ -547,7 +552,6 @@ defmodule TrialApp.Eams do
 
   @doc """
   Creates a task and automatically adds the assignee to the project if not already there.
-  UPDATED: Now ensures attachees with tasks are visible in the project.
   """
   def create_task(attrs) do
     result = %Task{}
@@ -587,13 +591,17 @@ defmodule TrialApp.Eams do
 
   def delete_task(%Task{} = task), do: Repo.delete(task)
 
-  # ──────────────────────────────────────────────────────────────────────
-  # TASK SUBMISSION & REJECTION
-  # ──────────────────────────────────────────────────────────────────────
+  def list_tasks_by_project(project_id) do
+    Task
+    |> where([t], t.project_id == ^project_id)
+    |> preload([:project, assignee: [:user]])
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
+  end
 
+  # TASK SUBMISSION & REJECTION
   @doc """
   Submit a task with comment, links, and files.
-  Accepts attrs as a map with keys: :comment, :links, :files
   """
   def submit_attachee_task(task_id, attrs) when is_map(attrs) do
     task = get_task!(task_id, %{preloads: [:project, :assignee]})
@@ -645,12 +653,7 @@ defmodule TrialApp.Eams do
     |> Repo.update()
   end
 
-
-  # ──────────────────────────────────────────────────────────────────────
   # SUPERVISOR TASKS MANAGEMENT
-  # ──────────────────────────────────────────────────────────────────────
-
-
   def list_tasks_for_supervisor(supervisor_id) do
     # Get all projects where supervisor is involved
     projects = list_projects_for_supervisor(supervisor_id)
@@ -678,17 +681,12 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  # ──────────────────────────────────────────────────────────────────────
   # SUPERVISOR DASHBOARD HELPERS
-  # ──────────────────────────────────────────────────────────────────────
-
-  # Helper to get the supervisor's department
   defp get_supervisor_department(supervisor_id) do
     user = Accounts.get_user!(supervisor_id)
     Orgs.get_department_for_user(user.id)
   end
 
-  # Lists all projects accessible by a supervisor (through their department)
   def list_projects_for_supervisor(supervisor_id) do
     Project
     |> where([p], p.supervisor_id == ^supervisor_id and p.is_active == true)
@@ -696,14 +694,12 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
-  # Counts the projects for a supervisor
   def count_projects_for_supervisor(supervisor_id) do
     supervisor_id
     |> list_projects_for_supervisor()
     |> length()
   end
 
-  # Counts all active attachees under a supervisor (safely)
   def count_attachees_under_supervisor(supervisor_id) do
     case get_supervisor_department(supervisor_id) do
       nil -> 0
@@ -717,7 +713,6 @@ defmodule TrialApp.Eams do
     end
   end
 
-  # Counts active tasks (pending/in_progress) under a supervisor
   def count_active_tasks_for_supervisor(supervisor_id) do
     from(task in Task,
       join: a in Attachee, on: task.assignee_id == a.id,
@@ -730,7 +725,6 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
-  # Counts tasks submitted by attachees under a supervisor that are awaiting review
   def count_pending_task_reviews(supervisor_id) do
     from(task in Task,
       join: a in Attachee, on: task.assignee_id == a.id,
@@ -743,7 +737,6 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
-  # Counts tasks completed this week under a supervisor
   def count_completed_tasks_this_week(supervisor_id) do
     beginning_of_week = Date.utc_today() |> Date.beginning_of_week()
     start_of_week = DateTime.new!(beginning_of_week, ~T[00:00:00])
@@ -760,7 +753,6 @@ defmodule TrialApp.Eams do
     |> Repo.one() || 0
   end
 
-  # Lists recent activities (submitted or completed tasks) under a supervisor
   def list_recent_activities_for_supervisor(supervisor_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 5)
 
@@ -787,59 +779,40 @@ defmodule TrialApp.Eams do
     end)
   end
 
-  # ──────────────────────────────────────────────────────────────────────
-  # EVALUATIONS
-  # ──────────────────────────────────────────────────────────────────────
-
+  # EVALUATIONS (General Attachee Evaluations)
   def create_evaluation(attrs, user_scope) do
     %Evaluation{}
     |> Evaluation.changeset(attrs, user_scope)
     |> Repo.insert()
   end
 
-  @doc """
-  Lists all evaluations for a specific attachee.
-  """
   def list_evaluations_for_attachee(attachee_id, opts \\ %{}) do
     Evaluation
-    |> where([e], e.attachee_id == ^attachee_id)
+    |> where([e], e.attachee_id == ^attachee_id and is_nil(e.task_id))
     |> order_by([e], desc: e.inserted_at)
     |> preload(^Map.get(opts, :preloads, [:evaluator]))
     |> Repo.all()
   end
 
-  @doc """
-  Gets a single evaluation.
-  """
   def get_evaluation!(id, opts \\ %{}) do
     Evaluation
     |> Repo.get!(id)
     |> Repo.preload(Map.get(opts, :preloads, [:attachee, :evaluator]))
   end
 
-  @doc """
-  Updates an evaluation.
-  """
   def update_evaluation(%Evaluation{} = evaluation, attrs, user_scope) do
     evaluation
     |> Evaluation.changeset(attrs, user_scope)
     |> Repo.update()
   end
 
-  @doc """
-  Deletes an evaluation.
-  """
   def delete_evaluation(%Evaluation{} = evaluation) do
     Repo.delete(evaluation)
   end
 
-  @doc """
-  Gets the average evaluation score for an attachee, always returning a float.
-  Handles Decimal values safely to avoid Float.round errors.
-  """
   def get_average_evaluation_score(attachee_id) do
     from(e in Evaluation,
-      where: e.attachee_id == ^attachee_id,
+      where: e.attachee_id == ^attachee_id and is_nil(e.task_id),
       select: avg(e.score)
     )
     |> Repo.one()
@@ -860,23 +833,17 @@ defmodule TrialApp.Eams do
     end
   end
 
-  @doc """
-  Counts total evaluations for an attachee.
-  """
   def count_evaluations_for_attachee(attachee_id) do
     from(e in Evaluation,
-      where: e.attachee_id == ^attachee_id,
+      where: e.attachee_id == ^attachee_id and is_nil(e.task_id),
       select: count(e.id)
     )
     |> Repo.one() || 0
   end
 
-  @doc """
-  Gets the latest evaluation for an attachee.
-  """
   def get_latest_evaluation_for_attachee(attachee_id) do
     from(e in Evaluation,
-      where: e.attachee_id == ^attachee_id,
+      where: e.attachee_id == ^attachee_id and is_nil(e.task_id),
       order_by: [desc: e.inserted_at],
       limit: 1,
       preload: [:evaluator]
@@ -884,15 +851,10 @@ defmodule TrialApp.Eams do
     |> Repo.one()
   end
 
-  @doc """
-  Gets evaluation breakdown categories (for dashboard visualization).
-  """
   def get_evaluation_categories_for_attachee(attachee_id) do
-    # This returns a breakdown based on score ranges
     _evaluations = list_evaluations_for_attachee(attachee_id)
     avg_score = get_average_evaluation_score(attachee_id)
 
-    # Generate category data based on average score
     [
       %{category: "Technical Skills", score: calculate_category_score(avg_score, 1.0), max: 100},
       %{category: "Communication", score: calculate_category_score(avg_score, 0.95), max: 100},
@@ -905,5 +867,63 @@ defmodule TrialApp.Eams do
   defp calculate_category_score(avg_score, multiplier) do
     score = avg_score * multiplier
     min(round(score), 100)
+  end
+
+  # TASK EVALUATIONS (Task-Specific Evaluations)
+  @doc """
+  Creates a task evaluation (evaluation with task_id).
+  """
+  def create_task_evaluation(attrs, user_scope) do
+    %Evaluation{}
+    |> Evaluation.changeset(attrs, user_scope)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Gets a single task evaluation.
+  """
+  def get_task_evaluation!(id, opts \\ %{}) do
+    Evaluation
+    |> where([e], not is_nil(e.task_id))
+    |> Repo.get!(id)
+    |> Repo.preload(Map.get(opts, :preloads, [:task, :attachee, :evaluator]))
+  end
+
+  @doc """
+  Lists all task evaluations for a specific task.
+  """
+  def list_task_evaluations_by_task(task_id, opts \\ %{}) do
+    Evaluation
+    |> where([e], e.task_id == ^task_id)
+    |> order_by([e], desc: e.inserted_at)
+    |> preload(^Map.get(opts, :preloads, [:evaluator]))
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all task evaluations for a specific attachee.
+  """
+  def list_task_evaluations_by_attachee(attachee_id, opts \\ %{}) do
+    Evaluation
+    |> where([e], e.attachee_id == ^attachee_id and not is_nil(e.task_id))
+    |> order_by([e], desc: e.inserted_at)
+    |> preload(^Map.get(opts, :preloads, [:task, :evaluator]))
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates a task evaluation.
+  """
+  def update_task_evaluation(%Evaluation{} = task_evaluation, attrs, user_scope) do
+    task_evaluation
+    |> Evaluation.changeset(attrs, user_scope)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a task evaluation.
+  """
+  def delete_task_evaluation(%Evaluation{} = task_evaluation) do
+    Repo.delete(task_evaluation)
   end
 end

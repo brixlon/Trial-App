@@ -1,7 +1,5 @@
 <div class="min-h-screen bg-gray-50">
-  <.live_component module={TrialAppWeb.SidebarComponent} id="sidebar" current_scope={@current_scope} />
-
-  <main class="ml-64 p-8">
+  <main class="ml-45 p-8">
     <div class="max-w-7xl mx-auto space-y-8">
 
       <!-- Breadcrumb -->
@@ -38,9 +36,9 @@
             <% end %>
 
             <!-- Program Info -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
               <%= if Ecto.assoc_loaded?(@selected_project.program) && @selected_project.program do %>
-                <div class="flex items-center gap-3 bg-white/10 rounded-lg p-3">
+                <div class="flex items-center gap-3 bg-white/10 rounded-lg p-2">
                   <.icon name="hero-folder" class="w-5 h-5" />
                   <div>
                     <div class="text-xs text-purple-200">Program</div>
@@ -63,7 +61,7 @@
                 <div class="flex items-center gap-3 bg-white/10 rounded-lg p-3">
                   <.icon name="hero-calendar" class="w-5 h-5" />
                   <div>
-                    <div class="text-xs text-purple-200">Start Date</div>
+                    <div class="text-xs text-violet-200">Start Date</div>
                     <div class="font-medium"><%= Calendar.strftime(@selected_project.starts_on, "%b %d, %Y") %></div>
                   </div>
                 </div>
@@ -73,7 +71,7 @@
                 <div class="flex items-center gap-3 bg-white/10 rounded-lg p-3">
                   <.icon name="hero-calendar" class="w-5 h-5" />
                   <div>
-                    <div class="text-xs text-purple-200">End Date</div>
+                    <div class="text-xs text-violet-200">End Date</div>
                     <div class="font-medium"><%= Calendar.strftime(@selected_project.ends_on, "%b %d, %Y") %></div>
                   </div>
                 </div>
@@ -83,10 +81,10 @@
 
           <!-- Stats Cards -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+            <div class="bg-white shadow rounded-xl p-4 border border-gray-200">
               <div class="flex items-center justify-between">
-                <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                  <.icon name="hero-user-group" class="w-6 h-6 text-purple-600" />
+                <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center">
+                  <.icon name="hero-user-group" class="w-3 h-3 text-purple-300" />
                 </div>
                 <span class="text-2xl font-bold text-gray-900"><%= @selected_project.stats.total_attachees %></span>
               </div>
