@@ -1,0 +1,1110 @@
+<div class="min-h-screen bg-white">
+  <div class="ml-45 p-8">
+    <div class="max-w-7xl mx-auto space-y-6">
+      <!-- Breadcrumb -->
+      <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />
+
+      <!-- Compact Attachee Profile Card -->
+      <div class="bg-white shadow rounded-xl overflow-hidden border border-gray-200">
+        <div class="p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <!-- Avatar -->
+              <div class="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                <%= if Ecto.assoc_loaded?(@attachee.user) && @attachee.user && @attachee.user.username do %>
+                  <%= String.first(@attachee.user.username) |> String.upcase() %>
+                <% else %>
+                  A
+                <% end %>
+              </div>
+
+              <div>
+                <h1 class="text-2xl font-bold text-gray-900"><%= attachee_name(@attachee) %></h1>
+                <p class="text-sm text-gray-500 mt-1"><%= @attachee.position %></p>
+                <div class="flex items-center gap-3 mt-2">
+                  <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{if @attachee.status == "active", do: "bg-green-100 text-green-800", else: "bg-gray-100 text-gray-800"}"}>
+                    <%= String.capitalize(@attachee.status) %>
+                  </span>
+                  <%= if @eval_summary.total_evaluations > 0 do %>
+                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                      <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      </svg>
+                      <span class="font-semibold text-purple-600"><%= @eval_summary.average_score %></span>
+                      <span class="text-gray-500">avg score</span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <button
+              phx-click="open_eval_modal"
+              class="bg-purple-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+              </svg>
+              Evaluate
+            </button>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-900"><%= @stats.total_projects %></div>
+              <div class="text-xs text-gray-500 uppercase mt-1">Projects</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-gray-900"><%= @stats.completed_tasks %>/<%= @stats.total_tasks %></div>
+              <div class="text-xs text-gray-500 uppercase mt-1">Tasks Done</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-green-600"><%= @stats.completion_rate %>%</div>
+              <div class="text-xs text-gray-500 uppercase mt-1">Completion</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-purple-600"><%= @eval_summary.total_evaluations %></div>
+              <div class="text-xs text-gray-500 uppercase mt-1">Evaluations</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="bg-white shadow rounded-xl overflow-hidden border border-gray-200">
+        <div class="border-b border-gray-200">
+          <div class="flex gap-1 p-2">
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="overview"
+              class={[
+                "px-4 py-2 text-sm font-medium rounded-lg transition",
+                @active_tab == "overview" && "bg-purple-600 text-white",
+                @active_tab != "overview" && "text-gray-600 hover:bg-gray-100"
+              ]}
+            >
+              Overview
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="projects"
+              class={[
+                "px-4 py-2 text-sm font-medium rounded-lg transition",
+                @active_tab == "projects" && "bg-purple-600 text-white",
+                @active_tab != "projects" && "text-gray-600 hover:bg-gray-100"
+              ]}
+            >
+              Projects (<%= length(@projects) %>)
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="tasks"
+              class={[
+                "px-4 py-2 text-sm font-medium rounded-lg transition",
+                @active_tab == "tasks" && "bg-purple-600 text-white",
+                @active_tab != "tasks" && "text-gray-600 hover:bg-gray-100"
+              ]}
+            >
+              Tasks (<%= length(@tasks) %>)
+            </button>
+            <button
+              phx-click="switch_tab"
+              phx-value-tab="evaluations"
+              class={[
+                "px-4 py-2 text-sm font-medium rounded-lg transition",
+                @active_tab == "evaluations" && "bg-purple-600 text-white",
+                @active_tab != "evaluations" && "text-gray-600 hover:bg-gray-100"
+              ]}
+            >
+              Evaluations (<%= length(@evaluations) %>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+          <%= case @active_tab do %>
+            <% "overview" -> %>
+              <div class="space-y-6">
+                <!-- Personal Information -->
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <%= if Ecto.assoc_loaded?(@attachee.user) && @attachee.user do %>
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="text-xs text-gray-500 font-medium uppercase mb-1">Email</div>
+                        <div class="text-sm font-semibold text-gray-900"><%= @attachee.user.email %></div>
+                      </div>
+                    <% end %>
+
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div class="text-xs text-gray-500 font-medium uppercase mb-1">Position</div>
+                      <div class="text-sm font-semibold text-gray-900"><%= @attachee.position %></div>
+                    </div>
+
+                    <%= if @attachee.starts_on do %>
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="text-xs text-gray-500 font-medium uppercase mb-1">Start Date</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                          <%= Calendar.strftime(@attachee.starts_on, "%B %d, %Y") %>
+                        </div>
+                      </div>
+                    <% end %>
+
+                    <%= if @attachee.ends_on do %>
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="text-xs text-gray-500 font-medium uppercase mb-1">End Date</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                          <%= Calendar.strftime(@attachee.ends_on, "%B %d, %Y") %>
+                        </div>
+                      </div>
+                    <% end %>
+
+                    <%= if Ecto.assoc_loaded?(@attachee.department) && @attachee.department do %>
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="text-xs text-gray-500 font-medium uppercase mb-1">Department</div>
+                        <div class="text-sm font-semibold text-gray-900"><%= @attachee.department.name %></div>
+                      </div>
+                    <% end %>
+
+                    <%= if Ecto.assoc_loaded?(@attachee.organization) && @attachee.organization do %>
+                      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div class="text-xs text-gray-500 font-medium uppercase mb-1">Organization</div>
+                        <div class="text-sm font-semibold text-gray-900"><%= @attachee.organization.name %></div>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+
+                <!-- Performance Overview -->
+                <%= if @eval_summary.total_evaluations > 0 do %>
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance Overview</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <div class="text-xs text-purple-600 font-medium uppercase">Average Score</div>
+                        <div class={"text-3xl font-bold mt-2 #{score_color(@eval_summary.average_score)}"}><%= @eval_summary.average_score %></div>
+                      </div>
+                      <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div class="text-xs text-green-600 font-medium uppercase">Highest Score</div>
+                        <div class="text-3xl font-bold text-green-600 mt-2"><%= @eval_summary.highest_score %></div>
+                      </div>
+                      <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div class="text-xs text-blue-600 font-medium uppercase">Latest Score</div>
+                        <div class={"text-3xl font-bold mt-2 #{score_color(@eval_summary.latest_score)}"}><%= @eval_summary.latest_score %></div>
+                      </div>
+                      <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <div class="text-xs text-amber-600 font-medium uppercase">Trend</div>
+                        <div class="flex items-center gap-2 mt-2">
+                          <%= Phoenix.HTML.raw(trend_icon(@eval_summary.trend)) %>
+                          <span class="text-lg font-bold capitalize"><%= @eval_summary.trend %></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+
+            <% "projects" -> %>
+              <%= if length(@projects) == 0 do %>
+                <div class="text-center py-12">
+                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                  </svg>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                  <p class="text-gray-500">Projects will appear here when assigned</p>
+                </div>
+              <% else %>
+                <div class="space-y-4">
+                  <%= for project <- @projects do %>
+                    <% project_tasks = get_project_tasks(@tasks, project.id) %>
+                    <% completed_tasks = count_completed_tasks(project_tasks) %>
+                    <% total_tasks = length(project_tasks) %>
+                    
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                      <!-- Project Header -->
+                      <div class="bg-gradient-to-r from-purple-50 to-blue-50 p-4 border-b border-gray-200">
+                        <div class="flex items-start justify-between">
+                          <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                              <h3 class="text-lg font-bold text-gray-900"><%= project.name %></h3>
+                              <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{project_status_color(project.status)}"}>
+                                <%= String.capitalize(String.replace(project.status, "_", " ")) %>
+                              </span>
+                            </div>
+                            <%= if project.description do %>
+                              <p class="text-sm text-gray-600 mb-3"><%= project.description %></p>
+                            <% end %>
+                            
+                            <!-- Project Stats -->
+                            <div class="flex items-center gap-6 text-sm">
+                              <div class="flex items-center gap-2 text-gray-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                                <span class="font-medium"><%= total_tasks %> tasks</span>
+                              </div>
+                              
+                              <div class="flex items-center gap-2 text-gray-600">
+                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="font-medium"><%= completed_tasks %> completed</span>
+                              </div>
+
+                              <%= if total_tasks > 0 do %>
+                                <% completion_pct = calculate_completion_percentage(completed_tasks, total_tasks) %>
+                                <div class="flex items-center gap-2">
+                                  <div class="w-24 bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-600 h-2 rounded-full" style={"width: #{completion_pct}%"}></div>
+                                  </div>
+                                  <span class="text-xs font-medium text-gray-600"><%= completion_pct %>%</span>
+                                </div>
+                              <% end %>
+                            </div>
+                          </div>
+
+                          <%= if total_tasks > 0 do %>
+                            <button
+                              phx-click="toggle_project_tasks"
+                              phx-value-id={project.id}
+                              class="text-purple-600 hover:text-purple-700 p-2"
+                            >
+                              <svg class={"w-5 h-5 transition-transform #{if Map.get(@expanded_projects, project.id, false), do: "rotate-180", else: ""}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                              </svg>
+                            </button>
+                          <% end %>
+                        </div>
+                      </div>
+
+                      <!-- Project Tasks (Expandable) -->
+                      <%= if Map.get(@expanded_projects, project.id, false) && total_tasks > 0 do %>
+                        <div class="p-4 bg-white">
+                          <h4 class="text-sm font-semibold text-gray-700 uppercase mb-3">Tasks in this project</h4>
+                          <div class="space-y-3">
+                            <%= for task <- project_tasks do %>
+                              <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                                <div class="flex items-start justify-between mb-2">
+                                  <div class="flex-1">
+                                    <h5 class="font-semibold text-gray-900 mb-1"><%= task.title %></h5>
+                                    <%= if task.description do %>
+                                      <p class="text-sm text-gray-600 mb-2"><%= task.description %></p>
+                                    <% end %>
+                                  </div>
+                                  <div class="flex items-center gap-2">
+                                    <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{task_status_color(task.status)}"}>
+                                      <%= String.capitalize(String.replace(task.status, "_", " ")) %>
+                                    </span>
+                                    <button
+                                      phx-click="open_task_eval_modal"
+                                      phx-value-id={task.id}
+                                      class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-purple-700 transition flex items-center gap-1"
+                                    >
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                      </svg>
+                                      Evaluate
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div class="flex items-center gap-4 text-sm text-gray-500">
+                                  <%= if task.due_on do %>
+                                    <div class="flex items-center gap-1">
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                      </svg>
+                                      <span>Due: <%= Calendar.strftime(task.due_on, "%b %d, %Y") %></span>
+                                    </div>
+                                  <% end %>
+
+                                  <% eval_count = task_evaluations_count(task) %>
+                                  <%= if eval_count > 0 do %>
+                                    <div class="flex items-center gap-1 text-purple-600">
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                      </svg>
+                                      <span><%= eval_count %> evaluation<%= if eval_count > 1, do: "s" %></span>
+                                    </div>
+                                    <% avg_score = task_average_score(task) %>
+                                    <%= if avg_score do %>
+                                      <div class="flex items-center gap-1">
+                                        <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                        </svg>
+                                        <span class={"font-semibold #{score_color(avg_score)}"}><%= avg_score %></span>
+                                      </div>
+                                    <% end %>
+                                  <% end %>
+                                </div>
+                              </div>
+                            <% end %>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+
+            <% "tasks" -> %>
+              <%= if length(@tasks) == 0 do %>
+                <div class="text-center py-12">
+                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
+                  <p class="text-gray-500">Tasks will appear here when assigned</p>
+                </div>
+              <% else %>
+                <!-- Filter by Project -->
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Project</label>
+                  <select
+                    phx-change="select_project"
+                    name="project_id"
+                    class="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">All Projects</option>
+                    <%= for project <- @projects do %>
+                      <option value={project.id} selected={@selected_project == project.id}>
+                        <%= project.name %>
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+
+                <div class="space-y-3">
+                  <%= for task <- filtered_tasks(@tasks, @selected_project) do %>
+                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                      <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                          <h4 class="font-semibold text-gray-900 mb-1"><%= task.title %></h4>
+                          <%= if task.description do %>
+                            <p class="text-sm text-gray-600 mb-2"><%= task.description %></p>
+                          <% end %>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{task_status_color(task.status)}"}>
+                            <%= String.capitalize(String.replace(task.status, "_", " ")) %>
+                          </span>
+                          <button
+                            phx-click="open_task_eval_modal"
+                            phx-value-id={task.id}
+                            class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-purple-700 transition flex items-center gap-1"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Evaluate
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-4 text-sm text-gray-500">
+                        <%= if Ecto.assoc_loaded?(task.project) && task.project do %>
+                          <div class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            <span><%= task.project.name %></span>
+                          </div>
+                        <% end %>
+
+                        <%= if task.due_on do %>
+                          <div class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Due: <%= Calendar.strftime(task.due_on, "%b %d, %Y") %></span>
+                          </div>
+                        <% end %>
+
+                        <% eval_count = task_evaluations_count(task) %>
+                        <%= if eval_count > 0 do %>
+                          <div class="flex items-center gap-1 text-purple-600">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span><%= eval_count %> evaluation<%= if eval_count > 1, do: "s" %></span>
+                          </div>
+                          <% avg_score = task_average_score(task) %>
+                          <%= if avg_score do %>
+                            <div class="flex items-center gap-1">
+                              <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                              </svg>
+                              <span class={"font-semibold #{score_color(avg_score)}"}><%= avg_score %></span>
+                            </div>
+                          <% end %>
+                        <% end %>
+                      </div>
+
+                      <!-- Show task evaluations if any -->
+                      <%= if task_evaluations_count(task) > 0 && Ecto.assoc_loaded?(task.task_evaluations) do %>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                          <button
+                            phx-click="toggle_task_evals"
+                            phx-value-id={task.id}
+                            class="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                          >
+                            <span>View <%= task_evaluations_count(task) %> Evaluation<%= if task_evaluations_count(task) > 1, do: "s" %></span>
+                            <svg class={"w-4 h-4 transition-transform #{if Map.get(@expanded_task_evals, task.id, false), do: "rotate-180", else: ""}"} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                          </button>
+
+                          <%= if Map.get(@expanded_task_evals, task.id, false) do %>
+                            <div class="mt-3 space-y-2">
+                              <%= for eval <- task.task_evaluations do %>
+                                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                  <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                      <div class={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold #{score_bg_color(eval.score)}"}>
+                                        <%= eval.score %>
+                                      </div>
+                                      <span class={"text-sm font-semibold #{score_color(eval.score)}"}><%= score_label(eval.score) %></span>
+                                    </div>
+                                    <button
+                                      phx-click="view_task_evaluation"
+                                      phx-value-id={eval.id}
+                                      class="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                    >
+                                      View Details →
+                                    </button>
+                                  </div>
+                                  <%= if eval.comments do %>
+                                    <p class="text-xs text-gray-600 line-clamp-2"><%= eval.comments %></p>
+                                  <% end %>
+                                  <p class="text-xs text-gray-500 mt-1">
+                                    <%= Calendar.strftime(eval.inserted_at, "%b %d, %Y") %>
+                                  </p>
+                                </div>
+                              <% end %>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+
+            <% "evaluations" -> %>
+              <%= if length(@evaluations) == 0 do %>
+                <div class="text-center py-12">
+                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">No evaluations yet</h3>
+                  <p class="text-gray-500 mb-4">Start by submitting the first evaluation</p>
+                  <button
+                    phx-click="open_eval_modal"
+                    class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition"
+                  >
+                    Submit Evaluation
+                  </button>
+                </div>
+              <% else %>
+                <!-- Evaluation Summary Stats -->
+                <div class="flex items-center justify-end gap-6 mb-6">
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-600"><%= @eval_summary.average_score %></div>
+                    <div class="text-xs text-gray-500 uppercase">Average Score</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-gray-900"><%= @eval_summary.total_evaluations %></div>
+                    <div class="text-xs text-gray-500 uppercase">Total Evaluations</div>
+                  </div>
+                </div>
+
+                <!-- Evaluation List -->
+                <div class="space-y-4 max-h-[600px] overflow-y-auto">
+                  <%= for evaluation <- @evaluations do %>
+                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                      <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-3">
+                          <div class={"w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold #{score_bg_color(evaluation.score)}"}>
+                            <%= evaluation.score %>
+                          </div>
+                          <div>
+                            <p class="font-semibold text-gray-900">
+                              Score: <%= evaluation.score %>/100
+                            </p>
+                            <p class="text-sm text-gray-500">
+                              <%= Calendar.strftime(evaluation.inserted_at, "%B %d, %Y at %I:%M %p") %>
+                            </p>
+                            <%= if Ecto.assoc_loaded?(evaluation.evaluator) && evaluation.evaluator do %>
+                              <p class="text-sm text-gray-500">
+                                By: <%= evaluation.evaluator.username || evaluation.evaluator.email %>
+                              </p>
+                            <% end %>
+                          </div>
+                        </div>
+
+                        <button
+                          phx-click="view_evaluation"
+                          phx-value-id={evaluation.id}
+                          class="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                        >
+                          View Details →
+                        </button>
+                      </div>
+
+                      <%= if evaluation.comments do %>
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          <p class="text-xs font-semibold text-gray-600 uppercase mb-1">Comments:</p>
+                          <p class="text-sm text-gray-800"><%= evaluation.comments %></p>
+                        </div>
+                      <% end %>
+
+                      <div class="flex justify-end mt-3">
+                        <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(evaluation.score)}"}>
+                          <%= score_label(evaluation.score) %>
+                        </span>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- General Evaluation Modal -->
+  <%= if @show_eval_modal do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">Evaluate <%= attachee_name(@attachee) %></h2>
+            <p class="text-sm text-gray-500 mt-1">Provide a score and detailed feedback</p>
+          </div>
+          <button phx-click="close_eval_modal" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <form phx-submit="submit_evaluation" phx-change="update_eval_form">
+          <div class="px-6 py-4 space-y-6">
+            <%= if @eval_errors != %{} do %>
+              <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h3 class="text-sm font-semibold text-red-800">There were errors with your submission</h3>
+                    <ul class="list-disc list-inside text-sm text-red-700 mt-2">
+                      <%= for {field, message} <- @eval_errors do %>
+                        <li><%= Phoenix.Naming.humanize(field) %>: <%= message %></li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Score <span class="text-red-600">*</span>
+              </label>
+              <input
+                type="number"
+                name="eval[score]"
+                value={@eval_form["score"]}
+                min="0"
+                max="100"
+                required
+                placeholder="Enter score (0-100)"
+                class={"w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent #{if @eval_errors[:score], do: "border-red-500", else: "border-gray-300"}"}
+              />
+              <%= if error = @eval_errors[:score] do %>
+                <p class="text-sm text-red-600 mt-1"><%= error %></p>
+              <% else %>
+                <p class="text-sm text-gray-500 mt-1">Rate the attachee's performance from 0 to 100</p>
+              <% end %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Comments</label>
+              <textarea
+                name="eval[comments]"
+                rows="6"
+                placeholder="Provide detailed feedback about the attachee's performance, strengths, and areas for improvement..."
+                class={"w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent #{if @eval_errors[:comments], do: "border-red-500", else: "border-gray-300"}"}
+              ><%= @eval_form["comments"] %></textarea>
+              <%= if error = @eval_errors[:comments] do %>
+                <p class="text-sm text-red-600 mt-1"><%= error %></p>
+              <% else %>
+                <p class="text-sm text-gray-500 mt-1">Optional: Add specific feedback and observations</p>
+              <% end %>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h4 class="text-sm font-semibold text-gray-900 mb-3">Scoring Guide</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 w-20">81-100</span>
+                  <span class="text-gray-700">Excellent - Exceeds expectations</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-20">61-80</span>
+                  <span class="text-gray-700">Good - Meets expectations</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 w-20">41-60</span>
+                  <span class="text-gray-700">Satisfactory - Needs improvement</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 w-20">0-40</span>
+                  <span class="text-gray-700">Needs Improvement - Requires attention</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button
+              type="button"
+              phx-click="close_eval_modal"
+              class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow"
+            >
+              Submit Evaluation
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Task Evaluation Modal -->
+  <%= if @show_task_eval_modal && @selected_task do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">Evaluate Task</h2>
+            <p class="text-sm text-gray-500 mt-1"><%= @selected_task.title %></p>
+          </div>
+          <button phx-click="close_task_eval_modal" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <form phx-submit="submit_task_evaluation" phx-change="update_task_eval_form">
+          <div class="px-6 py-4 space-y-6">
+            <%= if @task_eval_errors != %{} do %>
+              <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h3 class="text-sm font-semibold text-red-800">There were errors with your submission</h3>
+                    <ul class="list-disc list-inside text-sm text-red-700 mt-2">
+                      <%= for {field, message} <- @task_eval_errors do %>
+                        <li><%= Phoenix.Naming.humanize(field) %>: <%= message %></li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Task Information -->
+            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <h4 class="text-sm font-semibold text-blue-900 mb-2">Task Details</h4>
+              <p class="text-sm text-blue-800 mb-1"><strong>Title:</strong> <%= @selected_task.title %></p>
+              <%= if @selected_task.description do %>
+                <p class="text-sm text-blue-800"><strong>Description:</strong> <%= @selected_task.description %></p>
+              <% end %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Score <span class="text-red-600">*</span>
+              </label>
+              <input
+                type="number"
+                name="eval[score]"
+                value={@task_eval_form["score"]}
+                min="0"
+                max="100"
+                required
+                placeholder="Enter score (0-100)"
+                class={"w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent #{if @task_eval_errors[:score], do: "border-red-500", else: "border-gray-300"}"}
+              />
+              <%= if error = @task_eval_errors[:score] do %>
+                <p class="text-sm text-red-600 mt-1"><%= error %></p>
+              <% else %>
+                <p class="text-sm text-gray-500 mt-1">Rate the task performance from 0 to 100</p>
+              <% end %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Comments</label>
+              <textarea
+                name="eval[comments]"
+                rows="6"
+                placeholder="Provide detailed feedback about the task completion, quality, and areas for improvement..."
+                class={"w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent #{if @task_eval_errors[:comments], do: "border-red-500", else: "border-gray-300"}"}
+              ><%= @task_eval_form["comments"] %></textarea>
+              <%= if error = @task_eval_errors[:comments] do %>
+                <p class="text-sm text-red-600 mt-1"><%= error %></p>
+              <% else %>
+                <p class="text-sm text-gray-500 mt-1">Optional: Add specific feedback about task execution</p>
+              <% end %>
+            </div>
+
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <h4 class="text-sm font-semibold text-gray-900 mb-3">Scoring Guide</h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 w-20">81-100</span>
+                  <span class="text-gray-700">Excellent - Exceeds expectations</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-20">61-80</span>
+                  <span class="text-gray-700">Good - Meets expectations</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 w-20">41-60</span>
+                  <span class="text-gray-700">Satisfactory - Needs improvement</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 w-20">0-40</span>
+                  <span class="text-gray-700">Needs Improvement - Requires attention</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+            <button
+              type="button"
+              phx-click="close_task_eval_modal"
+              class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow"
+            >
+              Submit Task Evaluation
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Evaluation Details Modal -->
+  <%= if @viewing_evaluation do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">Evaluation Details</h2>
+            <p class="text-sm text-gray-500 mt-1">
+              Submitted <%= Calendar.strftime(@viewing_evaluation.inserted_at, "%B %d, %Y at %I:%M %p") %>
+            </p>
+          </div>
+          <button phx-click="close_eval_view" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-6 py-6 space-y-6">
+          <div class="flex items-center justify-center">
+            <div class="text-center">
+              <div class={"w-32 h-32 rounded-full flex items-center justify-center text-5xl font-bold mx-auto #{score_bg_color(@viewing_evaluation.score)}"}>
+                <%= @viewing_evaluation.score %>
+              </div>
+              <div class="text-2xl font-bold text-gray-900 mt-4">
+                <%= @viewing_evaluation.score %> out of 100
+              </div>
+              <div class={"text-sm font-medium mt-2 #{score_color(@viewing_evaluation.score)}"}>
+                <%= score_label(@viewing_evaluation.score) %>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase mb-4">Evaluator Information</h3>
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                <%= if @viewing_evaluation.evaluator && @viewing_evaluation.evaluator.username do %>
+                  <%= String.first(@viewing_evaluation.evaluator.username) |> String.upcase() %>
+                <% else %>
+                  E
+                <% end %>
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">
+                  <%= if @viewing_evaluation.evaluator do %>
+                    <%= @viewing_evaluation.evaluator.username || @viewing_evaluation.evaluator.email %>
+                  <% else %>
+                    Unknown Evaluator
+                  <% end %>
+                </div>
+                <%= if @viewing_evaluation.evaluator && @viewing_evaluation.evaluator.email do %>
+                  <div class="text-sm text-gray-600"><%= @viewing_evaluation.evaluator.email %></div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <%= if @viewing_evaluation.comments do %>
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 class="text-sm font-semibold text-gray-600 uppercase mb-3">Feedback & Comments</h3>
+              <div class="text-gray-800 whitespace-pre-wrap">
+                <%= @viewing_evaluation.comments %>
+              </div>
+            </div>
+          <% else %>
+            <div class="bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+              <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+              </svg>
+              <p class="text-sm text-gray-500">No comments provided for this evaluation</p>
+            </div>
+          <% end %>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div class="text-xs text-blue-600 font-medium uppercase">Submitted On</div>
+              <div class="text-lg font-bold text-blue-900 mt-1">
+                <%= Calendar.strftime(@viewing_evaluation.inserted_at, "%B %d, %Y") %>
+              </div>
+              <div class="text-sm text-blue-700 mt-1">
+                <%= Calendar.strftime(@viewing_evaluation.inserted_at, "%I:%M %p") %>
+              </div>
+            </div>
+
+            <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <div class="text-xs text-purple-600 font-medium uppercase">Evaluation ID</div>
+              <div class="text-lg font-bold text-purple-900 mt-1 font-mono">
+                #<%= @viewing_evaluation.id %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+          <button
+            type="button"
+            phx-click="close_eval_view"
+            class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Task Evaluation Details Modal -->
+  <%= if @viewing_task_evaluation do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">Task Evaluation Details</h2>
+            <%= if Ecto.assoc_loaded?(@viewing_task_evaluation.task) && @viewing_task_evaluation.task do %>
+              <p class="text-sm text-gray-500 mt-1"><%= @viewing_task_evaluation.task.title %></p>
+            <% end %>
+          </div>
+          <button phx-click="close_task_eval_view" class="text-gray-400 hover:text-gray-600 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-6 py-6 space-y-6">
+          <div class="flex items-center justify-center">
+            <div class="text-center">
+              <div class={"w-32 h-32 rounded-full flex items-center justify-center text-5xl font-bold mx-auto #{score_bg_color(@viewing_task_evaluation.score)}"}>
+                <%= @viewing_task_evaluation.score %>
+              </div>
+              <div class="text-2xl font-bold text-gray-900 mt-4">
+                <%= @viewing_task_evaluation.score %> out of 100
+              </div>
+              <div class={"text-sm font-medium mt-2 #{score_color(@viewing_task_evaluation.score)}"}>
+                <%= score_label(@viewing_task_evaluation.score) %>
+              </div>
+            </div>
+          </div>
+
+          <%= if Ecto.assoc_loaded?(@viewing_task_evaluation.task) && @viewing_task_evaluation.task do %>
+            <div class="bg-blue-50 rounded-lg p-6 border border-blue-200">
+              <h3 class="text-sm font-semibold text-blue-600 uppercase mb-3">Task Information</h3>
+              <div class="space-y-2">
+                <div>
+                  <span class="text-xs text-blue-600 font-medium">Title:</span>
+                  <p class="text-sm text-blue-900 font-semibold"><%= @viewing_task_evaluation.task.title %></p>
+                </div>
+                <%= if @viewing_task_evaluation.task.description do %>
+                  <div>
+                    <span class="text-xs text-blue-600 font-medium">Description:</span>
+                    <p class="text-sm text-blue-900"><%= @viewing_task_evaluation.task.description %></p>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+
+          <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase mb-4">Evaluator Information</h3>
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                <%= if @viewing_task_evaluation.evaluator && @viewing_task_evaluation.evaluator.username do %>
+                  <%= String.first(@viewing_task_evaluation.evaluator.username) |> String.upcase() %>
+                <% else %>
+                  E
+                <% end %>
+              </div>
+              <div>
+                <div class="font-semibold text-gray-900">
+                  <%= if @viewing_task_evaluation.evaluator do %>
+                    <%= @viewing_task_evaluation.evaluator.username || @viewing_task_evaluation.evaluator.email %>
+                  <% else %>
+                    Unknown Evaluator
+                  <% end %>
+                </div>
+                <%= if @viewing_task_evaluation.evaluator && @viewing_task_evaluation.evaluator.email do %>
+                  <div class="text-sm text-gray-600"><%= @viewing_task_evaluation.evaluator.email %></div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <%= if @viewing_task_evaluation.comments do %>
+            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+              <h3 class="text-sm font-semibold text-gray-600 uppercase mb-3">Feedback & Comments</h3>
+              <div class="text-gray-800 whitespace-pre-wrap">
+                <%= @viewing_task_evaluation.comments %>
+              </div>
+            </div>
+          <% else %>
+            <div class="bg-gray-50 rounded-lg p-6 text-center border border-gray-200">
+              <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+              </svg>
+              <p class="text-sm text-gray-500">No comments provided for this task evaluation</p>
+            </div>
+          <% end %>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div class="text-xs text-blue-600 font-medium uppercase">Submitted On</div>
+              <div class="text-lg font-bold text-blue-900 mt-1">
+                <%= Calendar.strftime(@viewing_task_evaluation.inserted_at, "%B %d, %Y") %>
+              </div>
+              <div class="text-sm text-blue-700 mt-1">
+                <%= Calendar.strftime(@viewing_task_evaluation.inserted_at, "%I:%M %p") %>
+              </div>
+            </div>
+
+            <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <div class="text-xs text-purple-600 font-medium uppercase">Evaluation ID</div>
+              <div class="text-lg font-bold text-purple-900 mt-1 font-mono">
+                #<%= @viewing_task_evaluation.id %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+          <button
+            type="button"
+            phx-click="close_task_eval_view"
+            class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition shadow"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- Success Toast Notification -->
+<%= if @show_success_toast do %>
+  <div class="fixed bottom-4 right-4 z-50 animate-slide-up">
+    <div class="bg-green-600 text-white px-6 py-4 rounded-lg shadow-xl flex items-center gap-3 max-w-md">
+      <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <div>
+        <p class="font-semibold"><%= @success_message %></p>
+      </div>
+      <button phx-click="close_toast" class="ml-4 text-white hover:text-gray-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+<% end %>
+
+<!-- Error Toast Notification -->
+<%= if @show_error_toast do %>
+  <div class="fixed bottom-4 right-4 z-50 animate-slide-up">
+    <div class="bg-red-600 text-white px-6 py-4 rounded-lg shadow-xl flex items-center gap-3 max-w-md">
+      <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <div>
+        <p class="font-semibold"><%= @error_message %></p>
+      </div>
+      <button phx-click="close_toast" class="ml-4 text-white hover:text-gray-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+<% end %>
+
+<style>
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

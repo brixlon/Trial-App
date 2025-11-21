@@ -137,7 +137,7 @@ defmodule TrialAppWeb.SidebarComponent do
         <div class="p-6 space-y-6 flex-shrink-0">
           <div class="text-center">
             <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
-              trial<span class="text-gray-900">app</span>
+              EAMS<span class="text-gray-900"></span>
             </h1>
             <div class="h-1 w-12 mx-auto bg-purple-300 rounded-full mt-2"></div>
           </div>

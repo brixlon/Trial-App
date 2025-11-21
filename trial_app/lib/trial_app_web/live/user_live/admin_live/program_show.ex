@@ -115,7 +115,6 @@ defmodule TrialAppWeb.AdminLive.ProgramShow do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope} page_title={@program.name}>
       <div class="max-w-7xl mx-auto space-y-8">
 
       <!-- Breadcrumb -->
@@ -476,7 +475,6 @@ defmodule TrialAppWeb.AdminLive.ProgramShow do
             </div>
         <% end %>
       </div>
-    </Layouts.app>
     """
   end
 end
