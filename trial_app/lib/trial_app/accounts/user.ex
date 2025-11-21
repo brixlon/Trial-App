@@ -234,11 +234,15 @@ defmodule TrialApp.Accounts.User do
   end
 
   defp validate_password(changeset, opts) do
-    changeset
-    |> validate_required([:password])
-    |> validate_length(:password, min: 6, max: 72)
-    |> maybe_hash_password(opts)
-  end
+  changeset
+  |> validate_required([:password])
+  |> validate_length(:password, min: 8, max: 72)  
+  |> validate_format(:password, ~r/[a-z]/, message: "must contain at least one lowercase letter")
+  |> validate_format(:password, ~r/[A-Z]/, message: "must contain at least one uppercase letter")
+  |> validate_format(:password, ~r/[0-9]/, message: "must contain at least one number")
+  |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/, message: "must contain at least one special character")
+  |> maybe_hash_password(opts)
+end
 
   defp maybe_hash_password(changeset, opts) do
     hash_password? = Keyword.get(opts, :hash_password, true)

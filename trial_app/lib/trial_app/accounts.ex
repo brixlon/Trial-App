@@ -13,14 +13,14 @@ defmodule TrialApp.Accounts do
   @doc """
   Gets a user by email.
   """
-def get_user_by_email(email) when is_binary(email) do
-  Repo.get_by(User, email: email)
-end
+  def get_user_by_email(email) when is_binary(email) do
+    Repo.get_by(User, email: email)
+  end
 
-
-def get_user_by_email_and_password(email, password)
-    when is_binary(email) and is_binary(password) do
+  def get_user_by_email_and_password(email, password)
+      when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: String.downcase(email))
+
     if user && User.valid_password?(user, password) do
       user
     else
@@ -38,6 +38,7 @@ def get_user_by_email_and_password(email, password)
     field = if String.contains?(username_or_email, "@"), do: :email, else: :username
     lookup_value = if field == :email, do: String.downcase(username_or_email), else: username_or_email
     user = Repo.get_by(User, [{field, lookup_value}])
+
     if user && User.valid_password?(user, password) do
       user
     else
@@ -144,6 +145,7 @@ def get_user_by_email_and_password(email, password)
 
             Enum.each(team_ids, fn team_id ->
               team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+
               employee_attrs = %{
                 user_id: updated_user.id,
                 name: updated_user.username || updated_user.email,
@@ -196,11 +198,6 @@ def get_user_by_email_and_password(email, password)
     end)
   end
 
-
-
-
-
-
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(val), do: val
 
@@ -231,9 +228,11 @@ def get_user_by_email_and_password(email, password)
   Checks whether the user is in sudo mode.
   """
   def sudo_mode?(user, minutes \\ -20)
+
   def sudo_mode?(%User{authenticated_at: ts}, minutes) when is_struct(ts, DateTime) do
     DateTime.after?(ts, DateTime.utc_now() |> DateTime.add(minutes, :minute))
   end
+
   def sudo_mode?(_user, _minutes), do: false
 
   @doc """
@@ -249,11 +248,12 @@ def get_user_by_email_and_password(email, password)
   def update_user_email(user, token) do
     context = "change:#{user.email}"
 
-  Repo.transaction(fn ->
+    Repo.transaction(fn ->
       with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
            %UserToken{sent_to: email} <- Repo.one(query),
            {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
-           {_count, _} <- Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
+           {_count, _} <-
+             Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
         {:ok, user}
       else
         _ -> {:error, :transaction_aborted}
@@ -275,6 +275,67 @@ def get_user_by_email_and_password(email, password)
     user
     |> User.password_changeset(attrs)
     |> update_user_and_delete_all_tokens()
+  end
+
+  ## Password Reset Functions
+
+  @doc """
+  Resets the user password without requiring the old password.
+  Used for forced password resets via token link.
+  Returns {:ok, {user, tokens}} on success.
+  """
+  def reset_user_password(user, attrs) do
+  changeset =
+    user
+    |> User.password_changeset(attrs)
+    |> Ecto.Changeset.put_change(:must_change_password, false)
+
+  case Repo.update(changeset) do
+    {:ok, updated_user} ->
+      tokens = Repo.all(from(t in UserToken, where: t.user_id == ^updated_user.id))
+      Repo.delete_all(from(t in UserToken, where: t.user_id == ^updated_user.id))
+      {:ok, {updated_user, tokens}}
+    {:error, changeset} ->
+      {:error, changeset}
+  end
+end
+
+  @doc """
+  Generates a force reset token for the user.
+  The token is valid for 24 hours.
+  """
+  def generate_force_reset_token(user) do
+    Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user.id)
+  end
+
+  @doc """
+  Verifies a force reset token and returns the user.
+  Returns nil if token is invalid or expired.
+  """
+  def verify_force_reset_token(token) do
+    case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token,
+           max_age: 86400
+         ) do
+      {:ok, user_id} ->
+        Repo.get(User, user_id)
+
+      {:error, _reason} ->
+        nil
+    end
+  end
+
+  @doc """
+  Delivers password reset instructions to the user via email.
+  """
+  def deliver_reset_password_instructions(user, url) do
+    UserNotifier.deliver_reset_password_instructions(user, url)
+  end
+
+  @doc """
+  Generates a reset password token for the user (alias for generate_force_reset_token).
+  """
+  def generate_password_reset_token(%User{} = user) do
+    generate_force_reset_token(user)
   end
 
   ## Session
@@ -473,6 +534,7 @@ def get_user_by_email_and_password(email, password)
           if Enum.any?(team_ids) do
             Enum.each(team_ids, fn team_id ->
               team = Repo.get!(Team, team_id) |> Repo.preload(department: [:organization])
+
               employee_attrs = %{
                 user_id: new_user.id,
                 name: new_user.username || new_user.email,
@@ -515,6 +577,7 @@ def get_user_by_email_and_password(email, password)
   """
   def switch_user_role(user, new_role) do
     available_roles = get_user_roles(user)
+
     if new_role in available_roles do
       user
       |> Ecto.Changeset.change(%{active_role: new_role})
@@ -528,11 +591,11 @@ def get_user_by_email_and_password(email, password)
   Gets all roles available to a user.
   Returns the roles array if populated, otherwise returns single role as list.
   """
-def get_user_roles(%User{roles: roles, role: single_role}) do
-  array_roles = if is_list(roles), do: roles || [], else: []
-  single_role_list = if is_binary(single_role) and single_role != "", do: [single_role], else: []
-  (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
-end
+  def get_user_roles(%User{roles: roles, role: single_role}) do
+    array_roles = if is_list(roles), do: roles || [], else: []
+    single_role_list = if is_binary(single_role) and single_role != "", do: [single_role], else: []
+    (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
+  end
 
   @doc """
   Gets the user's active role.
@@ -560,8 +623,10 @@ end
   """
   def add_role_to_user(%User{} = user, new_role) do
     current_roles = user.roles || []
+
     if new_role not in current_roles do
       updated_roles = [new_role | current_roles] |> Enum.uniq()
+
       user
       |> Ecto.Changeset.change(%{roles: updated_roles})
       |> Repo.update()
@@ -628,26 +693,6 @@ end
       "admin" in roles -> "admin"
       "employee" in roles -> "employee"
       true -> List.first(roles)
-    end
-  end
-
-  def generate_password_reset_token(%User{id: user_id}) do
-    Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user_id)
-  end
-
-  def generate_force_reset_token(user) do
-    Phoenix.Token.sign(TrialAppWeb.Endpoint, "force_password_reset", user.id)
-  end
-
-  @doc """
-  Verifies a force reset token and returns the user.
-  """
-  def verify_force_reset_token(token) do
-    case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
-      {:ok, user_id} ->
-        Repo.get(User, user_id)
-      {:error, _} ->
-        nil
     end
   end
 
