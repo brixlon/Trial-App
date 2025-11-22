@@ -1,7 +1,6 @@
 defmodule TrialApp.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
-  import Ecto.Query
 
   schema "users" do
     field :email, :string
@@ -76,8 +75,32 @@ defmodule TrialApp.Accounts.User do
   A user changeset for admin to update all user details including assignments.
   """
   def admin_update_changeset(user, attrs) do
-    # Delegate to profile_changeset to avoid code duplication
-    profile_changeset(user, attrs)
+    user
+    |> cast(attrs, [:email, :username, :role, :roles, :status])
+    |> validate_required([:email, :username])
+    |> validate_inclusion(:status, ["pending", "active", "suspended"])
+    |> unique_constraint(:email)
+    |> unique_constraint(:username)
+    |> validate_roles()
+  end
+
+  defp validate_roles(changeset) do
+    case get_change(changeset, :roles) do
+      nil ->
+        changeset
+
+      roles when is_list(roles) ->
+        valid_roles = ["attachee", "supervisor", "admin"]
+
+        if Enum.all?(roles, &(&1 in valid_roles)) do
+          changeset
+        else
+          add_error(changeset, :roles, "contains invalid roles")
+        end
+
+      _ ->
+        add_error(changeset, :roles, "must be a list")
+    end
   end
 
   @doc """
@@ -114,7 +137,8 @@ defmodule TrialApp.Accounts.User do
         base_username =
           "#{String.downcase(first_name)}.#{String.downcase(last_name)}"
           |> String.replace(~r/[^a-z0-9_]/, "_")
-          |> String.slice(0, 20)  # Leave room for suffix
+          # Leave room for suffix
+          |> String.slice(0, 20)
 
         # Generate a unique username by appending a random number
         # The unique_constraint will handle conflicts if they occur
@@ -128,7 +152,8 @@ defmodule TrialApp.Accounts.User do
           |> List.first()
           |> String.downcase()
           |> String.replace(~r/[^a-z0-9_]/, "_")
-          |> String.slice(0, 20)  # Leave room for suffix
+          # Leave room for suffix
+          |> String.slice(0, 20)
 
         random_suffix = :rand.uniform(9999)
         "#{email_prefix}#{random_suffix}"
@@ -234,15 +259,21 @@ defmodule TrialApp.Accounts.User do
   end
 
   defp validate_password(changeset, opts) do
-  changeset
-  |> validate_required([:password])
-  |> validate_length(:password, min: 8, max: 72)  
-  |> validate_format(:password, ~r/[a-z]/, message: "must contain at least one lowercase letter")
-  |> validate_format(:password, ~r/[A-Z]/, message: "must contain at least one uppercase letter")
-  |> validate_format(:password, ~r/[0-9]/, message: "must contain at least one number")
-  |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/, message: "must contain at least one special character")
-  |> maybe_hash_password(opts)
-end
+    changeset
+    |> validate_required([:password])
+    |> validate_length(:password, min: 8, max: 72)
+    |> validate_format(:password, ~r/[a-z]/,
+      message: "must contain at least one lowercase letter"
+    )
+    |> validate_format(:password, ~r/[A-Z]/,
+      message: "must contain at least one uppercase letter"
+    )
+    |> validate_format(:password, ~r/[0-9]/, message: "must contain at least one number")
+    |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/,
+      message: "must contain at least one special character"
+    )
+    |> maybe_hash_password(opts)
+  end
 
   defp maybe_hash_password(changeset, opts) do
     hash_password? = Keyword.get(opts, :hash_password, true)
@@ -252,8 +283,10 @@ end
       changeset
       |> validate_length(:password, max: 72, count: :bytes)
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
-      |> put_change(:password_changed_at, DateTime.utc_now()) # ✅ track password updates
-      |> change(%{must_change_password: false}) # ✅ reset flag after password change
+      # ✅ track password updates
+      |> put_change(:password_changed_at, DateTime.utc_now())
+      # ✅ reset flag after password change
+      |> change(%{must_change_password: false})
       |> delete_change(:password)
     else
       changeset

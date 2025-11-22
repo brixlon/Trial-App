@@ -14,10 +14,11 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
 
   def role_switcher(assigns) do
     available_roles = Accounts.get_user_roles(assigns.current_scope.user)
+    assigns = assign(assigns, :available_roles, available_roles)
 
     ~H"""
     <div class={["flex gap-2 flex-wrap", @class]}>
-      <%= for role <- available_roles do %>
+      <%= for role <- @available_roles do %>
         <% active = @current_scope.active_role == role %>
 
         <button
@@ -31,7 +32,7 @@ defmodule TrialAppWeb.Live.Helpers.RoleSwitcher do
           }
           disabled={active}
         >
-          <%= role_display_name(role) %>
+          {role_display_name(role)}
 
           <%= if active do %>
             <span class="ml-1">✓</span>

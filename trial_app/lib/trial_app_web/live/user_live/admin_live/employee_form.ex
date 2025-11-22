@@ -1,6 +1,6 @@
 defmodule TrialAppWeb.AdminLive.EmployeeForm do
   use TrialAppWeb, :live_view
-  alias TrialApp.{Orgs, Accounts, Repo}
+  alias TrialApp.{Orgs, Accounts}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -80,9 +80,9 @@ defmodule TrialAppWeb.AdminLive.EmployeeForm do
     Accounts.list_users()
   end
 
-  @impl true
   defp safe_int(nil), do: nil
   defp safe_int(""), do: nil
+
   defp safe_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {i, _} -> i

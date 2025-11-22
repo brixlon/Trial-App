@@ -1,6 +1,5 @@
 defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   use TrialAppWeb, :live_component
-  import TrialAppWeb.CoreComponents, except: [translate_error: 1]
 
   alias TrialApp.Eams
 
@@ -30,12 +29,15 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
 
     changeset =
       %Eams.Evaluation{}
-      |> Eams.Evaluation.changeset(%{
-        attachee_id: assigns.attachee.id,
-        evaluator_id: assigns.current_user.id,
-        score: 50,
-        comments: ""
-      }, assigns.current_user)
+      |> Eams.Evaluation.changeset(
+        %{
+          attachee_id: assigns.attachee.id,
+          evaluator_id: assigns.current_user.id,
+          score: 50,
+          comments: ""
+        },
+        assigns.current_user
+      )
 
     {:ok,
      socket
@@ -55,7 +57,9 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
     score = String.to_integer(score_str)
 
     task_scores = Map.put(socket.assigns.task_scores, task_id, score)
-    calculated_score = calculate_total_score(task_scores, socket.assigns.criteria_scores, socket.assigns.tasks)
+
+    calculated_score =
+      calculate_total_score(task_scores, socket.assigns.criteria_scores, socket.assigns.tasks)
 
     {:noreply,
      socket
@@ -69,7 +73,9 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
     score = String.to_integer(score_str)
 
     criteria_scores = Map.put(socket.assigns.criteria_scores, criteria_key, score)
-    calculated_score = calculate_total_score(socket.assigns.task_scores, criteria_scores, socket.assigns.tasks)
+
+    calculated_score =
+      calculate_total_score(socket.assigns.task_scores, criteria_scores, socket.assigns.tasks)
 
     {:noreply,
      socket
@@ -133,6 +139,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
               "task_id" => task_id,
               "comments" => "Task: #{task_title} - Score: #{task_score}/100"
             }
+
             Eams.create_evaluation(task_params, socket.assigns.current_user)
           end)
 
@@ -154,31 +161,27 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   # Calculate total score: 50% from tasks, 50% from criteria
   defp calculate_total_score(task_scores, criteria_scores, _tasks) do
     # Calculate task score average (50% weight)
-    task_avg = if map_size(task_scores) > 0 do
-      task_sum = task_scores |> Map.values() |> Enum.sum()
-      task_sum / map_size(task_scores)
-    else
-      50.0
-    end
+    task_avg =
+      if map_size(task_scores) > 0 do
+        task_sum = task_scores |> Map.values() |> Enum.sum()
+        task_sum / map_size(task_scores)
+      else
+        50.0
+      end
 
     # Calculate weighted criteria score (50% weight)
-    criteria_weighted = @evaluation_criteria
-    |> Enum.map(fn criteria ->
-      score = Map.get(criteria_scores, criteria.key, 50)
-      score * criteria.weight / 100
-    end)
-    |> Enum.sum()
+    criteria_weighted =
+      @evaluation_criteria
+      |> Enum.map(fn criteria ->
+        score = Map.get(criteria_scores, criteria.key, 50)
+        score * criteria.weight / 100
+      end)
+      |> Enum.sum()
 
     # Combine: 50% tasks + 50% criteria
-    total = (task_avg * 0.5) + (criteria_weighted * 0.5)
+    total = task_avg * 0.5 + criteria_weighted * 0.5
 
     Float.round(total, 1)
-  end
-
-  defp translate_error({msg, opts}) do
-    Enum.reduce(opts, msg, fn {key, value}, acc ->
-      String.replace(acc, "%{#{key}}", to_string(value))
-    end)
   end
 
   defp score_color(score) when score >= 80, do: "text-green-600"
@@ -210,7 +213,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
           <div>
             <h2 class="text-2xl font-bold text-gray-900">Evaluate Attachee</h2>
             <p class="text-sm text-gray-500 mt-1">
-              <%= @attachee.user.username || @attachee.user.email %>
+              {@attachee.user.username || @attachee.user.email}
             </p>
           </div>
           <button
@@ -233,17 +236,19 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
           <!-- Total Score Display -->
           <div class={"rounded-xl p-6 border-2 #{score_bg_color(@calculated_score)}"}>
             <div class="text-center">
-              <p class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">Total Evaluation Score</p>
+              <p class="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">
+                Total Evaluation Score
+              </p>
               <div class={"text-6xl font-bold #{score_color(@calculated_score)}"}>
-                <%= @calculated_score %>
+                {@calculated_score}
               </div>
               <p class="text-xs text-gray-500 mt-2">
                 Calculated from task performance (50%) and evaluation criteria (50%)
               </p>
             </div>
           </div>
-
-          <!-- Task Scores Section -->
+          
+    <!-- Task Scores Section -->
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-bold text-gray-900">Task Performance Evaluation</h3>
@@ -252,8 +257,18 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
 
             <%= if @tasks == [] do %>
               <div class="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-                <svg class="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <svg
+                  class="w-12 h-12 mx-auto text-gray-300 mb-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
                 </svg>
                 <p class="text-gray-500 text-sm">No tasks assigned to this attachee</p>
               </div>
@@ -263,13 +278,13 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                   <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
                     <div class="flex items-start justify-between gap-4 mb-3">
                       <div class="flex-1">
-                        <h4 class="font-semibold text-gray-900 text-sm"><%= task.title %></h4>
+                        <h4 class="font-semibold text-gray-900 text-sm">{task.title}</h4>
                         <%= if task.description do %>
-                          <p class="text-xs text-gray-500 mt-1 line-clamp-2"><%= task.description %></p>
+                          <p class="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
                         <% end %>
                       </div>
                       <span class="text-2xl font-bold text-purple-600 min-w-[60px] text-right">
-                        <%= Map.get(@task_scores, task.id, 50) %>
+                        {Map.get(@task_scores, task.id, 50)}
                       </span>
                     </div>
 
@@ -295,8 +310,8 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
               </div>
             <% end %>
           </div>
-
-          <!-- Evaluation Criteria Section -->
+          
+    <!-- Evaluation Criteria Section -->
           <div class="space-y-4 pt-6 border-t-2 border-gray-200">
             <div class="flex items-center justify-between">
               <h3 class="text-lg font-bold text-gray-900">Performance Criteria</h3>
@@ -309,14 +324,14 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                   <div class="flex items-start justify-between gap-4 mb-3">
                     <div class="flex-1">
                       <div class="flex items-center gap-2">
-                        <h4 class="font-semibold text-gray-900 text-sm"><%= criteria.label %></h4>
+                        <h4 class="font-semibold text-gray-900 text-sm">{criteria.label}</h4>
                         <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                          <%= criteria.weight %>%
+                          {criteria.weight}%
                         </span>
                       </div>
                     </div>
                     <span class="text-2xl font-bold text-blue-600 min-w-[60px] text-right">
-                      <%= Map.get(@criteria_scores, criteria.key, 50) %>
+                      {Map.get(@criteria_scores, criteria.key, 50)}
                     </span>
                   </div>
 
@@ -341,8 +356,8 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
               <% end %>
             </div>
           </div>
-
-          <!-- Comments Section -->
+          
+    <!-- Comments Section -->
           <div class="pt-6 border-t-2 border-gray-200">
             <label class="block mb-2">
               <span class="text-sm font-bold text-gray-900">
@@ -359,12 +374,12 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
             ><%= Phoenix.HTML.Form.input_value(f, :comments) %></textarea>
             <%= if error = Keyword.get(@changeset.errors, :comments) do %>
               <p class="text-red-500 text-sm mt-1">
-                <%= translate_error(error) %>
+                {translate_error(error)}
               </p>
             <% end %>
           </div>
-
-          <!-- Scoring Breakdown Summary -->
+          
+    <!-- Scoring Breakdown Summary -->
           <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <h4 class="font-semibold text-gray-900 text-sm mb-3">Score Breakdown</h4>
             <div class="grid grid-cols-2 gap-4 text-sm">
@@ -372,7 +387,10 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                 <span class="text-gray-600">Task Performance (50%):</span>
                 <span class="font-bold text-purple-600 ml-2">
                   <%= if map_size(@task_scores) > 0 do %>
-                    <%= Float.round((@task_scores |> Map.values() |> Enum.sum()) / map_size(@task_scores), 1) %>
+                    {Float.round(
+                      (@task_scores |> Map.values() |> Enum.sum()) / map_size(@task_scores),
+                      1
+                    )}
                   <% else %>
                     50.0
                   <% end %>
@@ -381,18 +399,18 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
               <div>
                 <span class="text-gray-600">Criteria Performance (50%):</span>
                 <span class="font-bold text-blue-600 ml-2">
-                  <%= Float.round(
+                  {Float.round(
                     @evaluation_criteria
                     |> Enum.map(fn c -> Map.get(@criteria_scores, c.key, 50) * c.weight / 100 end)
                     |> Enum.sum(),
                     1
-                  ) %>
+                  )}
                 </span>
               </div>
             </div>
           </div>
-
-          <!-- Action Buttons -->
+          
+    <!-- Action Buttons -->
           <div class="flex justify-end gap-3 pt-6 border-t border-gray-200">
             <button
               type="button"
@@ -407,7 +425,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
               class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={@submitting}
             >
-              <%= if @submitting, do: "Submitting...", else: "Submit Evaluation" %>
+              {if @submitting, do: "Submitting...", else: "Submit Evaluation"}
             </button>
           </div>
         </.form>

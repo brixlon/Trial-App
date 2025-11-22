@@ -1,7 +1,7 @@
 defmodule TrialAppWeb.SupervisorLive.ReportModal do
   use TrialAppWeb, :live_component
   alias TrialApp.Reports
-  alias TrialApp.Reports.PDFGenerator
+  alias TrialApp.Reports.PdfGenerator
   require Logger
 
   @impl true
@@ -92,14 +92,22 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
     {:noreply, assign(socket, field, !Map.get(socket.assigns, field))}
   end
 
+  @impl true
+  def handle_event("close", _params, socket) do
+    send(self(), :close_modal)
+    {:noreply, socket}
+  end
+
   # ==========================================================================
   # GENERATION LOGIC - UPDATED
   # ==========================================================================
 
   def handle_event("generate_report", _params, socket) do
     # Validate at least one option is selected
-    if !socket.assigns.send_to_download && !socket.assigns.send_to_profile && !socket.assigns.send_to_email do
-      {:noreply, socket |> assign(:error, "Please select at least one action (Download, Profile, or Email)")}
+    if !socket.assigns.send_to_download && !socket.assigns.send_to_profile &&
+         !socket.assigns.send_to_email do
+      {:noreply,
+       socket |> assign(:error, "Please select at least one action (Download, Profile, or Email)")}
     else
       socket = socket |> assign(:generating, true) |> assign(:error, nil)
 
@@ -150,6 +158,7 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
 
         {:error, reason} ->
           Logger.error("Report generation failed: #{inspect(reason)}")
+
           {:noreply,
            socket
            |> assign(:generating, false)
@@ -173,7 +182,7 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
     file_path = Reports.reports_directory() |> Path.join(filename)
 
     with {:ok, report} <- Reports.create_report(report_attrs),
-         {:ok, _path} <- PDFGenerator.generate_pdf(report, assigns, options, file_path),
+         {:ok, _path} <- PdfGenerator.generate_pdf(report, assigns, options, file_path),
          {:ok, updated_report} <-
            Reports.update_report(report, %{
              file_path: file_path,
@@ -186,12 +195,6 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
         Logger.error("Process report generation failed at some step: #{inspect(reason)}")
         error
     end
-  end
-
-  @impl true
-  def handle_event("close", _params, socket) do
-    send(self(), :close_modal)
-    {:noreply, socket}
   end
 
   # ==========================================================================
@@ -207,7 +210,6 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
 
   # New function to handle multiple actions
   defp handle_multiple_actions(socket, report) do
-    results = []
     socket = assign(socket, :generating, false)
 
     # Handle send to profile
@@ -232,7 +234,11 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
         case Reports.update_report(report, %{status: "sent", sent_at: DateTime.utc_now()}) do
           {:ok, _} ->
             # TODO: Implement actual email sending logic here
-            send(self(), {:put_flash, :info, "Report emailed to #{socket.assigns.attachee.user.email}."})
+            send(
+              self(),
+              {:put_flash, :info, "Report emailed to #{socket.assigns.attachee.user.email}."}
+            )
+
             socket
 
           {:error, _} ->
@@ -284,13 +290,18 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
               <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
             <div>
               <h2 class="text-xl font-bold text-white">Generate Report</h2>
               <p class="text-sm text-blue-100">
-                For <%= @attachee.user.username || @attachee.user.email %>
+                For {@attachee.user.username || @attachee.user.email}
               </p>
             </div>
           </div>
@@ -300,7 +311,12 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
             class="text-white hover:bg-white/20 rounded-full p-2 transition"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -309,9 +325,14 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
           <%= if @error do %>
             <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
-              <%= @error %>
+              {@error}
             </div>
           <% end %>
 
@@ -370,15 +391,32 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
                   "flex items-center gap-3 cursor-pointer group p-3 border rounded-lg hover:bg-purple-50 transition",
                   if(@include_stats, do: "border-purple-300 bg-purple-50", else: "border-gray-200")
                 ]}>
-                  <input type="checkbox" checked={@include_stats} phx-click="toggle_section" phx-target={@myself} phx-value-section="include_stats" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@include_stats}
+                    phx-click="toggle_section"
+                    phx-target={@myself}
+                    phx-value-section="include_stats"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <span class="text-sm font-medium text-gray-700">Performance Stats</span>
                 </label>
 
                 <label class={[
                   "flex items-center gap-3 cursor-pointer group p-3 border rounded-lg hover:bg-purple-50 transition",
-                  if(@include_evaluations, do: "border-purple-300 bg-purple-50", else: "border-gray-200")
+                  if(@include_evaluations,
+                    do: "border-purple-300 bg-purple-50",
+                    else: "border-gray-200"
+                  )
                 ]}>
-                  <input type="checkbox" checked={@include_evaluations} phx-click="toggle_section" phx-target={@myself} phx-value-section="include_evaluations" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@include_evaluations}
+                    phx-click="toggle_section"
+                    phx-target={@myself}
+                    phx-value-section="include_evaluations"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <span class="text-sm font-medium text-gray-700">Evaluation History</span>
                 </label>
 
@@ -386,7 +424,14 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
                   "flex items-center gap-3 cursor-pointer group p-3 border rounded-lg hover:bg-purple-50 transition",
                   if(@include_tasks, do: "border-purple-300 bg-purple-50", else: "border-gray-200")
                 ]}>
-                  <input type="checkbox" checked={@include_tasks} phx-click="toggle_section" phx-target={@myself} phx-value-section="include_tasks" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@include_tasks}
+                    phx-click="toggle_section"
+                    phx-target={@myself}
+                    phx-value-section="include_tasks"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <span class="text-sm font-medium text-gray-700">Tasks List</span>
                 </label>
 
@@ -394,14 +439,23 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
                   "flex items-center gap-3 cursor-pointer group p-3 border rounded-lg hover:bg-purple-50 transition",
                   if(@include_projects, do: "border-purple-300 bg-purple-50", else: "border-gray-200")
                 ]}>
-                  <input type="checkbox" checked={@include_projects} phx-click="toggle_section" phx-target={@myself} phx-value-section="include_projects" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@include_projects}
+                    phx-click="toggle_section"
+                    phx-target={@myself}
+                    phx-value-section="include_projects"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <span class="text-sm font-medium text-gray-700">Project Details</span>
                 </label>
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-semibold text-gray-700 mb-2">Additional Comments</label>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Additional Comments
+              </label>
               <textarea
                 name="custom_comments"
                 phx-change="update_field"
@@ -413,47 +467,109 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
             </div>
 
             <div>
-              <label class="block text-sm font-bold text-gray-700 mb-3">3. Actions (Select one or more)</label>
+              <label class="block text-sm font-bold text-gray-700 mb-3">
+                3. Actions (Select one or more)
+              </label>
               <div class="space-y-2">
                 <label class={[
                   "flex items-center gap-3 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition",
-                  if(@send_to_download, do: "ring-2 ring-purple-500 border-transparent bg-purple-50", else: "border-gray-200")
+                  if(@send_to_download,
+                    do: "ring-2 ring-purple-500 border-transparent bg-purple-50",
+                    else: "border-gray-200"
+                  )
                 ]}>
-                  <input type="checkbox" checked={@send_to_download} phx-click="toggle_send_option" phx-target={@myself} phx-value-option="send_to_download" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@send_to_download}
+                    phx-click="toggle_send_option"
+                    phx-target={@myself}
+                    phx-value-option="send_to_download"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <div class="flex-1">
                     <div class="text-sm font-bold text-gray-900">Download PDF</div>
                     <div class="text-xs text-gray-500">Save directly to your device</div>
                   </div>
-                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  <svg
+                    class="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
                   </svg>
                 </label>
 
                 <label class={[
                   "flex items-center gap-3 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition",
-                  if(@send_to_profile, do: "ring-2 ring-purple-500 border-transparent bg-purple-50", else: "border-gray-200")
+                  if(@send_to_profile,
+                    do: "ring-2 ring-purple-500 border-transparent bg-purple-50",
+                    else: "border-gray-200"
+                  )
                 ]}>
-                  <input type="checkbox" checked={@send_to_profile} phx-click="toggle_send_option" phx-target={@myself} phx-value-option="send_to_profile" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@send_to_profile}
+                    phx-click="toggle_send_option"
+                    phx-target={@myself}
+                    phx-value-option="send_to_profile"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <div class="flex-1">
                     <div class="text-sm font-bold text-gray-900">Send to Profile</div>
                     <div class="text-xs text-gray-500">Attachee can view it in their dashboard</div>
                   </div>
-                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg
+                    class="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                 </label>
 
                 <label class={[
                   "flex items-center gap-3 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition",
-                  if(@send_to_email, do: "ring-2 ring-purple-500 border-transparent bg-purple-50", else: "border-gray-200")
+                  if(@send_to_email,
+                    do: "ring-2 ring-purple-500 border-transparent bg-purple-50",
+                    else: "border-gray-200"
+                  )
                 ]}>
-                  <input type="checkbox" checked={@send_to_email} phx-click="toggle_send_option" phx-target={@myself} phx-value-option="send_to_email" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    checked={@send_to_email}
+                    phx-click="toggle_send_option"
+                    phx-target={@myself}
+                    phx-value-option="send_to_email"
+                    class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                  />
                   <div class="flex-1">
                     <div class="text-sm font-bold text-gray-900">Email Report</div>
-                    <div class="text-xs text-gray-500">Send to <%= @attachee.user.email %></div>
+                    <div class="text-xs text-gray-500">Send to {@attachee.user.email}</div>
                   </div>
-                  <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <svg
+                    class="w-5 h-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
                   </svg>
                 </label>
               </div>
@@ -480,12 +596,25 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
           >
             <%= if @generating do %>
               <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                >
+                </circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                >
+                </path>
               </svg>
               Processing...
             <% else %>
-              <%= get_button_text(@send_to_download, @send_to_profile, @send_to_email) %>
+              {get_button_text(@send_to_download, @send_to_profile, @send_to_email)}
             <% end %>
           </button>
         </div>

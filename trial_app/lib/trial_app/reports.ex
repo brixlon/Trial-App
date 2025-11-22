@@ -103,7 +103,6 @@ defmodule TrialApp.Reports do
     with {:ok, start_date} <- parse_date(params["period_start"]),
          {:ok, end_date} <- parse_date(params["period_end"]),
          :ok <- validate_date_range(start_date, end_date) do
-
       # Create report record
       report_attrs = %{
         attachee_id: attachee.id,
@@ -159,7 +158,7 @@ defmodule TrialApp.Reports do
     report_data = gather_report_data(attachee.id)
 
     # Generate PDF
-    case PdfGenerator.generate(report, report_data, file_path) do
+    case PdfGenerator.generate_pdf_from_html(report, report_data, file_path) do
       {:ok, _path} ->
         # Update report with file info
         update_report(report, %{
@@ -183,7 +182,9 @@ defmodule TrialApp.Reports do
     attachee = Eams.get_attachee!(attachee_id, %{preloads: [:user, :department, :organization]})
     tasks = Eams.list_tasks_for_attachee(attachee_id)
     evaluations = Eams.list_evaluations_for_attachee(attachee_id, %{preloads: [:evaluator]})
-    task_evaluations = Eams.list_task_evaluations_by_attachee(attachee_id, %{preloads: [:evaluator]})
+
+    task_evaluations =
+      Eams.list_task_evaluations_by_attachee(attachee_id, %{preloads: [:evaluator]})
 
     # Get projects
     projects = Eams.list_projects_for_attachee(attachee_id)
@@ -195,7 +196,9 @@ defmodule TrialApp.Reports do
     # Task stats
     total_tasks = length(tasks)
     completed_tasks = Enum.count(tasks, &(&1.status == "completed"))
-    completion_rate = if total_tasks > 0, do: Float.round(completed_tasks * 100.0 / total_tasks, 1), else: 0.0
+
+    completion_rate =
+      if total_tasks > 0, do: Float.round(completed_tasks * 100.0 / total_tasks, 1), else: 0.0
 
     # Build task scores map
     task_scores = build_task_scores_map(task_evaluations)
@@ -249,9 +252,11 @@ defmodule TrialApp.Reports do
   """
   def ensure_reports_directory do
     dir = reports_directory()
+
     unless File.exists?(dir) do
       File.mkdir_p!(dir)
     end
+
     dir
   end
 
@@ -260,9 +265,11 @@ defmodule TrialApp.Reports do
   """
   def generate_filename(attachee, report_type) do
     timestamp = DateTime.utc_now() |> Calendar.strftime("%Y%m%d_%H%M%S")
-    attachee_name = (attachee.user.username || attachee.user.email)
-                    |> String.replace(~r/[^a-zA-Z0-9]/, "_")
-                    |> String.slice(0, 20)
+
+    attachee_name =
+      (attachee.user.username || attachee.user.email)
+      |> String.replace(~r/[^a-zA-Z0-9]/, "_")
+      |> String.slice(0, 20)
 
     "#{report_type}_#{attachee_name}_#{timestamp}.pdf"
   end

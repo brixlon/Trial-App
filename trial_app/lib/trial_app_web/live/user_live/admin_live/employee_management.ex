@@ -4,11 +4,26 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Fetch ALL users in the system with their employee assignments
+    all_users = TrialApp.Accounts.list_users_with_assignments()
+
+    # Separate assigned and unassigned users
+    {assigned_users, unassigned_users} =
+      Enum.split_with(all_users, fn user ->
+        length(user.employees) > 0
+      end)
+
+    # Load departments for organizational grouping
     departments = load_departments()
-    employees = Orgs.list_employees()
 
     # Calculate statistics
-    active_count = Enum.count(employees, & &1.is_active)
+    active_assigned_count =
+      assigned_users
+      |> Enum.filter(fn user ->
+        Enum.any?(user.employees, & &1.is_active)
+      end)
+      |> length()
+
     teams_count =
       departments
       |> Enum.flat_map(& &1.teams)
@@ -22,6 +37,9 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     {:ok,
      socket
      |> assign(:page_title, "Employee Management")
+     |> assign(:all_users, all_users)
+     |> assign(:assigned_users, assigned_users)
+     |> assign(:unassigned_users, unassigned_users)
      |> assign(:departments, departments)
      |> assign(:organizations, organizations)
      |> assign(:programs, programs)
@@ -29,15 +47,24 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      |> assign(:selected_department, "")
      |> assign(:view_mode, "department")
      |> assign(:expanded_departments, %{})
-     |> assign(:total_employees, length(employees))
-     |> assign(:active_count, active_count)
+     |> assign(:total_users, length(all_users))
+     |> assign(:assigned_count, length(assigned_users))
+     |> assign(:unassigned_count, length(unassigned_users))
+     |> assign(:active_count, active_assigned_count)
      |> assign(:teams_count, teams_count)
-     # New modal assigns
+     # Create user modal assigns
      |> assign(:show_create_modal, false)
+     |> assign(:user_form, %{})
+     |> assign(:email_error, nil)
+     |> assign(:creating_user, false)
+     # Legacy assigns (can be removed later)
      |> assign(:selected_user_type, nil)
      |> assign(:attachee_form, %{})
-     |> assign(:email_error, nil)
-     |> assign(:creating_attachee, false)}
+     |> assign(:creating_attachee, false)
+     # Assignment modal assigns
+     |> assign(:show_assign_modal, false)
+     |> assign(:user_to_assign, nil)
+     |> assign(:selected_teams, [])}
   end
 
   @impl true
@@ -80,10 +107,23 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
     case Orgs.delete_employee(employee) do
       {:ok, _employee} ->
-        # Reload data to reflect changes
+        # Reload all users and recalculate statistics
+        all_users = TrialApp.Accounts.list_users_with_assignments()
+
+        {assigned_users, unassigned_users} =
+          Enum.split_with(all_users, fn user ->
+            length(user.employees) > 0
+          end)
+
         departments = load_departments()
-        employees = Orgs.list_employees()
-        active_count = Enum.count(employees, & &1.is_active)
+
+        active_assigned_count =
+          assigned_users
+          |> Enum.filter(fn user ->
+            Enum.any?(user.employees, & &1.is_active)
+          end)
+          |> length()
+
         teams_count =
           departments
           |> Enum.flat_map(& &1.teams)
@@ -92,9 +132,14 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
         {:noreply,
          socket
+         |> assign(:all_users, all_users)
+         |> assign(:assigned_users, assigned_users)
+         |> assign(:unassigned_users, unassigned_users)
          |> assign(:departments, departments)
-         |> assign(:total_employees, length(employees))
-         |> assign(:active_count, active_count)
+         |> assign(:total_users, length(all_users))
+         |> assign(:assigned_count, length(assigned_users))
+         |> assign(:unassigned_count, length(unassigned_users))
+         |> assign(:active_count, active_assigned_count)
          |> assign(:teams_count, teams_count)
          |> put_flash(:info, "Employee removed successfully")}
 
@@ -120,10 +165,176 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
     {:noreply,
      socket
      |> assign(:show_create_modal, false)
+     |> assign(:user_form, %{})
      |> assign(:selected_user_type, nil)
      |> assign(:attachee_form, %{})
      |> assign(:email_error, nil)
-     |> assign(:creating_attachee, false)}
+     |> assign(:creating_user, false)
+     |> assign(:creating_attachee, false)
+     # Also close assignment modal
+     |> assign(:show_assign_modal, false)
+     |> assign(:user_to_assign, nil)
+     |> assign(:selected_teams, [])}
+  end
+
+  @impl true
+  def handle_event("create_user", %{"user" => user_params}, socket) do
+    socket = assign(socket, :creating_user, true)
+
+    # Build roles array from checkboxes
+    roles = []
+
+    roles =
+      if Map.get(user_params, "is_attachee") == "true", do: ["attachee" | roles], else: roles
+
+    roles =
+      if Map.get(user_params, "is_supervisor") == "true", do: ["supervisor" | roles], else: roles
+
+    roles = if Map.get(user_params, "is_admin") == "true", do: ["admin" | roles], else: roles
+
+    # Validate at least one role is selected
+    if Enum.empty?(roles) do
+      {:noreply,
+       socket
+       |> assign(:creating_user, false)
+       |> put_flash(:error, "Please select at least one role")}
+    else
+      # Generate secure password
+      password = generate_secure_password()
+
+      # Get team IDs
+      team_ids =
+        case Map.get(user_params, "team_ids") do
+          nil -> []
+          teams when is_list(teams) -> Enum.map(teams, &String.to_integer/1)
+          teams when is_map(teams) -> Map.values(teams) |> Enum.map(&String.to_integer/1)
+          _ -> []
+        end
+
+      # Prepare user data
+      user_data = %{
+        email: user_params["email"],
+        username: user_params["username"],
+        password: password,
+        password_confirmation: password,
+        roles: roles,
+        # Primary role
+        role: List.first(roles),
+        status: "active"
+      }
+
+      # Create user with assignments
+      case TrialApp.Accounts.register_user(user_data) do
+        {:ok, user} ->
+          # Assign to teams if any selected
+          if Enum.any?(team_ids) do
+            TrialApp.Accounts.update_user_with_assignments(user, %{}, team_ids, %{})
+          end
+
+          # Send credentials email
+          TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
+          |> TrialApp.Mailer.deliver()
+
+          # Reload all users
+          all_users = TrialApp.Accounts.list_users_with_assignments()
+
+          {assigned_users, unassigned_users} =
+            Enum.split_with(all_users, fn user ->
+              length(user.employees) > 0
+            end)
+
+          departments = load_departments()
+
+          {:noreply,
+           socket
+           |> assign(:all_users, all_users)
+           |> assign(:assigned_users, assigned_users)
+           |> assign(:unassigned_users, unassigned_users)
+           |> assign(:departments, departments)
+           |> assign(:total_users, length(all_users))
+           |> assign(:assigned_count, length(assigned_users))
+           |> assign(:unassigned_count, length(unassigned_users))
+           |> assign(:show_create_modal, false)
+           |> assign(:user_form, %{})
+           |> assign(:creating_user, false)
+           |> put_flash(:info, "✅ User created successfully! Credentials sent to #{user.email}")}
+
+        {:error, changeset} ->
+          error_message = extract_error_message(changeset)
+
+          {:noreply,
+           socket
+           |> assign(:creating_user, false)
+           |> assign(:user_form, user_params)
+           |> put_flash(:error, "Failed to create user: #{error_message}")}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("open_assign_modal", %{"user-id" => user_id}, socket) do
+    user = TrialApp.Accounts.get_user!(String.to_integer(user_id))
+
+    {:noreply,
+     socket
+     |> assign(:show_assign_modal, true)
+     |> assign(:user_to_assign, user)
+     |> assign(:selected_teams, [])}
+  end
+
+  @impl true
+  def handle_event("toggle_team_selection", %{"team-id" => team_id}, socket) do
+    team_id_int = String.to_integer(team_id)
+    selected_teams = socket.assigns.selected_teams
+
+    updated_teams =
+      if team_id_int in selected_teams do
+        List.delete(selected_teams, team_id_int)
+      else
+        [team_id_int | selected_teams]
+      end
+
+    {:noreply, assign(socket, :selected_teams, updated_teams)}
+  end
+
+  @impl true
+  def handle_event("assign_user_to_teams", _params, socket) do
+    user = socket.assigns.user_to_assign
+    team_ids = socket.assigns.selected_teams
+
+    if Enum.empty?(team_ids) do
+      {:noreply, put_flash(socket, :error, "Please select at least one team")}
+    else
+      case TrialApp.Accounts.update_user_with_assignments(user, %{}, team_ids, %{}) do
+        {:ok, _updated_user} ->
+          # Reload all users and recalculate statistics
+          all_users = TrialApp.Accounts.list_users_with_assignments()
+
+          {assigned_users, unassigned_users} =
+            Enum.split_with(all_users, fn user ->
+              length(user.employees) > 0
+            end)
+
+          departments = load_departments()
+
+          {:noreply,
+           socket
+           |> assign(:all_users, all_users)
+           |> assign(:assigned_users, assigned_users)
+           |> assign(:unassigned_users, unassigned_users)
+           |> assign(:departments, departments)
+           |> assign(:total_users, length(all_users))
+           |> assign(:assigned_count, length(assigned_users))
+           |> assign(:unassigned_count, length(unassigned_users))
+           |> assign(:show_assign_modal, false)
+           |> assign(:user_to_assign, nil)
+           |> assign(:selected_teams, [])
+           |> put_flash(:info, "User assigned to teams successfully")}
+
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to assign user to teams")}
+      end
+    end
   end
 
   @impl true
@@ -179,12 +390,18 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
             attachee = Repo.preload(attachee, :user)
 
             # Send magic link email
-            case Emails.attachee_credentials_email(attachee, password) |> TrialApp.Mailer.deliver() do
+            case Emails.attachee_credentials_email(attachee, password)
+                 |> TrialApp.Mailer.deliver() do
               {:ok, _} ->
-                # Reload data
+                # Reload all users and recalculate statistics
+                all_users = TrialApp.Accounts.list_users_with_assignments()
+
+                {assigned_users, unassigned_users} =
+                  Enum.split_with(all_users, fn user ->
+                    length(user.employees) > 0
+                  end)
+
                 departments = load_departments()
-                employees = Orgs.list_employees()
-                active_count = Enum.count(employees, & &1.is_active)
 
                 {:noreply,
                  socket
@@ -193,16 +410,28 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
                  |> assign(:attachee_form, %{})
                  |> assign(:email_error, nil)
                  |> assign(:creating_attachee, false)
+                 |> assign(:all_users, all_users)
+                 |> assign(:assigned_users, assigned_users)
+                 |> assign(:unassigned_users, unassigned_users)
                  |> assign(:departments, departments)
-                 |> assign(:total_employees, length(employees))
-                 |> assign(:active_count, active_count)
-                 |> put_flash(:info, "✅ Success! Attachee #{attachee_params["full_name"]} has been created and login credentials sent to #{attachee.user.email}")}
+                 |> assign(:total_users, length(all_users))
+                 |> assign(:assigned_count, length(assigned_users))
+                 |> assign(:unassigned_count, length(unassigned_users))
+                 |> put_flash(
+                   :info,
+                   "✅ Success! Attachee #{attachee_params["full_name"]} has been created and login credentials sent to #{attachee.user.email}"
+                 )}
 
-              {:error, reason} ->
-                # Reload data even if email failed
+              {:error, _reason} ->
+                # Reload all users even if email failed
+                all_users = TrialApp.Accounts.list_users_with_assignments()
+
+                {assigned_users, unassigned_users} =
+                  Enum.split_with(all_users, fn user ->
+                    length(user.employees) > 0
+                  end)
+
                 departments = load_departments()
-                employees = Orgs.list_employees()
-                active_count = Enum.count(employees, & &1.is_active)
 
                 {:noreply,
                  socket
@@ -211,10 +440,17 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
                  |> assign(:attachee_form, %{})
                  |> assign(:email_error, nil)
                  |> assign(:creating_attachee, false)
+                 |> assign(:all_users, all_users)
+                 |> assign(:assigned_users, assigned_users)
+                 |> assign(:unassigned_users, unassigned_users)
                  |> assign(:departments, departments)
-                 |> assign(:total_employees, length(employees))
-                 |> assign(:active_count, active_count)
-                 |> put_flash(:warning, "⚠️ Attachee created but email delivery failed. Please manually send credentials to #{attachee.user.email}")}
+                 |> assign(:total_users, length(all_users))
+                 |> assign(:assigned_count, length(assigned_users))
+                 |> assign(:unassigned_count, length(unassigned_users))
+                 |> put_flash(
+                   :warning,
+                   "⚠️ Attachee created but email delivery failed. Please manually send credentials to #{attachee.user.email}"
+                 )}
             end
 
           {:error, changeset} ->

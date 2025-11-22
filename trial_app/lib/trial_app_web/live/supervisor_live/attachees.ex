@@ -5,7 +5,6 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   alias TrialAppWeb.SupervisorLive.EvaluationForm
   # Assuming you will create this component as per your Phase 5 plan
   alias TrialAppWeb.SupervisorLive.ReportModal
-  import Timex.Format.DateTime.Formatter
 
   @impl true
   def mount(_params, _session, socket) do
@@ -27,7 +26,8 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       |> assign(:current_role, current_role)
       |> assign(:selected_attachee, nil)
       |> assign(:show_evaluation_form, false)
-      |> assign(:show_report_modal, false) # Added state for Report Modal
+      # Added state for Report Modal
+      |> assign(:show_report_modal, false)
       |> assign(:evaluations, [])
       |> assign(:avg_score, 0.0)
       |> assign(:eval_count, 0)
@@ -52,6 +52,77 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   # --------------------- FILTER EVENTS ---------------------
+  @impl true
+  def handle_event("select_attachee", %{"id" => id}, socket) do
+    attachee = Eams.get_attachee!(id, %{preloads: [:user, :department, :organization]})
+
+    project_ids =
+      from(t in Eams.Task,
+        where: t.assignee_id == ^id,
+        distinct: t.project_id,
+        select: t.project_id
+      )
+      |> Repo.all()
+
+    projects =
+      if project_ids == [] do
+        []
+      else
+        from(p in Eams.Project,
+          where: p.id in ^project_ids,
+          preload: [:program]
+        )
+        |> Repo.all()
+      end
+
+    primary_project = List.first(projects)
+    attachee = Map.put(attachee, :project, primary_project)
+
+    tasks = Eams.list_tasks_for_attachee(attachee.id)
+
+    # Get GENERAL evaluations (for history display) - task_id is nil
+    evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
+
+    # Get TASK evaluations (for task scores) - task_id is NOT nil
+    task_evaluations =
+      Eams.list_task_evaluations_by_attachee(attachee.id, %{preloads: [:evaluator]})
+
+    avg_score =
+      Eams.get_average_evaluation_score(attachee.id)
+      |> safe_round_decimal()
+
+    eval_count = Eams.count_evaluations_for_attachee(attachee.id)
+    stats = calculate_attachee_stats(attachee)
+
+    # Build task scores from TASK evaluations (not general evaluations)
+    task_scores = build_task_scores(task_evaluations)
+
+    {:noreply,
+     socket
+     |> assign(:selected_attachee, attachee)
+     |> assign(:attachee_tasks, tasks)
+     |> assign(:attachee_projects, projects)
+     |> assign(:task_scores, task_scores)
+     |> assign(:attachee_stats, stats)
+     |> assign(:evaluations, evaluations)
+     |> assign(:avg_score, avg_score)
+     |> assign(:eval_count, eval_count)
+     |> assign(:profile_tab, "overview")
+     |> assign(:view_mode, "details")
+     |> assign(:page_title, "Attachee Details - #{attachee.full_name}")}
+  end
+
+  def handle_event("close_profile", _, socket),
+    do:
+      {:noreply,
+       socket
+       |> assign(:selected_attachee, nil)
+       |> assign(:attachee_tasks, [])
+       |> assign(:attachee_projects, [])
+       |> assign(:task_scores, %{})
+       |> assign(:profile_tab, "overview")}
+
+  @impl true
   def handle_event("filter_search", %{"search" => search}, socket) do
     {:noreply, assign(socket, :filter_search, search)}
   end
@@ -70,7 +141,8 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
      |> assign(:group_by, "none")
      |> assign(:selected_attachee, nil)
      |> assign(:show_evaluation_form, false)
-     |> assign(:show_report_modal, false) # Reset modal state
+     # Reset modal state
+     |> assign(:show_report_modal, false)
      |> assign(:evaluations, [])
      |> assign(:avg_score, 0.0)
      |> assign(:eval_count, 0)
@@ -85,6 +157,20 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   def handle_event("change_profile_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :profile_tab, tab)}
   end
+
+  def handle_event("toggle_evaluation_form", _, socket),
+    do: {:noreply, assign(socket, :show_evaluation_form, !socket.assigns.show_evaluation_form)}
+
+  def handle_event("open_report_modal", _, socket),
+    do: {:noreply, assign(socket, :show_report_modal, true)}
+
+  def handle_event("close_report_modal", _, socket),
+    do: {:noreply, assign(socket, :show_report_modal, false)}
+
+  def handle_event("close_modal", _, socket),
+    do:
+      {:noreply,
+       assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
 
   # --------------------- DATA LOADING ---------------------
   defp load_data(socket, user, role) do
@@ -109,11 +195,16 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   defp load_all_attachees do
     query =
       from a in Eams.Attachee,
-        join: t in Eams.Task, on: t.assignee_id == a.id,
-        join: p in Eams.Project, on: t.project_id == p.id,
-        join: pr in Eams.Program, on: pr.id == p.program_id,
-        join: d in Orgs.Department, on: d.id == pr.department_id,
-        join: o in Orgs.Organization, on: o.id == d.organization_id,
+        join: t in Eams.Task,
+        on: t.assignee_id == a.id,
+        join: p in Eams.Project,
+        on: t.project_id == p.id,
+        join: pr in Eams.Program,
+        on: pr.id == p.program_id,
+        join: d in Orgs.Department,
+        on: d.id == pr.department_id,
+        join: o in Orgs.Organization,
+        on: o.id == d.organization_id,
         distinct: a.id,
         preload: [:user],
         select: %{
@@ -146,8 +237,10 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   defp load_supervisor_attachees(supervisor_id) do
     query =
       from a in Eams.Attachee,
-        join: t in Eams.Task, on: t.assignee_id == a.id,
-        join: p in Eams.Project, on: t.project_id == p.id,
+        join: t in Eams.Task,
+        on: t.assignee_id == a.id,
+        join: p in Eams.Project,
+        on: t.project_id == p.id,
         where: p.supervisor_id == ^supervisor_id,
         distinct: a.id,
         preload: [:user, :department, :organization]
@@ -220,88 +313,9 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     end
   end
 
-  # --------------------- ATTACHEE SELECTION ---------------------
-  def handle_event("select_attachee", %{"id" => id}, socket) do
-    attachee = Eams.get_attachee!(id, %{preloads: [:user, :department, :organization]})
-
-    project_ids =
-      from(t in Eams.Task,
-        where: t.assignee_id == ^id,
-        distinct: t.project_id,
-        select: t.project_id
-      )
-      |> Repo.all()
-
-    projects =
-      if project_ids == [] do
-        []
-      else
-        from(p in Eams.Project,
-          where: p.id in ^project_ids,
-          preload: [:program]
-        )
-        |> Repo.all()
-      end
-
-    primary_project = List.first(projects)
-    attachee = Map.put(attachee, :project, primary_project)
-
-    tasks = Eams.list_tasks_for_attachee(attachee.id)
-
-    # Get GENERAL evaluations (for history display) - task_id is nil
-    evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-
-    # Get TASK evaluations (for task scores) - task_id is NOT nil
-    task_evaluations =
-      Eams.list_task_evaluations_by_attachee(attachee.id, %{preloads: [:evaluator]})
-
-    avg_score =
-      Eams.get_average_evaluation_score(attachee.id)
-      |> safe_round_decimal()
-
-    eval_count = Eams.count_evaluations_for_attachee(attachee.id)
-    stats = calculate_attachee_stats(attachee)
-
-    # Build task scores from TASK evaluations (not general evaluations)
-    task_scores = build_task_scores(task_evaluations)
-
-    {:noreply,
-     socket
-     |> assign(:selected_attachee, attachee)
-     |> assign(:attachee_tasks, tasks)
-     |> assign(:attachee_projects, projects)
-     |> assign(:task_scores, task_scores)
-     |> assign(:attachee_stats, stats)
-     |> assign(:evaluations, evaluations)
-     |> assign(:avg_score, avg_score)
-     |> assign(:eval_count, eval_count)
-     |> assign(:profile_tab, "overview")}
-  end
-
-  def handle_event("close_profile", _, socket),
-    do:
-      {:noreply,
-       socket
-       |> assign(:selected_attachee, nil)
-       |> assign(:attachee_tasks, [])
-       |> assign(:attachee_projects, [])
-       |> assign(:task_scores, %{})
-       |> assign(:profile_tab, "overview")}
-
-  def handle_event("toggle_evaluation_form", _, socket),
-    do: {:noreply, assign(socket, :show_evaluation_form, !socket.assigns.show_evaluation_form)}
-
-  # --- NEW: Report Modal Handlers ---
-  def handle_event("open_report_modal", _, socket),
-    do: {:noreply, assign(socket, :show_report_modal, true)}
-
-  def handle_event("close_report_modal", _, socket),
-    do: {:noreply, assign(socket, :show_report_modal, false)}
-
   # Close Handlers (General)
-  def handle_event("close_modal", _, socket),
-    do: {:noreply, assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
 
+  @impl true
   def handle_info({:evaluation_submitted, attachee_id}, socket) do
     send(self(), {:select_attachee, attachee_id})
     {:noreply, put_flash(socket, :info, "Evaluation submitted successfully!")}
@@ -312,10 +326,14 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   end
 
   def handle_info({:close_modal, _}, socket),
-    do: {:noreply, assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
+    do:
+      {:noreply,
+       assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
 
   def handle_info(:close_modal, socket),
-    do: {:noreply, assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
+    do:
+      {:noreply,
+       assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
 
   # --------------------- HELPERS ---------------------
   defp safe_round_decimal(nil), do: 0.0
@@ -362,21 +380,6 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   defp status_color("completed"), do: "bg-blue-100 text-blue-800"
   defp status_color("suspended"), do: "bg-orange-100 text-orange-800"
   defp status_color(_), do: "bg-gray-100 text-gray-800"
-
-  defp status_badge("active"), do: "badge-success"
-  defp status_badge("inactive"), do: "badge-warning"
-  defp status_badge("suspended"), do: "badge-error"
-  defp status_badge(_), do: "badge-ghost"
-
-  defp score_color_class(score) when score >= 81, do: "bg-success text-success-content"
-  defp score_color_class(score) when score >= 61, do: "bg-info text-info-content"
-  defp score_color_class(score) when score >= 41, do: "bg-warning text-warning-content"
-  defp score_color_class(_), do: "bg-error text-error-content"
-
-  defp score_badge_class(score) when score >= 81, do: "badge-success badge-lg"
-  defp score_badge_class(score) when score >= 61, do: "badge-info badge-lg"
-  defp score_badge_class(score) when score >= 41, do: "badge-warning badge-lg"
-  defp score_badge_class(_), do: "badge-error badge-lg"
 
   defp score_bg_color(score) when score >= 81, do: "bg-green-600 text-white"
   defp score_bg_color(score) when score >= 61, do: "bg-blue-600 text-white"
@@ -436,6 +439,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     |> Enum.into(%{})
   end
 
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
@@ -444,7 +448,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
           <div class="max-w-7xl mx-auto space-y-8">
             <div class="flex items-center justify-between">
               <div>
-                <h1 class="text-2xl font-semibold text-gray-800"><%= @page_title %></h1>
+                <h1 class="text-2xl font-semibold text-gray-800">{@page_title}</h1>
                 <p class="text-sm text-gray-500 mt-1">
                   <%= if @is_admin do %>
                     Evaluate all attachees across all projects and departments
@@ -458,12 +462,12 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div class="bg-purple-50 p-4 rounded-lg border border-purple-100">
                 <div class="text-sm text-purple-600 font-medium">Total Attachees</div>
-                <div class="text-2xl font-bold text-purple-700 mt-1"><%= @total_attachees %></div>
+                <div class="text-2xl font-bold text-purple-700 mt-1">{@total_attachees}</div>
               </div>
               <div class="bg-green-50 p-4 rounded-lg border border-green-100">
                 <div class="text-sm text-green-600 font-medium">Active</div>
                 <div class="text-2xl font-bold text-green-700 mt-1">
-                  <%= Enum.count(@all_attachees, &(&1.status == "active")) %>
+                  {Enum.count(@all_attachees, &(&1.status == "active"))}
                 </div>
               </div>
               <div class="bg-amber-50 p-4 rounded-lg border border-amber-100">
@@ -476,9 +480,9 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                 </div>
                 <div class="text-2xl font-bold text-amber-700 mt-1">
                   <%= if @is_admin do %>
-                    <%= Enum.count(@all_attachees, &(&1.status != "active")) %>
+                    {Enum.count(@all_attachees, &(&1.status != "active"))}
                   <% else %>
-                    <%= if @selected_attachee, do: "1", else: "0" %>
+                    {if @selected_attachee, do: "1", else: "0"}
                   <% end %>
                 </div>
               </div>
@@ -488,7 +492,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
               <div class="lg:col-span-1 bg-white shadow rounded-xl overflow-hidden">
                 <div class="px-4 py-3 bg-gray-100 border-b border-gray-200">
                   <h2 class="text-sm font-semibold text-gray-800 mb-3">
-                    <%= if @is_admin, do: "All Attachees", else: "Your Attachees" %>
+                    {if @is_admin, do: "All Attachees", else: "Your Attachees"}
                   </h2>
 
                   <div class="relative mb-3">
@@ -572,8 +576,8 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                       <div class="mb-2">
                         <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-2">
                           <span class="w-2 h-2 bg-purple-600 rounded-full"></span>
-                          <%= group_name %>
-                          <span class="text-xs font-normal text-gray-500">(<%= length(attachees) %>)</span>
+                          {group_name}
+                          <span class="text-xs font-normal text-gray-500">({length(attachees)})</span>
                         </h3>
                       </div>
                     <% end %>
@@ -585,37 +589,45 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           phx-value-id={attachee.id}
                           class={[
                             "p-3 rounded-lg cursor-pointer transition-all border",
-                            @selected_attachee && @selected_attachee.id == attachee.id && "bg-purple-600 text-white border-purple-600",
-                            !(@selected_attachee && @selected_attachee.id == attachee.id) && "bg-white hover:bg-gray-50 border-gray-200"
+                            @selected_attachee && @selected_attachee.id == attachee.id &&
+                              "bg-purple-600 text-white border-purple-600",
+                            !(@selected_attachee && @selected_attachee.id == attachee.id) &&
+                              "bg-white hover:bg-gray-50 border-gray-200"
                           ]}
                         >
                           <div class="flex items-center gap-3">
                             <div class={[
                               "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0",
-                              @selected_attachee && @selected_attachee.id == attachee.id && "bg-white text-purple-600",
-                              !(@selected_attachee && @selected_attachee.id == attachee.id) && "bg-purple-100 text-purple-700"
+                              @selected_attachee && @selected_attachee.id == attachee.id &&
+                                "bg-white text-purple-600",
+                              !(@selected_attachee && @selected_attachee.id == attachee.id) &&
+                                "bg-purple-100 text-purple-700"
                             ]}>
-                              <%= String.first(attachee.user.username || attachee.user.email)
-                              |> String.upcase() %>
+                              {String.first(attachee.user.username || attachee.user.email)
+                              |> String.upcase()}
                             </div>
                             <div class="flex-1 min-w-0">
                               <p class="font-medium text-sm truncate">
-                                <%= attachee.user.username || attachee.user.email %>
+                                {attachee.user.username || attachee.user.email}
                               </p>
                               <p class={[
                                 "text-xs truncate",
-                                @selected_attachee && @selected_attachee.id == attachee.id && "text-purple-100",
-                                !(@selected_attachee && @selected_attachee.id == attachee.id) && "text-gray-500"
+                                @selected_attachee && @selected_attachee.id == attachee.id &&
+                                  "text-purple-100",
+                                !(@selected_attachee && @selected_attachee.id == attachee.id) &&
+                                  "text-gray-500"
                               ]}>
-                                <%= attachee.department_name %> • <%= attachee.project_name %>
+                                {attachee.department_name} • {attachee.project_name}
                               </p>
                             </div>
                             <span class={[
                               "inline-flex items-center px-2 py-0.5 text-xs rounded-full font-medium flex-shrink-0",
-                              @selected_attachee && @selected_attachee.id == attachee.id && "bg-white text-purple-600",
-                              !(@selected_attachee && @selected_attachee.id == attachee.id) && status_color(attachee.status)
+                              @selected_attachee && @selected_attachee.id == attachee.id &&
+                                "bg-white text-purple-600",
+                              !(@selected_attachee && @selected_attachee.id == attachee.id) &&
+                                status_color(attachee.status)
                             ]}>
-                              <%= String.capitalize(attachee.status) %>
+                              {String.capitalize(attachee.status)}
                             </span>
                           </div>
                         </div>
@@ -652,21 +664,21 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                       <div class="flex justify-between items-start mb-4">
                         <div class="flex items-center gap-4">
                           <div class="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                            <%= String.first(
+                            {String.first(
                               @selected_attachee.user.username || @selected_attachee.user.email
                             )
-                            |> String.upcase() %>
+                            |> String.upcase()}
                           </div>
                           <div>
                             <h2 class="text-2xl font-bold text-gray-900">
-                              <%= @selected_attachee.user.username || @selected_attachee.user.email %>
+                              {@selected_attachee.user.username || @selected_attachee.user.email}
                             </h2>
                             <p class="text-sm text-gray-500 mt-1">
-                              <%= @selected_attachee.user.email %>
+                              {@selected_attachee.user.email}
                             </p>
                             <div class="flex gap-2 mt-2">
                               <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{status_color(@selected_attachee.user.status)}"}>
-                                <%= String.capitalize(@selected_attachee.user.status) %>
+                                {String.capitalize(@selected_attachee.user.status)}
                               </span>
                             </div>
                           </div>
@@ -684,7 +696,12 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                             class="bg-white text-purple-700 border border-purple-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-50 transition shadow-sm flex items-center gap-2"
                           >
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
                             </svg>
                             Export Report
                           </button>
@@ -702,30 +719,30 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                         <div>
                           <p class="text-xs text-gray-500 font-medium uppercase">Department</p>
                           <p class="text-sm font-semibold text-gray-900 mt-1">
-                            <%= @selected_attachee.department.name %>
+                            {@selected_attachee.department.name}
                           </p>
                         </div>
                         <div>
                           <p class="text-xs text-gray-500 font-medium uppercase">Organization</p>
                           <p class="text-sm font-semibold text-gray-900 mt-1">
-                            <%= @selected_attachee.organization.name %>
+                            {@selected_attachee.organization.name}
                           </p>
                         </div>
                         <div>
                           <p class="text-xs text-gray-500 font-medium uppercase">Primary Project</p>
                           <p class="text-sm font-semibold text-gray-900 mt-1">
-                            <%= if @selected_attachee.project,
+                            {if @selected_attachee.project,
                               do: @selected_attachee.project.name,
-                              else: "N/A" %>
+                              else: "N/A"}
                           </p>
                         </div>
                         <div>
                           <p class="text-xs text-gray-500 font-medium uppercase">Program</p>
                           <p class="text-sm font-semibold text-gray-900 mt-1">
-                            <%= if @selected_attachee.project &&
-                                     @selected_attachee.project.program,
-                                   do: @selected_attachee.project.program.name,
-                                   else: "N/A" %>
+                            {if @selected_attachee.project &&
+                                  @selected_attachee.project.program,
+                                do: @selected_attachee.project.program.name,
+                                else: "N/A"}
                           </p>
                         </div>
                       </div>
@@ -781,25 +798,25 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <p class="text-xs text-gray-500 font-medium uppercase">Total Tasks</p>
                             <p class="text-2xl font-bold text-gray-900 mt-2">
-                              <%= @attachee_stats.total_tasks %>
+                              {@attachee_stats.total_tasks}
                             </p>
                           </div>
                           <div class="bg-green-50 p-4 rounded-lg border border-green-200">
                             <p class="text-xs text-green-600 font-medium uppercase">Completed</p>
                             <p class="text-2xl font-bold text-green-700 mt-2">
-                              <%= @attachee_stats.completed %>
+                              {@attachee_stats.completed}
                             </p>
                           </div>
                           <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
                             <p class="text-xs text-amber-600 font-medium uppercase">Pending</p>
                             <p class="text-2xl font-bold text-amber-700 mt-2">
-                              <%= @attachee_stats.pending %>
+                              {@attachee_stats.pending}
                             </p>
                           </div>
                           <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                             <p class="text-xs text-blue-600 font-medium uppercase">Submitted</p>
                             <p class="text-2xl font-bold text-blue-700 mt-2">
-                              <%= @attachee_stats.submitted %>
+                              {@attachee_stats.submitted}
                             </p>
                           </div>
                         </div>
@@ -808,7 +825,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-medium text-gray-700">Completion Rate</span>
                             <span class="text-sm font-bold text-gray-900">
-                              <%= @attachee_stats.completion_rate %>%
+                              {@attachee_stats.completion_rate}%
                             </span>
                           </div>
                           <div class="w-full bg-gray-200 rounded-full h-2.5">
@@ -829,13 +846,13 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                           <div class="flex items-center gap-6">
                             <div class="text-center">
                               <div class="text-2xl font-bold text-purple-600">
-                                <%= @avg_score %>
+                                {@avg_score}
                               </div>
                               <div class="text-xs text-gray-500 uppercase">Average Score</div>
                             </div>
                             <div class="text-center">
                               <div class="text-2xl font-bold text-gray-900">
-                                <%= @eval_count %>
+                                {@eval_count}
                               </div>
                               <div class="text-xs text-gray-500 uppercase">Total Evaluations</div>
                             </div>
@@ -871,24 +888,24 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                                 <div class="flex justify-between items-start mb-3">
                                   <div class="flex items-center gap-3">
                                     <div class={"w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold #{score_bg_color(evaluation.score)}"}>
-                                      <%= evaluation.score %>
+                                      {evaluation.score}
                                     </div>
                                     <div>
                                       <p class="font-semibold text-gray-900">
-                                        Score: <%= evaluation.score %>/100
+                                        Score: {evaluation.score}/100
                                       </p>
                                       <p class="text-sm text-gray-500">
-                                        by <%= evaluation.evaluator.username ||
-                                          evaluation.evaluator.email %>
+                                        by {evaluation.evaluator.username ||
+                                          evaluation.evaluator.email}
                                       </p>
                                     </div>
                                   </div>
                                   <div class="text-right">
                                     <p class="text-sm text-gray-700 font-medium">
-                                      <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
+                                      {Calendar.strftime(evaluation.inserted_at, "%b %d, %Y")}
                                     </p>
                                     <p class="text-xs text-gray-500">
-                                      <%= Timex.from_now(evaluation.inserted_at) %>
+                                      {Timex.from_now(evaluation.inserted_at)}
                                     </p>
                                   </div>
                                 </div>
@@ -897,12 +914,12 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                                   <p class="text-xs font-semibold text-gray-600 uppercase mb-1">
                                     Comments:
                                   </p>
-                                  <p class="text-sm text-gray-800"><%= evaluation.comments %></p>
+                                  <p class="text-sm text-gray-800">{evaluation.comments}</p>
                                 </div>
 
                                 <div class="flex justify-end mt-3">
                                   <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(evaluation.score)}"}>
-                                    <%= score_label(evaluation.score) %>
+                                    {score_label(evaluation.score)}
                                   </span>
                                 </div>
                               </div>
@@ -934,12 +951,12 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                                 <%= for project <- @attachee_projects do %>
                                   <tr class="border-b last:border-0">
                                     <td class="py-2 pr-4 font-medium text-gray-900">
-                                      <%= project.name %>
+                                      {project.name}
                                     </td>
                                     <td class="py-2 pr-4 text-gray-600">
-                                      <%= if project.program,
+                                      {if project.program,
                                         do: project.program.name,
-                                        else: "N/A" %>
+                                        else: "N/A"}
                                     </td>
                                   </tr>
                                 <% end %>
@@ -975,17 +992,17 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                                   <% score_info = Map.get(@task_scores, task.id) %>
                                   <tr class="border-b last:border-0">
                                     <td class="py-2 pr-4 font-medium text-gray-900">
-                                      <%= Map.get(task, :title) || Map.get(task, :name) ||
-                                        "Task ##{task.id}" %>
+                                      {Map.get(task, :title) || Map.get(task, :name) ||
+                                        "Task ##{task.id}"}
                                     </td>
                                     <td class="py-2 pr-4">
                                       <span class={"inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium #{status_color(Map.get(task, :status, "pending"))}"}>
-                                        <%= String.capitalize(Map.get(task, :status, "pending")) %>
+                                        {String.capitalize(Map.get(task, :status, "pending"))}
                                       </span>
                                     </td>
                                     <td class="py-2 pr-4">
                                       <%= if score_info do %>
-                                        <span class="font-semibold"><%= score_info.score %>/100</span>
+                                        <span class="font-semibold">{score_info.score}/100</span>
                                       <% else %>
                                         <span class="text-gray-400 text-xs">Not evaluated</span>
                                       <% end %>
@@ -993,7 +1010,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
                                     <td class="py-2 pr-4">
                                       <%= if score_info do %>
                                         <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{score_bg_color(score_info.score)}"}>
-                                          <%= score_info.label %>
+                                          {score_info.label}
                                         </span>
                                       <% else %>
                                         —
@@ -1055,17 +1072,17 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
       />
 
       <.live_component
-  :if={@show_report_modal}
-  module={ReportModal}
-  id="report-modal"
-  attachee={@selected_attachee}
-  current_user={@current_user}
-  attachee_tasks={@attachee_tasks}
-  attachee_projects={@attachee_projects}
-  task_scores={@task_scores}
-  attachee_stats={@attachee_stats}
-  general_evaluations={@evaluations}
-/>
+        :if={@show_report_modal}
+        module={ReportModal}
+        id="report-modal"
+        attachee={@selected_attachee}
+        current_user={@current_user}
+        attachee_tasks={@attachee_tasks}
+        attachee_projects={@attachee_projects}
+        task_scores={@task_scores}
+        attachee_stats={@attachee_stats}
+        general_evaluations={@evaluations}
+      />
     </div>
     """
   end

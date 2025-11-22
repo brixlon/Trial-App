@@ -36,7 +36,10 @@ defmodule TrialApp.Accounts do
   def get_user_by_username_or_email_and_password(username_or_email, password)
       when is_binary(username_or_email) and is_binary(password) do
     field = if String.contains?(username_or_email, "@"), do: :email, else: :username
-    lookup_value = if field == :email, do: String.downcase(username_or_email), else: username_or_email
+
+    lookup_value =
+      if field == :email, do: String.downcase(username_or_email), else: username_or_email
+
     user = Repo.get_by(User, [{field, lookup_value}])
 
     if user && User.valid_password?(user, password) do
@@ -162,25 +165,42 @@ defmodule TrialApp.Accounts do
               %Employee{}
               |> Employee.changeset(employee_attrs)
               |> Repo.insert!()
+            end)
 
-              # Optionally create Attachee
-              if Map.get(opts, :attachee?) do
-                dates = Map.get(opts, :attachee_dates, %{})
-                starts_on = blank_to_nil(Map.get(dates, "starts_on"))
-                ends_on = blank_to_nil(Map.get(dates, "ends_on"))
+            # Create or update attachee record ONCE per user, not per team
+            # Only if attachee? is true
+            if Map.get(opts, :attachee?) do
+              # Get the first team to extract org/dept info
+              first_team =
+                Repo.get!(Team, List.first(team_ids)) |> Repo.preload(department: [:organization])
 
-                attachee_attrs = %{
-                  user_id: updated_user.id,
-                  organization_id: team.department.organization_id,
-                  department_id: team.department_id,
-                  status: "active",
-                  starts_on: starts_on,
-                  ends_on: ends_on
-                }
+              dates = Map.get(opts, :attachee_dates, %{})
+              starts_on = blank_to_nil(Map.get(dates, "starts_on"))
+              ends_on = blank_to_nil(Map.get(dates, "ends_on"))
 
+              attachee_attrs = %{
+                user_id: updated_user.id,
+                organization_id: first_team.department.organization_id,
+                department_id: first_team.department_id,
+                status: "active",
+                position: "Software Developer Attachee",
+                starts_on: starts_on,
+                ends_on: ends_on
+              }
+
+              # Check if attachee already exists for this user
+              existing_attachee = Repo.get_by(Eams.Attachee, user_id: updated_user.id)
+
+              if existing_attachee do
+                # Update existing attachee record (don't delete to preserve foreign key references)
+                existing_attachee
+                |> Eams.Attachee.changeset(attachee_attrs)
+                |> Repo.update!()
+              else
+                # Create new attachee record
                 _ = Eams.create_attachee(attachee_attrs)
               end
-            end)
+            end
 
             {:ok, _} =
               updated_user
@@ -285,20 +305,21 @@ defmodule TrialApp.Accounts do
   Returns {:ok, {user, tokens}} on success.
   """
   def reset_user_password(user, attrs) do
-  changeset =
-    user
-    |> User.password_changeset(attrs)
-    |> Ecto.Changeset.put_change(:must_change_password, false)
+    changeset =
+      user
+      |> User.password_changeset(attrs)
+      |> Ecto.Changeset.put_change(:must_change_password, false)
 
-  case Repo.update(changeset) do
-    {:ok, updated_user} ->
-      tokens = Repo.all(from(t in UserToken, where: t.user_id == ^updated_user.id))
-      Repo.delete_all(from(t in UserToken, where: t.user_id == ^updated_user.id))
-      {:ok, {updated_user, tokens}}
-    {:error, changeset} ->
-      {:error, changeset}
+    case Repo.update(changeset) do
+      {:ok, updated_user} ->
+        tokens = Repo.all(from(t in UserToken, where: t.user_id == ^updated_user.id))
+        Repo.delete_all(from(t in UserToken, where: t.user_id == ^updated_user.id))
+        {:ok, {updated_user, tokens}}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
-end
 
   @doc """
   Generates a force reset token for the user.
@@ -313,9 +334,7 @@ end
   Returns nil if token is invalid or expired.
   """
   def verify_force_reset_token(token) do
-    case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token,
-           max_age: 86400
-         ) do
+    case Phoenix.Token.verify(TrialAppWeb.Endpoint, "force_password_reset", token, max_age: 86400) do
       {:ok, user_id} ->
         Repo.get(User, user_id)
 
@@ -412,6 +431,13 @@ end
     {encoded_token, user_token} = UserToken.build_email_token(user, "login")
     Repo.insert!(user_token)
     UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Delivers the attachee welcome email.
+  """
+  def deliver_attachee_welcome_email(%User{} = user, plain_password) do
+    UserNotifier.deliver_attachee_welcome_email(user, plain_password)
   end
 
   @doc """
@@ -593,7 +619,10 @@ end
   """
   def get_user_roles(%User{roles: roles, role: single_role}) do
     array_roles = if is_list(roles), do: roles || [], else: []
-    single_role_list = if is_binary(single_role) and single_role != "", do: [single_role], else: []
+
+    single_role_list =
+      if is_binary(single_role) and single_role != "", do: [single_role], else: []
+
     (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
   end
 

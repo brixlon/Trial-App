@@ -7,10 +7,17 @@ defmodule TrialApp.Eams do
   alias TrialApp.Repo
 
   alias TrialApp.Eams.{
-    Program, Project, Task, Attachee, AttacheeProgram, ProjectAttachee, Team, TeamMember, Evaluation
+    Program,
+    Project,
+    Task,
+    Attachee,
+    AttacheeProgram,
+    ProjectAttachee,
+    Team,
+    TeamMember,
+    Evaluation
   }
-  alias TrialApp.Orgs.{Department, Organization}
-  alias TrialApp.Accounts.User
+
   alias TrialApp.{Accounts, Orgs}
 
   # PROGRAMS
@@ -57,34 +64,40 @@ defmodule TrialApp.Eams do
     projects = if is_list(projects), do: projects, else: []
 
     total_projects = length(projects)
-    active_projects = Enum.count(projects, fn p ->
-      Map.get(p, :is_active, false) &&
-      (!Map.get(p, :ends_on) || Date.compare(p.ends_on, Date.utc_today()) != :lt)
-    end)
+
+    active_projects =
+      Enum.count(projects, fn p ->
+        Map.get(p, :is_active, false) &&
+          (!Map.get(p, :ends_on) || Date.compare(p.ends_on, Date.utc_today()) != :lt)
+      end)
 
     # Get all unique attachees across all projects via project_attachees OR tasks
     project_ids = Enum.map(projects, & &1.id)
 
-    {total_attachees, active_attachees} = if Enum.empty?(project_ids) do
-      {0, 0}
-    else
-      try do
-        attachees = from(a in Attachee,
-          left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id in ^project_ids,
-          left_join: t in Task, on: t.assignee_id == a.id and t.project_id in ^project_ids,
-          where: not is_nil(pa.id) or not is_nil(t.id),
-          distinct: true,
-          select: a
-        )
-        |> Repo.all()
+    {total_attachees, active_attachees} =
+      if Enum.empty?(project_ids) do
+        {0, 0}
+      else
+        try do
+          attachees =
+            from(a in Attachee,
+              left_join: pa in ProjectAttachee,
+              on: pa.attachee_id == a.id and pa.project_id in ^project_ids,
+              left_join: t in Task,
+              on: t.assignee_id == a.id and t.project_id in ^project_ids,
+              where: not is_nil(pa.id) or not is_nil(t.id),
+              distinct: true,
+              select: a
+            )
+            |> Repo.all()
 
-        total = length(attachees)
-        active = Enum.count(attachees, fn a -> a.status == "active" end)
-        {total, active}
-      rescue
-        _ -> {0, 0}
+          total = length(attachees)
+          active = Enum.count(attachees, fn a -> a.status == "active" end)
+          {total, active}
+        rescue
+          _ -> {0, 0}
+        end
       end
-    end
 
     %{
       total_projects: total_projects,
@@ -123,7 +136,9 @@ defmodule TrialApp.Eams do
     try do
       Project
       |> where([p], p.program_id == ^program_id)
-      |> preload(^Map.get(opts, :preloads, [:program, :department, :organization, :supervisor, :attachees]))
+      |> preload(
+        ^Map.get(opts, :preloads, [:program, :department, :organization, :supervisor, :attachees])
+      )
       |> Repo.all()
     rescue
       _ -> []
@@ -154,8 +169,10 @@ defmodule TrialApp.Eams do
   """
   def list_projects_by_attachee(attachee_id) do
     from(p in Project,
-      left_join: pa in ProjectAttachee, on: pa.project_id == p.id and pa.attachee_id == ^attachee_id,
-      left_join: t in Task, on: t.project_id == p.id and t.assignee_id == ^attachee_id,
+      left_join: pa in ProjectAttachee,
+      on: pa.project_id == p.id and pa.attachee_id == ^attachee_id,
+      left_join: t in Task,
+      on: t.project_id == p.id and t.assignee_id == ^attachee_id,
       where: not is_nil(pa.id) or not is_nil(t.id),
       distinct: true,
       preload: [:program, :department, :organization, :supervisor],
@@ -190,14 +207,17 @@ defmodule TrialApp.Eams do
   """
   def get_project_stats(project_id) do
     # Get all attachees via project_attachees OR tasks
-    attachees = from(a in Attachee,
-      left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id == ^project_id,
-      left_join: t in Task, on: t.assignee_id == a.id and t.project_id == ^project_id,
-      where: not is_nil(pa.id) or not is_nil(t.id),
-      distinct: true,
-      select: a
-    )
-    |> Repo.all()
+    attachees =
+      from(a in Attachee,
+        left_join: pa in ProjectAttachee,
+        on: pa.attachee_id == a.id and pa.project_id == ^project_id,
+        left_join: t in Task,
+        on: t.assignee_id == a.id and t.project_id == ^project_id,
+        where: not is_nil(pa.id) or not is_nil(t.id),
+        distinct: true,
+        select: a
+      )
+      |> Repo.all()
 
     total_attachees = length(attachees)
     active_attachees = Enum.count(attachees, fn a -> a.status == "active" end)
@@ -208,11 +228,12 @@ defmodule TrialApp.Eams do
     total_tasks = length(tasks)
     completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
 
-    completion_rate = if total_tasks > 0 do
-      Float.round(completed_tasks / total_tasks * 100, 1)
-    else
-      0.0
-    end
+    completion_rate =
+      if total_tasks > 0 do
+        Float.round(completed_tasks / total_tasks * 100, 1)
+      else
+        0.0
+      end
 
     %{
       total_attachees: total_attachees,
@@ -229,8 +250,10 @@ defmodule TrialApp.Eams do
   """
   def list_attachees_by_project(project_id) do
     from(a in Attachee,
-      left_join: pa in ProjectAttachee, on: pa.attachee_id == a.id and pa.project_id == ^project_id,
-      left_join: t in Task, on: t.assignee_id == a.id and t.project_id == ^project_id,
+      left_join: pa in ProjectAttachee,
+      on: pa.attachee_id == a.id and pa.project_id == ^project_id,
+      left_join: t in Task,
+      on: t.assignee_id == a.id and t.project_id == ^project_id,
       where: not is_nil(pa.id) or not is_nil(t.id),
       distinct: true,
       preload: [:user, :department, :organization],
@@ -327,7 +350,8 @@ defmodule TrialApp.Eams do
   """
   def list_attachees_in_project(project_id) do
     from(a in Attachee,
-      join: pa in ProjectAttachee, on: pa.attachee_id == a.id,
+      join: pa in ProjectAttachee,
+      on: pa.attachee_id == a.id,
       where: pa.project_id == ^project_id,
       preload: [:user, :department, :organization]
     )
@@ -418,23 +442,26 @@ defmodule TrialApp.Eams do
   """
   def get_attachee_stats(attachee_id) do
     # Get projects via tasks
-    projects = from(p in Project,
-      join: t in Task, on: t.project_id == p.id,
-      where: t.assignee_id == ^attachee_id,
-      distinct: p.id
-    )
-    |> Repo.all()
+    projects =
+      from(p in Project,
+        join: t in Task,
+        on: t.project_id == p.id,
+        where: t.assignee_id == ^attachee_id,
+        distinct: p.id
+      )
+      |> Repo.all()
 
     # Get tasks
     tasks = list_tasks_by_attachee(attachee_id)
     total_tasks = length(tasks)
     completed_tasks = Enum.count(tasks, fn t -> t.status == "completed" end)
 
-    completion_rate = if total_tasks > 0 do
-      Float.round(completed_tasks / total_tasks * 100, 1)
-    else
-      0.0
-    end
+    completion_rate =
+      if total_tasks > 0 do
+        Float.round(completed_tasks / total_tasks * 100, 1)
+      else
+        0.0
+      end
 
     %{
       total_projects: length(projects),
@@ -479,6 +506,7 @@ defmodule TrialApp.Eams do
   end
 
   defp calculate_trend(scores) when length(scores) < 4, do: "stable"
+
   defp calculate_trend(scores) do
     recent_sum = scores |> Enum.take(3) |> Enum.sum()
     recent = recent_sum / 3
@@ -507,6 +535,7 @@ defmodule TrialApp.Eams do
         case Accounts.deliver_attachee_welcome_email(attachee.user, plain_password) do
           {:ok, :email_sent} ->
             {:ok, attachee, :email_sent}
+
           {:error, _reason} ->
             {:ok, attachee, :email_failed}
         end
@@ -554,7 +583,8 @@ defmodule TrialApp.Eams do
   Creates a task and automatically adds the assignee to the project if not already there.
   """
   def create_task(attrs) do
-    result = %Task{}
+    result =
+      %Task{}
       |> Task.create_changeset(attrs)
       |> Repo.insert()
 
@@ -563,10 +593,11 @@ defmodule TrialApp.Eams do
       {:ok, task} ->
         if task.assignee_id && task.project_id do
           # Check if attachee is already in project
-          existing = from(pa in ProjectAttachee,
-            where: pa.project_id == ^task.project_id and pa.attachee_id == ^task.assignee_id
-          )
-          |> Repo.one()
+          existing =
+            from(pa in ProjectAttachee,
+              where: pa.project_id == ^task.project_id and pa.attachee_id == ^task.assignee_id
+            )
+            |> Repo.one()
 
           # Add to project if not already there
           if is_nil(existing) do
@@ -576,6 +607,7 @@ defmodule TrialApp.Eams do
             })
           end
         end
+
         {:ok, task}
 
       error ->
@@ -702,7 +734,9 @@ defmodule TrialApp.Eams do
 
   def count_attachees_under_supervisor(supervisor_id) do
     case get_supervisor_department(supervisor_id) do
-      nil -> 0
+      nil ->
+        0
+
       dept ->
         from(a in Attachee,
           where: a.department_id == ^dept.id,
@@ -715,9 +749,12 @@ defmodule TrialApp.Eams do
 
   def count_active_tasks_for_supervisor(supervisor_id) do
     from(task in Task,
-      join: a in Attachee, on: task.assignee_id == a.id,
-      join: tm in TeamMember, on: tm.user_id == a.user_id,
-      join: t in Team, on: t.id == tm.team_id,
+      join: a in Attachee,
+      on: task.assignee_id == a.id,
+      join: tm in TeamMember,
+      on: tm.user_id == a.user_id,
+      join: t in Team,
+      on: t.id == tm.team_id,
       where: t.supervisor_id == ^supervisor_id,
       where: task.status in ["pending", "in_progress"],
       select: count(task.id)
@@ -727,9 +764,12 @@ defmodule TrialApp.Eams do
 
   def count_pending_task_reviews(supervisor_id) do
     from(task in Task,
-      join: a in Attachee, on: task.assignee_id == a.id,
-      join: tm in TeamMember, on: tm.user_id == a.user_id,
-      join: t in Team, on: t.id == tm.team_id,
+      join: a in Attachee,
+      on: task.assignee_id == a.id,
+      join: tm in TeamMember,
+      on: tm.user_id == a.user_id,
+      join: t in Team,
+      on: t.id == tm.team_id,
       where: t.supervisor_id == ^supervisor_id,
       where: task.status == "submitted",
       select: count(task.id)
@@ -742,9 +782,12 @@ defmodule TrialApp.Eams do
     start_of_week = DateTime.new!(beginning_of_week, ~T[00:00:00])
 
     from(task in Task,
-      join: a in Attachee, on: task.assignee_id == a.id,
-      join: tm in TeamMember, on: tm.user_id == a.user_id,
-      join: t in Team, on: t.id == tm.team_id,
+      join: a in Attachee,
+      on: task.assignee_id == a.id,
+      join: tm in TeamMember,
+      on: tm.user_id == a.user_id,
+      join: t in Team,
+      on: t.id == tm.team_id,
       where: t.supervisor_id == ^supervisor_id,
       where: task.status == "completed",
       where: task.updated_at >= ^start_of_week,
@@ -757,10 +800,13 @@ defmodule TrialApp.Eams do
     limit = Keyword.get(opts, :limit, 5)
 
     from(task in Task,
-      join: a in Attachee, on: task.assignee_id == a.id,
+      join: a in Attachee,
+      on: task.assignee_id == a.id,
       join: u in assoc(a, :user),
-      join: tm in TeamMember, on: tm.user_id == a.user_id,
-      join: t in Team, on: t.id == tm.team_id,
+      join: tm in TeamMember,
+      on: tm.user_id == a.user_id,
+      join: t in Team,
+      on: t.id == tm.team_id,
       where: t.supervisor_id == ^supervisor_id,
       where: task.status in ["submitted", "completed"],
       order_by: [desc: task.updated_at],

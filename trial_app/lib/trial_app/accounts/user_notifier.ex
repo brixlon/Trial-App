@@ -112,6 +112,76 @@ defmodule TrialApp.Accounts.UserNotifier do
     )
   end
 
+  @doc """
+  Deliver welcome email to new attachee with their password.
+  """
+  def deliver_attachee_welcome_email(user, password) do
+    deliver(
+      user.email,
+      "Welcome to Value8 - Your Account Details",
+      """
+      ==============================
+
+      Hi #{user.email},
+
+      Welcome to Value8! Your account has been created.
+
+      Here are your login details:
+      Email: #{user.email}
+      Password: #{password}
+
+      Please log in and change your password immediately.
+
+      ==============================
+      """,
+      """
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            .credentials { background-color: #fff; padding: 15px; border-radius: 4px; border: 1px solid #e5e7eb; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Welcome to Value8!</h1>
+            </div>
+            <div class="content">
+              <p>Hi #{user.email},</p>
+              <p>Your account has been successfully created. We're excited to have you on board!</p>
+
+              <div class="credentials">
+                <p><strong>Your Login Details:</strong></p>
+                <p>Email: #{user.email}</p>
+                <p>Password: <strong>#{password}</strong></p>
+              </div>
+
+              <p>Please log in and change your password immediately to keep your account secure.</p>
+            </div>
+            <div class="footer">
+              <p>© #{DateTime.utc_now().year} Value8. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+      """
+    )
+  end
+
+  @doc """
+  Deliver welcome email with credentials to new user (alias for deliver_attachee_welcome_email).
+  """
+  def deliver_user_credentials(user, password) do
+    deliver_attachee_welcome_email(user, password)
+  end
+
   defp deliver_confirmation_instructions(user, url) do
     deliver(
       user.email,

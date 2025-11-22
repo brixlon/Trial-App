@@ -1,583 +1,800 @@
-  <div class="space-y-8">
-    <!-- Header Section -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-semibold text-gray-800">Employee Directory</h1>
-        <p class="text-gray-600 mt-1">Manage and view your organization's workforce</p>
-      </div>
-      <div class="flex gap-3">
-        <.link navigate={~p"/admin/dashboard"} class="px-4 py-2 rounded-lg text-gray-700 border border-gray-300 hover:bg-gray-50 transition flex items-center gap-2">
-          <.icon name="hero-arrow-left" class="w-4 h-4" />
-          Dashboard
-        </.link>
-        <button phx-click="open_create_modal" class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition flex items-center gap-2">
-          <.icon name="hero-plus" class="w-4 h-4" />
-          Add Employee
-        </button>
-      </div>
+<div class="space-y-8">
+  <!-- Header Section -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold text-gray-800">Employee Directory</h1>
+      <p class="text-gray-600 mt-1">Manage and view your organization's workforce</p>
     </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-            <.icon name="hero-user-group" class="w-6 h-6 text-purple-600" />
-          </div>
-          <span class="text-2xl font-bold text-gray-900"><%= @total_employees %></span>
-        </div>
-        <p class="text-sm text-gray-600">Total Employees</p>
-      </div>
-
-      <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-            <.icon name="hero-check-circle" class="w-6 h-6 text-green-600" />
-          </div>
-          <span class="text-2xl font-bold text-gray-900"><%= @active_count %></span>
-        </div>
-        <p class="text-sm text-gray-600">Active</p>
-      </div>
-
-      <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-            <.icon name="hero-building-office-2" class="w-6 h-6 text-amber-600" />
-          </div>
-          <span class="text-2xl font-bold text-gray-900"><%= length(@departments) %></span>
-        </div>
-        <p class="text-sm text-gray-600">Departments</p>
-      </div>
-
-      <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center">
-            <.icon name="hero-users" class="w-6 h-6 text-pink-600" />
-          </div>
-          <span class="text-2xl font-bold text-gray-900"><%= @teams_count %></span>
-        </div>
-        <p class="text-sm text-gray-600">Teams</p>
-      </div>
+    <div class="flex gap-3">
+      <.link
+        navigate={~p"/admin/dashboard"}
+        class="px-4 py-2 rounded-lg text-gray-700 border border-gray-300 hover:bg-gray-50 transition flex items-center gap-2"
+      >
+        <.icon name="hero-arrow-left" class="w-4 h-4" /> Dashboard
+      </.link>
+      <button
+        phx-click="open_create_modal"
+        class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition flex items-center gap-2"
+      >
+        <.icon name="hero-plus" class="w-4 h-4" /> Add Employee
+      </button>
     </div>
-
-    <!-- Search and Filters -->
-    <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
-      <div class="flex flex-col lg:flex-row gap-4">
-        <!-- Search Bar -->
-        <div class="flex-1">
-          <.form for={%{}} as={:search} phx-change="search">
-            <div class="relative">
-              <.icon name="hero-magnifying-glass" class="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                name="search[q]"
-                value={@search}
-                placeholder="Search by name, email, team, role, or position..."
-                class="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
-                phx-debounce="300"
-              />
-            </div>
-          </.form>
-        </div>
-
-        <!-- Filter by Department -->
-        <div class="lg:w-64">
-          <.form for={%{}} as={:filter} phx-change="filter_department">
-            <select
-              name="filter[department_id]"
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
-            >
-              <option value="">All Departments</option>
-              <%= for dept <- @departments do %>
-                <option value={dept.id} selected={@selected_department == to_string(dept.id)}>
-                  <%= dept.name %>
-                </option>
-              <% end %>
-            </select>
-          </.form>
-        </div>
-
-        <!-- View Toggle -->
-        <div class="flex gap-2 bg-gray-100 rounded-lg p-1">
-          <button
-            phx-click="toggle_view"
-            phx-value-view="department"
-            class={"px-4 py-2 rounded-lg transition text-sm font-medium " <> if(@view_mode == "department", do: "bg-white shadow-sm text-purple-700", else: "text-gray-600 hover:text-gray-800")}
-          >
-            <.icon name="hero-building-office" class="w-4 h-4 inline-block mr-1" />
-            By Department
-          </button>
-          <button
-            phx-click="toggle_view"
-            phx-value-view="list"
-            class={"px-4 py-2 rounded-lg transition text-sm font-medium " <> if(@view_mode == "list", do: "bg-white shadow-sm text-purple-700", else: "text-gray-600 hover:text-gray-800")}
-          >
-            <.icon name="hero-list-bullet" class="w-4 h-4 inline-block mr-1" />
-            List View
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Department View -->
-    <%= if @view_mode == "department" do %>
-      <%= for dept <- @departments, should_show_department?(dept, @selected_department, @search) do %>
-        <div id={"dept_#{dept.id}"} class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
-          <!-- Department Header -->
-          <div class="flex items-center justify-between bg-gray-50 px-6 py-5 border-b border-gray-200">
-            <div class="flex items-center gap-4">
-              <div class="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
-                <.icon name="hero-building-office" class="w-7 h-7 text-purple-600" />
-              </div>
-              <div>
-                <h2 class="text-lg font-semibold text-gray-800"><%= dept.name %></h2>
-                <p class="text-sm text-gray-500 mt-0.5">
-                  <%= dept.description || "Department" %>
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <div class="text-sm font-medium bg-white text-purple-700 px-4 py-2 rounded-full border border-purple-200">
-                <.icon name="hero-user-group" class="w-4 h-4 inline-block mr-1" />
-                <%= Enum.count(dept.employees, &matches_search?(&1, @search)) %> members
-              </div>
-              <button
-                phx-click="toggle_department"
-                phx-value-id={dept.id}
-                class="p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <.icon name={if Map.get(@expanded_departments, to_string(dept.id), true), do: "hero-chevron-up", else: "hero-chevron-down"} class="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Table (Collapsible) -->
-          <%= if Map.get(@expanded_departments, to_string(dept.id), true) do %>
-            <div class="overflow-x-auto">
-              <table class="min-w-full text-sm text-left text-gray-700">
-                <thead class="bg-gray-100 text-xs uppercase text-gray-700">
-                  <tr>
-                    <th class="px-4 py-3 font-medium">EMPLOYEE</th>
-                    <th class="px-4 py-3 font-medium">CONTACT</th>
-                    <th class="px-4 py-3 font-medium">TEAM</th>
-                    <th class="px-4 py-3 font-medium">ROLE</th>
-                    <th class="px-4 py-3 font-medium">POSITION</th>
-                    <th class="px-4 py-3 font-medium">STATUS</th>
-                    <th class="px-4 py-3 font-medium text-right">ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <%= for emp <- dept.employees, matches_search?(emp, @search) do %>
-                    <tr class="hover:bg-gray-50 transition group">
-                      <td class="px-4 py-3">
-                        <div class="flex items-center gap-3">
-                          <div class="w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold">
-                            <%= String.first(emp.name || "?") |> String.upcase() %>
-                          </div>
-                          <div>
-                            <span class="text-gray-900 font-medium block"><%= emp.name %></span>
-                            <span class="text-xs text-gray-500">ID: <%= emp.id %></span>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="flex items-center gap-2 text-gray-600">
-                          <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
-                          <a href={"mailto:#{emp.email}"} class="hover:text-purple-600 transition text-sm">
-                            <%= emp.email %>
-                          </a>
-                        </div>
-                      </td>
-                      <td class="px-4 py-3">
-                        <%= if emp.team do %>
-                          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
-                            <.icon name="hero-users" class="w-3.5 h-3.5" />
-                            <%= emp.team.name %>
-                          </span>
-                        <% else %>
-                          <span class="text-gray-400 text-sm">No team</span>
-                        <% end %>
-                      </td>
-                      <td class="px-4 py-3">
-                        <span class={get_role_badge_class(emp.role)}>
-                          <%= emp.role || "Member" %>
-                        </span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <span class="text-gray-700 font-medium text-sm">
-                          <%= emp.position || "—" %>
-                        </span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <span class={"inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full font-medium " <>
-                          (if emp.is_active, do: "bg-green-100 text-green-700", else: "bg-gray-100 text-gray-500")}>
-                          <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-green-500", else: "bg-gray-400")}></span>
-                          <%= if emp.is_active, do: "Active", else: "Inactive" %>
-                        </span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
-                          <button
-                            phx-click="view_employee"
-                            phx-value-id={emp.id}
-                            class="p-2 hover:bg-purple-50 rounded-lg transition"
-                            title="View Details"
-                          >
-                            <.icon name="hero-eye" class="w-4 h-4 text-purple-600" />
-                          </button>
-                          <button
-                            phx-click="edit_employee"
-                            phx-value-id={emp.id}
-                            class="p-2 hover:bg-purple-50 rounded-lg transition"
-                            title="Edit"
-                          >
-                            <.icon name="hero-pencil-square" class="w-4 h-4 text-purple-600" />
-                          </button>
-                          <button
-                            phx-click="delete_employee"
-                            phx-value-id={emp.id}
-                            data-confirm="Are you sure you want to remove this employee?"
-                            class="p-2 hover:bg-red-50 rounded-lg transition"
-                            title="Delete"
-                          >
-                            <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  <% end %>
-
-                  <%= if Enum.count(Enum.filter(dept.employees, &matches_search?(&1, @search))) == 0 do %>
-                    <tr>
-                      <td colspan="7" class="py-12 text-center">
-                        <div class="flex flex-col items-center gap-3">
-                          <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                            <.icon name="hero-user-group" class="w-8 h-8 text-gray-400" />
-                          </div>
-                          <div>
-                            <p class="font-semibold text-gray-700">No employees found</p>
-                            <p class="text-sm text-gray-500 mt-1">Try adjusting your search criteria</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
-        </div>
-      <% end %>
-    <% end %>
-
-    <!-- List View (All Employees) -->
-    <%= if @view_mode == "list" do %>
-      <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm text-left text-gray-700">
-            <thead class="bg-gray-100 text-xs uppercase text-gray-700">
-              <tr>
-                <th class="px-4 py-3 font-medium">EMPLOYEE</th>
-                <th class="px-4 py-3 font-medium">CONTACT</th>
-                <th class="px-4 py-3 font-medium">DEPARTMENT</th>
-                <th class="px-4 py-3 font-medium">TEAM</th>
-                <th class="px-4 py-3 font-medium">ROLE</th>
-                <th class="px-4 py-3 font-medium">POSITION</th>
-                <th class="px-4 py-3 font-medium">STATUS</th>
-                <th class="px-4 py-3 font-medium text-right">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-              <%= for emp <- get_filtered_employees(@departments, @selected_department, @search) do %>
-                <tr class="hover:bg-gray-50 transition group">
-                  <td class="px-4 py-3">
-                    <div class="flex items-center gap-3">
-                      <div class="w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold">
-                        <%= String.first(emp.name || "?") |> String.upcase() %>
-                      </div>
-                      <div>
-                        <span class="text-gray-900 font-medium block"><%= emp.name %></span>
-                        <span class="text-xs text-gray-500">ID: <%= emp.id %></span>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex items-center gap-2 text-gray-600">
-                      <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
-                      <a href={"mailto:#{emp.email}"} class="hover:text-purple-600 transition text-sm">
-                        <%= emp.email %>
-                      </a>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class="text-gray-700 font-medium text-sm">
-                      <%= emp.department_name %>
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <%= if emp.team do %>
-                      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
-                        <.icon name="hero-users" class="w-3.5 h-3.5" />
-                        <%= emp.team.name %>
-                      </span>
-                    <% else %>
-                      <span class="text-gray-400 text-sm">No team</span>
-                    <% end %>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class={get_role_badge_class(emp.role)}>
-                      <%= emp.role || "Member" %>
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class="text-gray-700 font-medium text-sm">
-                      <%= emp.position || "—" %>
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <span class={"inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full font-medium " <>
-                      (if emp.is_active, do: "bg-green-100 text-green-700", else: "bg-gray-100 text-gray-500")}>
-                      <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-green-500", else: "bg-gray-400")}></span>
-                      <%= if emp.is_active, do: "Active", else: "Inactive" %>
-                    </span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        phx-click="view_employee"
-                        phx-value-id={emp.id}
-                        class="p-2 hover:bg-purple-50 rounded-lg transition"
-                        title="View Details"
-                      >
-                        <.icon name="hero-eye" class="w-4 h-4 text-purple-600" />
-                      </button>
-                      <button
-                        phx-click="edit_employee"
-                        phx-value-id={emp.id}
-                        class="p-2 hover:bg-purple-50 rounded-lg transition"
-                        title="Edit"
-                      >
-                        <.icon name="hero-pencil-square" class="w-4 h-4 text-purple-600" />
-                      </button>
-                      <button
-                        phx-click="delete_employee"
-                        phx-value-id={emp.id}
-                        data-confirm="Are you sure you want to remove this employee?"
-                        class="p-2 hover:bg-red-50 rounded-lg transition"
-                        title="Delete"
-                      >
-                        <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              <% end %>
-
-              <%= if Enum.empty?(get_filtered_employees(@departments, @selected_department, @search)) do %>
-                <tr>
-                  <td colspan="8" class="py-12 text-center">
-                    <div class="flex flex-col items-center gap-3">
-                      <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                        <.icon name="hero-user-group" class="w-8 h-8 text-gray-400" />
-                      </div>
-                      <div>
-                        <p class="font-semibold text-gray-700">No employees found</p>
-                        <p class="text-sm text-gray-500 mt-1">Try adjusting your filters or search criteria</p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% end %>
   </div>
-
-  <!-- CREATE MODAL: Step 1 - Choose User Type -->
-  <%= if @show_create_modal && is_nil(@selected_user_type) do %>
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" phx-click="close_modal">
-      <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 p-8" phx-click="stop_propagation">
-        <div class="text-center mb-8">
-          <h2 class="text-2xl font-semibold text-gray-800 mb-2">Create New User</h2>
-          <p class="text-gray-600">Choose the type of user you want to create</p>
+  
+<!-- Stats Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+          <.icon name="hero-user-group" class="w-6 h-6 text-purple-600" />
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Employee Card -->
-          <button
-            phx-click="select_user_type"
-            phx-value-type="employee"
-            class="group p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-md transition-all duration-300"
-          >
-            <div class="w-16 h-16 mx-auto mb-4 rounded-xl bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <.icon name="hero-briefcase" class="w-8 h-8 text-purple-600" />
-            </div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Employee</h3>
-            <p class="text-gray-500 text-sm leading-relaxed">
-              Full-time staff member with complete access to employee features and benefits
-            </p>
-          </button>
-
-          <!-- Attachee Card -->
-          <button
-            phx-click="select_user_type"
-            phx-value-type="attachee"
-            class="group p-6 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-md transition-all duration-300"
-          >
-            <div class="w-16 h-16 mx-auto mb-4 rounded-xl bg-green-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-              <.icon name="hero-academic-cap" class="w-8 h-8 text-green-600" />
-            </div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-2">Attachee</h3>
-            <p class="text-gray-500 text-sm leading-relaxed">
-              Intern or temporary staff participating in training programs
-            </p>
-          </button>
-        </div>
-
-        <div class="mt-8 text-center">
-          <button
-            phx-click="close_modal"
-            class="px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium transition"
-          >
-            Cancel
-          </button>
-        </div>
+        <span class="text-2xl font-bold text-gray-900">{@total_users}</span>
       </div>
+      <p class="text-sm text-gray-600">Total Users</p>
     </div>
-  <% end %>
 
-  <!-- CREATE MODAL: Step 2 - Attachee Form -->
-  <%= if @show_create_modal && @selected_user_type == "attachee" do %>
-    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto" phx-click="close_modal">
-      <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 my-8" phx-click="stop_propagation">
-        <!-- Header -->
-        <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-5 rounded-t-xl">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-              <.icon name="hero-academic-cap" class="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 class="text-xl font-semibold text-white">Create Attachee Account</h2>
-              <p class="text-green-100 text-sm mt-1">Enter attachee details to send login credentials</p>
-            </div>
-          </div>
+    <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
+          <.icon name="hero-check-circle" class="w-6 h-6 text-green-600" />
         </div>
+        <span class="text-2xl font-bold text-gray-900">{@assigned_count}</span>
+      </div>
+      <p class="text-sm text-gray-600">Assigned</p>
+    </div>
 
-        <!-- Form -->
-        <.form for={@attachee_form} phx-submit="create_attachee" class="p-6 space-y-6">
-          <!-- Full Name -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Full Name <span class="text-red-500">*</span>
-            </label>
+    <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+          <.icon name="hero-user-plus" class="w-6 h-6 text-amber-600" />
+        </div>
+        <span class="text-2xl font-bold text-gray-900">{@unassigned_count}</span>
+      </div>
+      <p class="text-sm text-gray-600">Unassigned</p>
+    </div>
+
+    <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+      <div class="flex items-center justify-between mb-2">
+        <div class="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center">
+          <.icon name="hero-users" class="w-6 h-6 text-pink-600" />
+        </div>
+        <span class="text-2xl font-bold text-gray-900">{@teams_count}</span>
+      </div>
+      <p class="text-sm text-gray-600">Teams</p>
+    </div>
+  </div>
+  
+<!-- Search and Filters -->
+  <div class="bg-white shadow rounded-xl p-6 border border-gray-200">
+    <div class="flex flex-col lg:flex-row gap-4">
+      <!-- Search Bar -->
+      <div class="flex-1">
+        <.form for={%{}} as={:search} phx-change="search">
+          <div class="relative">
+            <.icon
+              name="hero-magnifying-glass"
+              class="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+            />
             <input
               type="text"
-              name="attachee[full_name]"
-              value={@attachee_form[:full_name]}
-              placeholder="e.g., John Doe"
-              required
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:outline-none transition"
+              name="search[q]"
+              value={@search}
+              placeholder="Search by name, email, team, role, or position..."
+              class="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+              phx-debounce="300"
             />
-          </div>
-
-          <!-- Email Address -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Email Address <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              name="attachee[email]"
-              value={@attachee_form[:email]}
-              placeholder="e.g., john.doe@example.com"
-              required
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:outline-none transition"
-            />
-            <%= if @email_error do %>
-              <p class="text-red-500 text-sm mt-1"><%= @email_error %></p>
-            <% end %>
-          </div>
-
-          <!-- Organization - NOW A SELECT DROPDOWN -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Organization <span class="text-red-500">*</span>
-            </label>
-            <select
-              name="attachee[organization]"
-              required
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:outline-none transition"
-            >
-              <option value="">Select Organization</option>
-              <%= for org <- @organizations do %>
-                <option value={org.name}><%= org.name %></option>
-              <% end %>
-            </select>
-          </div>
-
-          <!-- Department - ALREADY A SELECT -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Department <span class="text-red-500">*</span>
-            </label>
-            <select
-              name="attachee[department_id]"
-              required
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:outline-none transition"
-            >
-              <option value="">Select Department</option>
-              <%= for dept <- @departments do %>
-                <option value={dept.id}><%= dept.name %></option>
-              <% end %>
-            </select>
-          </div>
-
-          <!-- Program - NOW A SELECT DROPDOWN -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Program <span class="text-red-500">*</span>
-            </label>
-            <select
-              name="attachee[program]"
-              required
-              class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:outline-none transition"
-            >
-              <option value="">Select Program</option>
-              <%= for program <- @programs do %>
-                <option value={program.name}><%= program.name %></option>
-              <% end %>
-            </select>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex items-center justify-end gap-4 pt-4 border-t">
-            <button
-              type="button"
-              phx-click="close_modal"
-              class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={@creating_attachee}
-              class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold hover:from-green-600 hover:to-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <%= if @creating_attachee do %>
-                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Sending Email...
-              <% else %>
-                <.icon name="hero-paper-airplane" class="w-5 h-5" />
-                Create & Send Email
-              <% end %>
-            </button>
           </div>
         </.form>
       </div>
+      
+<!-- Filter by Department -->
+      <div class="lg:w-64">
+        <.form for={%{}} as={:filter} phx-change="filter_department">
+          <select
+            name="filter[department_id]"
+            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+          >
+            <option value="">All Departments</option>
+            <%= for dept <- @departments do %>
+              <option value={dept.id} selected={@selected_department == to_string(dept.id)}>
+                {dept.name}
+              </option>
+            <% end %>
+          </select>
+        </.form>
+      </div>
+      
+<!-- View Toggle -->
+      <div class="flex gap-2 bg-gray-100 rounded-lg p-1">
+        <button
+          phx-click="toggle_view"
+          phx-value-view="department"
+          class={"px-4 py-2 rounded-lg transition text-sm font-medium " <> if(@view_mode == "department", do: "bg-white shadow-sm text-purple-700", else: "text-gray-600 hover:text-gray-800")}
+        >
+          <.icon name="hero-building-office" class="w-4 h-4 inline-block mr-1" /> By Department
+        </button>
+        <button
+          phx-click="toggle_view"
+          phx-value-view="list"
+          class={"px-4 py-2 rounded-lg transition text-sm font-medium " <> if(@view_mode == "list", do: "bg-white shadow-sm text-purple-700", else: "text-gray-600 hover:text-gray-800")}
+        >
+          <.icon name="hero-list-bullet" class="w-4 h-4 inline-block mr-1" /> List View
+        </button>
+      </div>
+    </div>
+  </div>
+  
+<!-- Department View -->
+  <%= if @view_mode == "department" do %>
+    <%= for dept <- @departments, should_show_department?(dept, @selected_department, @search) do %>
+      <div
+        id={"dept_#{dept.id}"}
+        class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden"
+      >
+        <!-- Department Header -->
+        <div class="flex items-center justify-between bg-gray-50 px-6 py-5 border-b border-gray-200">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
+              <.icon name="hero-building-office" class="w-7 h-7 text-purple-600" />
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-gray-800">{dept.name}</h2>
+              <p class="text-sm text-gray-500 mt-0.5">
+                {dept.description || "Department"}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-sm font-medium bg-white text-purple-700 px-4 py-2 rounded-full border border-purple-200">
+              <.icon name="hero-user-group" class="w-4 h-4 inline-block mr-1" />
+              {Enum.count(dept.employees, &matches_search?(&1, @search))} members
+            </div>
+            <button
+              phx-click="toggle_department"
+              phx-value-id={dept.id}
+              class="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <.icon
+                name={
+                  if Map.get(@expanded_departments, to_string(dept.id), true),
+                    do: "hero-chevron-up",
+                    else: "hero-chevron-down"
+                }
+                class="w-5 h-5 text-gray-600"
+              />
+            </button>
+          </div>
+        </div>
+        
+<!-- Table (Collapsible) -->
+        <%= if Map.get(@expanded_departments, to_string(dept.id), true) do %>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm text-left text-gray-700">
+              <thead class="bg-gray-100 text-xs uppercase text-gray-700">
+                <tr>
+                  <th class="px-4 py-3 font-medium">EMPLOYEE</th>
+                  <th class="px-4 py-3 font-medium">CONTACT</th>
+                  <th class="px-4 py-3 font-medium">TEAM</th>
+                  <th class="px-4 py-3 font-medium">ROLE</th>
+                  <th class="px-4 py-3 font-medium">POSITION</th>
+                  <th class="px-4 py-3 font-medium">STATUS</th>
+                  <th class="px-4 py-3 font-medium text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <%= for emp <- dept.employees, matches_search?(emp, @search) do %>
+                  <tr class="hover:bg-gray-50 transition group">
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold">
+                          {String.first(emp.name || "?") |> String.upcase()}
+                        </div>
+                        <div>
+                          <span class="text-gray-900 font-medium block">{emp.name}</span>
+                          <span class="text-xs text-gray-500">ID: {emp.id}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-2 text-gray-600">
+                        <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
+                        <a
+                          href={"mailto:#{emp.email}"}
+                          class="hover:text-purple-600 transition text-sm"
+                        >
+                          {emp.email}
+                        </a>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <%= if emp.team do %>
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                          <.icon name="hero-users" class="w-3.5 h-3.5" />
+                          {emp.team.name}
+                        </span>
+                      <% else %>
+                        <span class="text-gray-400 text-sm">No team</span>
+                      <% end %>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class={get_role_badge_class(emp.role)}>
+                        {emp.role || "Member"}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-gray-700 font-medium text-sm">
+                        {emp.position || "—"}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class={"inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full font-medium " <>
+                          (if emp.is_active, do: "bg-green-100 text-green-700", else: "bg-gray-100 text-gray-500")}>
+                        <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-green-500", else: "bg-gray-400")}>
+                        </span>
+                        {if emp.is_active, do: "Active", else: "Inactive"}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                        <button
+                          phx-click="view_employee"
+                          phx-value-id={emp.id}
+                          class="p-2 hover:bg-purple-50 rounded-lg transition"
+                          title="View Details"
+                        >
+                          <.icon name="hero-eye" class="w-4 h-4 text-purple-600" />
+                        </button>
+                        <button
+                          phx-click="edit_employee"
+                          phx-value-id={emp.id}
+                          class="p-2 hover:bg-purple-50 rounded-lg transition"
+                          title="Edit"
+                        >
+                          <.icon name="hero-pencil-square" class="w-4 h-4 text-purple-600" />
+                        </button>
+                        <button
+                          phx-click="delete_employee"
+                          phx-value-id={emp.id}
+                          data-confirm="Are you sure you want to remove this employee?"
+                          class="p-2 hover:bg-red-50 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+
+                <%= if Enum.count(Enum.filter(dept.employees, &matches_search?(&1, @search))) == 0 do %>
+                  <tr>
+                    <td colspan="7" class="py-12 text-center">
+                      <div class="flex flex-col items-center gap-3">
+                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                          <.icon name="hero-user-group" class="w-8 h-8 text-gray-400" />
+                        </div>
+                        <div>
+                          <p class="font-semibold text-gray-700">No employees found</p>
+                          <p class="text-sm text-gray-500 mt-1">
+                            Try adjusting your search criteria
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+  
+<!-- List View (All Employees) -->
+  <%= if @view_mode == "list" do %>
+    <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left text-gray-700">
+          <thead class="bg-gray-100 text-xs uppercase text-gray-700">
+            <tr>
+              <th class="px-4 py-3 font-medium">EMPLOYEE</th>
+              <th class="px-4 py-3 font-medium">CONTACT</th>
+              <th class="px-4 py-3 font-medium">DEPARTMENT</th>
+              <th class="px-4 py-3 font-medium">TEAM</th>
+              <th class="px-4 py-3 font-medium">ROLE</th>
+              <th class="px-4 py-3 font-medium">POSITION</th>
+              <th class="px-4 py-3 font-medium">STATUS</th>
+              <th class="px-4 py-3 font-medium text-right">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <%= for emp <- get_filtered_employees(@departments, @selected_department, @search) do %>
+              <tr class="hover:bg-gray-50 transition group">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold">
+                      {String.first(emp.name || "?") |> String.upcase()}
+                    </div>
+                    <div>
+                      <span class="text-gray-900 font-medium block">{emp.name}</span>
+                      <span class="text-xs text-gray-500">ID: {emp.id}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2 text-gray-600">
+                    <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
+                    <a
+                      href={"mailto:#{emp.email}"}
+                      class="hover:text-purple-600 transition text-sm"
+                    >
+                      {emp.email}
+                    </a>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-gray-700 font-medium text-sm">
+                    {emp.department_name}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <%= if emp.team do %>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                      <.icon name="hero-users" class="w-3.5 h-3.5" />
+                      {emp.team.name}
+                    </span>
+                  <% else %>
+                    <span class="text-gray-400 text-sm">No team</span>
+                  <% end %>
+                </td>
+                <td class="px-4 py-3">
+                  <span class={get_role_badge_class(emp.role)}>
+                    {emp.role || "Member"}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-gray-700 font-medium text-sm">
+                    {emp.position || "—"}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class={"inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full font-medium " <>
+                      (if emp.is_active, do: "bg-green-100 text-green-700", else: "bg-gray-100 text-gray-500")}>
+                    <span class={"w-1.5 h-1.5 rounded-full " <> if(emp.is_active, do: "bg-green-500", else: "bg-gray-400")}>
+                    </span>
+                    {if emp.is_active, do: "Active", else: "Inactive"}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      phx-click="view_employee"
+                      phx-value-id={emp.id}
+                      class="p-2 hover:bg-purple-50 rounded-lg transition"
+                      title="View Details"
+                    >
+                      <.icon name="hero-eye" class="w-4 h-4 text-purple-600" />
+                    </button>
+                    <button
+                      phx-click="edit_employee"
+                      phx-value-id={emp.id}
+                      class="p-2 hover:bg-purple-50 rounded-lg transition"
+                      title="Edit"
+                    >
+                      <.icon name="hero-pencil-square" class="w-4 h-4 text-purple-600" />
+                    </button>
+                    <button
+                      phx-click="delete_employee"
+                      phx-value-id={emp.id}
+                      data-confirm="Are you sure you want to remove this employee?"
+                      class="p-2 hover:bg-red-50 rounded-lg transition"
+                      title="Delete"
+                    >
+                      <.icon name="hero-trash" class="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+
+            <%= if Enum.empty?(get_filtered_employees(@departments, @selected_department, @search)) do %>
+              <tr>
+                <td colspan="8" class="py-12 text-center">
+                  <div class="flex flex-col items-center gap-3">
+                    <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                      <.icon name="hero-user-group" class="w-8 h-8 text-gray-400" />
+                    </div>
+                    <div>
+                      <p class="font-semibold text-gray-700">No employees found</p>
+                      <p class="text-sm text-gray-500 mt-1">
+                        Try adjusting your filters or search criteria
+                      </p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
     </div>
   <% end %>
+  
+<!-- Unassigned Users Section -->
+  <%= if @unassigned_count > 0 do %>
+    <div class="bg-white shadow rounded-xl border border-gray-200 overflow-hidden">
+      <div class="flex items-center justify-between bg-amber-50 px-6 py-5 border-b border-amber-200">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center">
+            <.icon name="hero-user-plus" class="w-7 h-7 text-amber-600" />
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold text-gray-800">Unassigned Users</h2>
+            <p class="text-sm text-gray-500 mt-0.5">
+              Users not yet assigned to any team
+            </p>
+          </div>
+        </div>
+        <div class="text-sm font-medium bg-white text-amber-700 px-4 py-2 rounded-full border border-amber-200">
+          <.icon name="hero-user-group" class="w-4 h-4 inline-block mr-1" />
+          {@unassigned_count} users
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left text-gray-700">
+          <thead class="bg-gray-100 text-xs uppercase text-gray-700">
+            <tr>
+              <th class="px-4 py-3 font-medium">USER</th>
+              <th class="px-4 py-3 font-medium">EMAIL</th>
+              <th class="px-4 py-3 font-medium">ROLES</th>
+              <th class="px-4 py-3 font-medium">STATUS</th>
+              <th class="px-4 py-3 font-medium">REGISTERED</th>
+              <th class="px-4 py-3 font-medium text-right">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <%= for user <- @unassigned_users do %>
+              <tr class="hover:bg-gray-50 transition group">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-purple-100 text-purple-700 font-bold">
+                      {String.first(user.username || user.email || "?") |> String.upcase()}
+                    </div>
+                    <div>
+                      <span class="text-gray-900 font-medium block">
+                        {user.username || "No username"}
+                      </span>
+                      <span class="text-xs text-gray-500">ID: {user.id}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2 text-gray-600">
+                    <.icon name="hero-envelope" class="w-4 h-4 text-gray-400" />
+                    <a
+                      href={"mailto:#{user.email}"}
+                      class="hover:text-purple-600 transition text-sm"
+                    >
+                      {user.email}
+                    </a>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <%= if Enum.empty?(user.roles || []) do %>
+                    <span class="text-gray-400 text-sm">No roles</span>
+                  <% else %>
+                    <div class="flex flex-wrap gap-1">
+                      <%= for role <- user.roles do %>
+                        <span class="inline-flex items-center px-2.5 py-0.5 text-xs rounded-full bg-purple-100 text-purple-700 font-medium">
+                          {role}
+                        </span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </td>
+                <td class="px-4 py-3">
+                  <span class={"inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs rounded-full font-medium " <>
+                    (if user.status == "active", do: "bg-green-100 text-green-700", else: "bg-gray-100 text-gray-500")}>
+                    <span class={"w-1.5 h-1.5 rounded-full " <> if(user.status == "active", do: "bg-green-500", else: "bg-gray-400")}>
+                    </span>
+                    {user.status}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="text-gray-700 text-sm">
+                    {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center justify-end gap-2">
+                    <button
+                      phx-click="open_assign_modal"
+                      phx-value-user-id={user.id}
+                      class="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition flex items-center gap-2 text-sm font-medium"
+                    >
+                      <.icon name="hero-user-plus" class="w-4 h-4" /> Assign to Teams
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<!-- ASSIGNMENT MODAL -->
+<%= if @show_assign_modal && @user_to_assign do %>
+  <div
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto"
+    phx-click="close_modal"
+  >
+    <div
+      class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 my-8"
+      phx-click="stop_propagation"
+    >
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-5 rounded-t-xl">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-user-plus" class="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-white">Assign User to Teams</h2>
+            <p class="text-purple-100 text-sm mt-1">
+              Assigning: {@user_to_assign.username || @user_to_assign.email}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+<!-- Form -->
+      <div class="p-6 space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">
+            Select Teams <span class="text-red-500">*</span>
+          </label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2">
+            <%= for team <- Orgs.list_teams() do %>
+              <label class={"flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition " <>
+                if(team.id in @selected_teams, do: "border-purple-500 bg-purple-50", else: "border-gray-200 hover:border-purple-300")}>
+                <input
+                  type="checkbox"
+                  phx-click="toggle_team_selection"
+                  phx-value-team-id={team.id}
+                  checked={team.id in @selected_teams}
+                  class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <div class="flex-1">
+                  <div class="font-medium text-gray-900">{team.name}</div>
+                  <%= if team.department do %>
+                    <div class="text-xs text-gray-500 mt-0.5">
+                      {team.department.name}
+                    </div>
+                  <% end %>
+                </div>
+              </label>
+            <% end %>
+          </div>
+          <p class="text-sm text-gray-500 mt-2">
+            Select one or more teams to assign this user to
+          </p>
+        </div>
+        
+<!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-4 pt-4 border-t">
+          <button
+            type="button"
+            phx-click="close_modal"
+            class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition"
+          >
+            Cancel
+          </button>
+          <button
+            phx-click="assign_user_to_teams"
+            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold hover:from-purple-600 hover:to-purple-700 transition flex items-center gap-2"
+          >
+            <.icon name="hero-check" class="w-5 h-5" /> Assign to Teams
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- CREATE USER MODAL - Role-Based -->
+<%= if @show_create_modal do %>
+  <div
+    class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto"
+    phx-click="close_modal"
+  >
+    <div
+      class="bg-white rounded-xl shadow-lg w-full max-w-3xl mx-4 my-8"
+      phx-click="stop_propagation"
+    >
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-5 rounded-t-xl">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+            <.icon name="hero-user-plus" class="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 class="text-xl font-semibold text-white">Create New User</h2>
+            <p class="text-purple-100 text-sm mt-1">Add a new user with role assignment</p>
+          </div>
+        </div>
+      </div>
+      
+<!-- Form -->
+      <.form for={@user_form || %{}} phx-submit="create_user" class="p-6 space-y-6">
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Email Address <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="email"
+            name="user[email]"
+            value={@user_form[:email]}
+            placeholder="e.g., john.doe@example.com"
+            required
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+          />
+          <%= if @email_error do %>
+            <p class="text-red-500 text-sm mt-1">{@email_error}</p>
+          <% end %>
+        </div>
+        
+<!-- Username -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Username <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="user[username]"
+            value={@user_form[:username]}
+            placeholder="e.g., john_doe"
+            required
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+          />
+        </div>
+        
+<!-- Roles Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">
+            User Roles <span class="text-red-500">*</span>
+          </label>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition hover:border-purple-300">
+              <input
+                type="checkbox"
+                name="user[is_attachee]"
+                value="true"
+                class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <.icon name="hero-academic-cap" class="w-5 h-5 text-blue-600" />
+                  <span class="font-medium text-gray-900">Attachee</span>
+                </div>
+                <p class="text-sm text-gray-500 mt-0.5">
+                  Intern or temporary staff in training programs
+                </p>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition hover:border-purple-300">
+              <input
+                type="checkbox"
+                name="user[is_supervisor]"
+                value="true"
+                class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <.icon name="hero-user-group" class="w-5 h-5 text-green-600" />
+                  <span class="font-medium text-gray-900">Supervisor</span>
+                </div>
+                <p class="text-sm text-gray-500 mt-0.5">
+                  Team supervisor with evaluation permissions
+                </p>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition hover:border-purple-300">
+              <input
+                type="checkbox"
+                name="user[is_admin]"
+                value="true"
+                class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+              />
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <.icon name="hero-shield-check" class="w-5 h-5 text-purple-600" />
+                  <span class="font-medium text-gray-900">Admin</span>
+                </div>
+                <p class="text-sm text-gray-500 mt-0.5">Full system administrator access</p>
+              </div>
+            </label>
+          </div>
+          <p class="text-sm text-gray-500 mt-2">Select one or more roles for this user</p>
+        </div>
+        
+<!-- Team Assignment -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-3">
+            Assign to Teams (Optional)
+          </label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto p-2 border rounded-lg">
+            <%= for team <- Orgs.list_teams() do %>
+              <label class="flex items-center gap-2 p-3 hover:bg-gray-50 rounded cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="user[team_ids][]"
+                  value={team.id}
+                  class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm text-gray-900 truncate">{team.name}</div>
+                  <%= if team.department do %>
+                    <div class="text-xs text-gray-500 truncate">{team.department.name}</div>
+                  <% end %>
+                </div>
+              </label>
+            <% end %>
+          </div>
+        </div>
+        
+<!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-4 pt-4 border-t">
+          <button
+            type="button"
+            phx-click="close_modal"
+            class="px-5 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 font-medium transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={@creating_user || false}
+            class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold hover:from-purple-600 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <%= if @creating_user || false do %>
+              <svg
+                class="animate-spin h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                >
+                </circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                >
+                </path>
+              </svg>
+              Creating...
+            <% else %>
+              <.icon name="hero-check" class="w-5 h-5" /> Create User
+            <% end %>
+          </button>
+        </div>
+      </.form>
+    </div>
+  </div>
+<% end %>
+

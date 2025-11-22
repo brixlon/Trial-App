@@ -206,8 +206,10 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
 
   # View evaluation details
   def handle_event("view_evaluation", %{"id" => id}, socket) do
-    evaluation = Eams.get_evaluation!(String.to_integer(id))
-                  |> TrialApp.Repo.preload([:evaluator])
+    evaluation =
+      Eams.get_evaluation!(String.to_integer(id))
+      |> TrialApp.Repo.preload([:evaluator])
+
     {:noreply, assign(socket, :viewing_evaluation, evaluation)}
   end
 
@@ -217,8 +219,10 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
 
   # View task evaluation details
   def handle_event("view_task_evaluation", %{"id" => id}, socket) do
-    task_evaluation = Eams.get_task_evaluation!(String.to_integer(id))
-                      |> TrialApp.Repo.preload([:evaluator, :task])
+    task_evaluation =
+      Eams.get_task_evaluation!(String.to_integer(id))
+      |> TrialApp.Repo.preload([:evaluator, :task])
+
     {:noreply, assign(socket, :viewing_task_evaluation, task_evaluation)}
   end
 
@@ -244,13 +248,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
     |> assign(:show_error_toast, false)
   end
 
-  defp show_error_toast(socket, message) do
-    socket
-    |> assign(:show_error_toast, true)
-    |> assign(:error_message, message)
-    |> assign(:show_success_toast, false)
-  end
-
   defp attachee_name(attachee) do
     if Ecto.assoc_loaded?(attachee.user) && attachee.user do
       attachee.user.username || attachee.user.email
@@ -261,12 +258,14 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
 
   defp parse_int(nil), do: nil
   defp parse_int(""), do: nil
+
   defp parse_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {int, _} -> int
       :error -> nil
     end
   end
+
   defp parse_int(val) when is_integer(val), do: val
 
   defp task_status_color(status) do
@@ -306,14 +305,17 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
   defp trend_icon("improving") do
     ~s(<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>)
   end
+
   defp trend_icon("declining") do
     ~s(<svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>)
   end
+
   defp trend_icon(_) do
     ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
   end
 
   defp filtered_tasks(tasks, nil), do: tasks
+
   defp filtered_tasks(tasks, project_id) do
     Enum.filter(tasks, fn task ->
       Ecto.assoc_loaded?(task.project) && task.project && task.project.id == project_id
@@ -329,7 +331,8 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
   end
 
   defp task_average_score(task) do
-    if Ecto.assoc_loaded?(task.task_evaluations) && is_list(task.task_evaluations) && length(task.task_evaluations) > 0 do
+    if Ecto.assoc_loaded?(task.task_evaluations) && is_list(task.task_evaluations) &&
+         length(task.task_evaluations) > 0 do
       scores = Enum.map(task.task_evaluations, & &1.score)
       avg = Enum.sum(scores) / length(scores)
       Float.round(avg, 1)
@@ -357,5 +360,6 @@ defmodule TrialAppWeb.AdminLive.AttacheeManagementShow do
   defp calculate_completion_percentage(completed, total) when total > 0 do
     Float.round(completed / total * 100, 0)
   end
+
   defp calculate_completion_percentage(_, _), do: 0
 end

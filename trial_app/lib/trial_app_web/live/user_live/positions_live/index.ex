@@ -21,7 +21,8 @@ defmodule TrialAppWeb.PositionLive.Index do
     q = String.trim(q)
     positions = if q == "", do: Orgs.list_positions(), else: Orgs.search_positions(q)
 
-    sorted_positions = sort_positions(positions, socket.assigns.sort_by, socket.assigns.sort_order)
+    sorted_positions =
+      sort_positions(positions, socket.assigns.sort_by, socket.assigns.sort_order)
 
     {:noreply,
      socket
@@ -87,10 +88,10 @@ defmodule TrialAppWeb.PositionLive.Index do
     sorted =
       case sort_by do
         "name" ->
-          Enum.sort_by(positions, & String.downcase(&1.name || ""))
+          Enum.sort_by(positions, &String.downcase(&1.name || ""))
 
         "description" ->
-          Enum.sort_by(positions, & String.downcase(&1.description || ""))
+          Enum.sort_by(positions, &String.downcase(&1.description || ""))
 
         _ ->
           positions
@@ -130,7 +131,7 @@ defmodule TrialAppWeb.PositionLive.Index do
   end
 
   # Helper: Check if search matches position
-  def matches_search?(position, search) when search == "" or is_nil(search), do: true
+  def matches_search?(_position, search) when search == "" or is_nil(search), do: true
 
   def matches_search?(position, search) do
     search = String.downcase(search)

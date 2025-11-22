@@ -19,7 +19,6 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
 
     case Eams.reject_attachee_task(task.id, comment) do
       {:ok, _} ->
-        Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
         notify_attachee(task, "rejected", comment)
         send(self(), {:task_updated, task})
         {:noreply, push_event(socket, "close_modal", %{})}
@@ -34,7 +33,6 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
 
     case Eams.approve_attachee_task(task.id) do
       {:ok, _} ->
-        Eams.create_task_comment(task.id, socket.assigns.current_user.id, comment)
         notify_attachee(task, "approved", comment)
         send(self(), {:task_updated, task})
         {:noreply, push_event(socket, "close_modal", %{})}
@@ -49,10 +47,11 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
   end
 
   defp notify_attachee(task, status, comment) do
-    message = case status do
-      "approved" -> "Your task '#{task.title}' was approved!"
-      "rejected" -> "Your task '#{task.title}' was rejected. See feedback."
-    end
+    message =
+      case status do
+        "approved" -> "Your task '#{task.title}' was approved!"
+        "rejected" -> "Your task '#{task.title}' was rejected. See feedback."
+      end
 
     PubSub.broadcast(
       TrialApp.PubSub,
@@ -63,28 +62,35 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
 
   def render(assigns) do
     ~H"""
-    <div id={@id} class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div
+      id={@id}
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+    >
       <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
         <div class="p-6">
           <!-- Header -->
           <div class="flex justify-between items-start mb-4">
             <div>
-              <h2 class="text-2xl font-bold text-gray-800"><%= @task.title %></h2>
+              <h2 class="text-2xl font-bold text-gray-800">{@task.title}</h2>
               <p class="text-sm text-gray-600">
-                Submitted by <strong><%= @task.assignee.user.username || @task.assignee.user.email %></strong>
-                <%= Timex.from_now(@task.submitted_at) %>
+                Submitted by
+                <strong>{@task.assignee.user.username || @task.assignee.user.email}</strong>
+                {Timex.from_now(@task.submitted_at)}
               </p>
             </div>
-            <button phx-click={JS.push("close_modal") |> JS.hide("#{@id}")} class="text-gray-400 hover:text-gray-600">
-              <Heroicons.x_mark class="w-6 h-6" />
+            <button
+              phx-click={JS.push("close_modal") |> JS.hide("#{@id}")}
+              class="text-gray-400 hover:text-gray-600"
+            >
+              <.icon name="hero-x-mark" class="w-6 h-6" />
             </button>
           </div>
-
-          <!-- File Preview -->
+          
+    <!-- File Preview -->
           <div class="mt-4 border rounded-lg overflow-hidden bg-gray-50">
             <%= if @task.submission do %>
               <iframe
-                src={~p"/uploads/tasks/#{@task.submission}"}
+                src={~p"/uploads/task_submissions/#{@task.submission_files}"}
                 class="w-full h-96"
                 frameborder="0"
               />
@@ -92,8 +98,8 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
               <div class="p-8 text-center text-gray-500">No file attached</div>
             <% end %>
           </div>
-
-          <!-- Feedback -->
+          
+    <!-- Feedback -->
           <div class="mt-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">Feedback (optional)</label>
             <textarea
@@ -105,8 +111,8 @@ defmodule TrialAppWeb.SupervisorLive.ReviewTaskModal do
               phx-target={@myself}
             ><%= @comment %></textarea>
           </div>
-
-          <!-- Actions -->
+          
+    <!-- Actions -->
           <div class="flex gap-3 justify-end mt-6">
             <button
               phx-click="reject"

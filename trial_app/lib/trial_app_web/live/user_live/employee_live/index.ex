@@ -80,7 +80,7 @@ defmodule TrialAppWeb.EmployeeLive.Index do
   end
 
   # Helper functions
-  def matches_search?(employee, search) when search == "" or is_nil(search), do: true
+  def matches_search?(_employee, search) when search == "" or is_nil(search), do: true
 
   def matches_search?(employee, search) do
     search = String.downcase(search)

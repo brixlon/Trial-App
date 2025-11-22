@@ -6,6 +6,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   alias TrialApp.Repo
 
   def mount(_params, _session, socket) do
+    # Fetch ALL users, not just employees
     users = Accounts.list_users_with_assignments()
     organizations = Orgs.list_organizations()
     teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
@@ -105,12 +106,20 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     user = Accounts.get_user_with_assignments!(user_id)
     current_assignments = get_current_team_assignments(user)
 
+    # Support multiple roles as checkboxes
+    user_roles = user.roles || []
+
     user_form = %{
       id: user.id,
       email: user.email,
       username: user.username,
       role: user.role,
-      status: user.status
+      roles: user_roles,
+      status: user.status,
+      # Track which roles are selected
+      is_attachee: "attachee" in user_roles,
+      is_supervisor: "supervisor" in user_roles,
+      is_admin: "admin" in user_roles
     }
 
     available_teams = Orgs.list_teams() |> Repo.preload(department: [:organization])
@@ -239,11 +248,21 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   def handle_event("save_user", params, socket) do
     user = socket.assigns.selected_user
 
-    # Extract user params (email, username, role, status)
+    # Build roles array from checkboxes
+    roles = []
+    roles = if params["is_attachee"] == "true", do: ["attachee" | roles], else: roles
+    roles = if params["is_supervisor"] == "true", do: ["supervisor" | roles], else: roles
+    roles = if params["is_admin"] == "true", do: ["admin" | roles], else: roles
+
+    # Set primary role to first selected role, or "user" if none selected
+    primary_role = List.first(roles) || "user"
+
+    # Extract user params (email, username, roles, status)
     user_params = %{
       "email" => params["email"],
       "username" => params["username"],
-      "role" => params["role"],
+      "role" => primary_role,
+      "roles" => roles,
       "status" => params["status"]
     }
 
@@ -257,12 +276,16 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
 
     # Attachee enrollment params
     attachee? = params["is_attachee"] == "true"
+
     attachee_dates = %{
       "starts_on" => Map.get(params, "attachee_starts_on"),
       "ends_on" => Map.get(params, "attachee_ends_on")
     }
 
-    case Accounts.update_user_with_assignments(user, user_params, team_ids, %{attachee?: attachee?, attachee_dates: attachee_dates}) do
+    case Accounts.update_user_with_assignments(user, user_params, team_ids, %{
+           attachee?: attachee?,
+           attachee_dates: attachee_dates
+         }) do
       {:ok, _updated_user} ->
         users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
 
@@ -356,4 +379,9 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       end
     end)
   end
+
+  defp role_badge_color("attachee"), do: "bg-blue-100 text-blue-800"
+  defp role_badge_color("supervisor"), do: "bg-green-100 text-green-800"
+  defp role_badge_color("admin"), do: "bg-purple-100 text-purple-800"
+  defp role_badge_color(_), do: "bg-gray-100 text-gray-800"
 end

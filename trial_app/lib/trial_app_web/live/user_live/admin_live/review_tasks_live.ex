@@ -1,6 +1,5 @@
 defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
   use TrialAppWeb, :live_view
-  use Phoenix.LiveView  # THIS LINE WAS MISSING
 
   alias TrialApp.Eams
   alias TrialApp.Repo
@@ -138,15 +137,15 @@ defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
             <div class="bg-white rounded-xl border p-6">
               <div class="flex items-center mb-4">
                 <div class="h-12 w-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-lg">
-                  <%= get_initials(attachee) %>
+                  {get_initials(attachee)}
                 </div>
                 <div class="ml-4">
-                  <h3 class="font-semibold text-lg"><%= get_attachee_name(attachee) %></h3>
-                  <p class="text-sm text-gray-500"><%= attachee.user.email %></p>
+                  <h3 class="font-semibold text-lg">{get_attachee_name(attachee)}</h3>
+                  <p class="text-sm text-gray-500">{attachee.user.email}</p>
                 </div>
                 <div class="ml-auto">
                   <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
-                    <%= length(tasks) %> submitted
+                    {length(tasks)} submitted
                   </span>
                 </div>
               </div>
@@ -155,10 +154,10 @@ defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
                 <%= for task <- tasks do %>
                   <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div class="flex-1">
-                      <p class="font-medium"><%= task.title %></p>
-                      <p class="text-sm text-gray-600"><%= task.project.name %></p>
+                      <p class="font-medium">{task.title}</p>
+                      <p class="text-sm text-gray-600">{task.project.name}</p>
                       <p class="text-xs text-gray-500">
-                        Submitted <%= format_date(task.updated_at) %>
+                        Submitted {format_date(task.updated_at)}
                       </p>
                     </div>
 
@@ -186,8 +185,8 @@ defmodule TrialAppWeb.AdminLive.ReviewTasksLive do
           <% end %>
         </div>
       <% end %>
-
-      <!-- Reject Reason Modal -->
+      
+    <!-- Reject Reason Modal -->
       <%= if @show_reject_modal && @reject_task do %>
         <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div class="bg-white rounded-xl max-w-md w-full p-6">

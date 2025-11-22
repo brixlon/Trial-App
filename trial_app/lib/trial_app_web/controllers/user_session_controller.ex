@@ -7,7 +7,7 @@ defmodule TrialAppWeb.UserSessionController do
   # -------------------------------------------------------------------------
   # LOGIN PAGE (GET) - Show login form or redirect if already logged in
   # -------------------------------------------------------------------------
-  def login(conn, _params) when is_map(_params) and map_size(_params) == 0 do
+  def login(conn, params) when is_map(params) and map_size(params) == 0 do
     # If user is already logged in, redirect to dashboard
     if conn.assigns[:current_user] do
       user = conn.assigns.current_user
@@ -30,6 +30,7 @@ defmodule TrialAppWeb.UserSessionController do
 
     if user.must_change_password do
       token = Accounts.generate_force_reset_token(user)
+
       conn
       |> put_flash(:info, "You must change your password before continuing.")
       |> redirect(to: ~p"/users/force-reset/#{token}")
@@ -39,7 +40,7 @@ defmodule TrialAppWeb.UserSessionController do
       redirect_path = get_dashboard_for_active_role(user_with_role)
 
       conn
-      #|> put_flash(:info, "Welcome back, #{user_with_role.username}!")
+      # |> put_flash(:info, "Welcome back, #{user_with_role.username}!")
       |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
     end
   end
@@ -52,6 +53,7 @@ defmodule TrialAppWeb.UserSessionController do
       %Accounts.User{} = user ->
         if user.must_change_password do
           token = Accounts.generate_force_reset_token(user)
+
           conn
           |> put_flash(:info, "You must change your password before continuing.")
           |> redirect(to: ~p"/users/force-reset/#{token}")
@@ -61,7 +63,7 @@ defmodule TrialAppWeb.UserSessionController do
           redirect_path = get_dashboard_for_active_role(user_with_role)
 
           conn
-        #  |> put_flash(:info, "Welcome back!")
+          #  |> put_flash(:info, "Welcome back!")
           |> UserAuth.log_in_user(user_with_role, %{"return_to" => redirect_path})
         end
 
@@ -75,20 +77,25 @@ defmodule TrialAppWeb.UserSessionController do
   # -------------------------------------------------------------------------
   # USERNAME OR EMAIL LOGIN (Alternative login method)
   # -------------------------------------------------------------------------
-  def create(conn, %{"user" => %{"username_or_email" => username_or_email, "password" => password}} = user_params) do
+  def create(
+        conn,
+        %{"user" => %{"username_or_email" => username_or_email, "password" => password}} =
+          user_params
+      ) do
     if user = Accounts.get_user_by_username_or_email_and_password(username_or_email, password) do
       # Check if user must change password
       if user.must_change_password do
         token = Accounts.generate_force_reset_token(user)
+
         conn
         |> put_flash(:info, "You must change your password before continuing.")
         |> redirect(to: ~p"/users/force-reset/#{token}")
       else
         {:ok, user_with_role} = Accounts.ensure_active_role(user)
-        redirect_path = get_dashboard_for_active_role(user_with_role)
+        _redirect_path = get_dashboard_for_active_role(user_with_role)
 
         conn
-       # |> put_flash(:info, "Welcome back!")
+        # |> put_flash(:info, "Welcome back!")
         |> UserAuth.log_in_user(user_with_role, user_params)
       end
     else
@@ -104,10 +111,11 @@ defmodule TrialAppWeb.UserSessionController do
   # -------------------------------------------------------------------------
   def direct(conn, %{"token" => encoded_token}) do
     # Decode the Base64-encoded session token
-    token = case Base.url_decode64(encoded_token, padding: false) do
-      {:ok, decoded} -> decoded
-      :error -> nil
-    end
+    token =
+      case Base.url_decode64(encoded_token, padding: false) do
+        {:ok, decoded} -> decoded
+        :error -> nil
+      end
 
     if token do
       case Accounts.get_user_by_session_token(token) do
@@ -141,12 +149,13 @@ defmodule TrialAppWeb.UserSessionController do
 
     if user.must_change_password do
       token = Accounts.generate_force_reset_token(user)
+
       conn
       |> put_flash(:info, "You must change your password before continuing.")
       |> redirect(to: ~p"/users/force-reset/#{token}")
     else
       {:ok, user_with_role} = Accounts.ensure_active_role(user)
-      redirect_path = get_dashboard_for_active_role(user_with_role)
+      _redirect_path = get_dashboard_for_active_role(user_with_role)
 
       UserAuth.log_in_user(conn, user_with_role)
     end
@@ -168,10 +177,6 @@ defmodule TrialAppWeb.UserSessionController do
     |> redirect(to: ~p"/users/force-reset/#{generate_temp_token(user_id)}")
   end
 
-  def update_password(conn, _params) do
-    redirect(conn, to: ~p"/")
-  end
-
   # -------------------------------------------------------------------------
   # UPDATE PASSWORD (POST - from Force Password Change)
   # -------------------------------------------------------------------------
@@ -190,6 +195,7 @@ defmodule TrialAppWeb.UserSessionController do
 
       {:error, _changeset} ->
         token = Accounts.generate_force_reset_token(user)
+
         conn
         |> put_flash(:error, "Failed to update password. Please try again.")
         |> redirect(to: ~p"/users/force-reset/#{token}")
@@ -197,11 +203,21 @@ defmodule TrialAppWeb.UserSessionController do
   end
 
   # Alternative pattern for POST with different structure
-  def update_password(conn, %{"user" => %{"user_id" => user_id, "current_password" => current_password, "password" => password, "password_confirmation" => password_confirmation}}) do
+  def update_password(conn, %{
+        "user" => %{
+          "user_id" => user_id,
+          "current_password" => current_password,
+          "password" => password,
+          "password_confirmation" => password_confirmation
+        }
+      }) do
     user = Accounts.get_user!(user_id)
 
     # Verify current password
-    if Accounts.get_user_by_username_or_email_and_password(user.username || user.email, current_password) do
+    if Accounts.get_user_by_username_or_email_and_password(
+         user.username || user.email,
+         current_password
+       ) do
       # Validate new password
       if password == password_confirmation && String.length(password) >= 8 do
         # Update password
@@ -217,16 +233,18 @@ defmodule TrialAppWeb.UserSessionController do
           {:error, _changeset} ->
             conn
             |> put_flash(:error, "Failed to update password. Please try again.")
-            |> redirect(to: ~p"/users/force_password_change?user_id=#{user_id}")
+            |> redirect(to: ~p"/users/force-reset/#{Accounts.generate_force_reset_token(user)}")
         end
       else
-        error_msg = if password != password_confirmation do
-          "Passwords do not match"
-        else
-          "Password must be at least 8 characters"
-        end
+        error_msg =
+          if password != password_confirmation do
+            "Passwords do not match"
+          else
+            "Password must be at least 8 characters"
+          end
 
         token = Accounts.generate_force_reset_token(user)
+
         conn
         |> put_flash(:error, error_msg)
         |> redirect(to: ~p"/users/force-reset/#{token}")
@@ -238,12 +256,16 @@ defmodule TrialAppWeb.UserSessionController do
     end
   end
 
+  def update_password(conn, _params) do
+    redirect(conn, to: ~p"/")
+  end
+
   # -------------------------------------------------------------------------
   # LOGOUT
   # -------------------------------------------------------------------------
   def delete(conn, _params) do
     conn
-    #|> put_flash(:info, "Logged out successfully.")
+    # |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
   end
 

@@ -1,7 +1,6 @@
 defmodule TrialAppWeb.ForcePasswordResetLive do
   use TrialAppWeb, :live_view
   alias TrialApp.{Accounts, Repo}
-  alias TrialAppWeb.CoreComponents
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
@@ -39,7 +38,8 @@ defmodule TrialAppWeb.ForcePasswordResetLive do
     case Accounts.update_user_password(socket.assigns.user, user_params) do
       {:ok, {user, _tokens}} ->
         # Update authenticated_at to mark this as an authenticated session
-        {:ok, user} = user
+        {:ok, user} =
+          user
           |> Ecto.Changeset.change(%{
             authenticated_at: DateTime.utc_now() |> DateTime.truncate(:second),
             must_change_password: false
@@ -68,7 +68,12 @@ defmodule TrialAppWeb.ForcePasswordResetLive do
         <div class="bg-white rounded-2xl shadow-xl p-8">
           <div class="text-center mb-8">
             <div class="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-8 h-8 text-yellow-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

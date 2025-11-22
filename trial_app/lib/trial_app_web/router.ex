@@ -63,7 +63,6 @@ defmodule TrialAppWeb.Router do
       root_layout: {TrialAppWeb.Layouts, :root},
       layout: {TrialAppWeb.Layouts, :app},
       on_mount: [{TrialAppWeb.UserAuth, :require_authenticated}] do
-
       live "/dashboard", DashboardLive, :index
 
       # ATTACHEE
@@ -82,7 +81,6 @@ defmodule TrialAppWeb.Router do
 
       get "/reports/download/:id", ReportController, :download
 
-
       # SETTINGS
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
@@ -96,7 +94,6 @@ defmodule TrialAppWeb.Router do
         {TrialAppWeb.UserAuth, :require_authenticated},
         {TrialAppWeb.UserAuth, :require_supervisor_or_admin}
       ] do
-
       live "/supervisor/dashboard", SupervisorLive.Dashboard, :index
       live "/supervisor/team", SupervisorLive.Team, :index
       live "/supervisor/attachees", SupervisorLive.Attachees, :index
@@ -117,7 +114,6 @@ defmodule TrialAppWeb.Router do
       on_mount: [
         {TrialAppWeb.UserAuth, :require_authenticated}
       ] do
-
       live "/dashboard", AdminLive.Dashboard, :index
       live "/users", AdminLive.UserManagement, :index
       live "/users/:id/edit", AdminLive.UserManagement, :edit
@@ -126,6 +122,8 @@ defmodule TrialAppWeb.Router do
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new
+      live "/employees/:id/edit", AdminLive.EmployeeForm, :edit
+      live "/employees/:id", AdminLive.EmployeeManagement, :show
       live "/pending-approvals", AdminLive.PendingApprovalLive, :index
 
       # ════════════════════════════════════════════════════════════════
@@ -141,7 +139,8 @@ defmodule TrialAppWeb.Router do
 
       # Attachee in Project Context (Level 3 - under project context)
       live "/eams/programs/:program_id/projects/:project_id/attachees/:id",
-           AdminLive.AttacheeShow, :show
+           AdminLive.AttacheeShow,
+           :show
 
       # Standalone routes for direct access
       live "/eams/projects", AdminLive.ProjectManagement, :index

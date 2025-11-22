@@ -1,7 +1,5 @@
 # lib/trial_app_web/plugs/handle_invalid_query.ex
 defmodule TrialAppWeb.Plugs.HandleInvalidQuery do
-  import Plug.Conn
-
   def init(opts), do: opts
 
   def call(conn, _opts) do
@@ -12,7 +10,7 @@ defmodule TrialAppWeb.Plugs.HandleInvalidQuery do
       exception in Plug.Conn.InvalidQueryError ->
         # Log the error and continue with empty params
         require Logger
-        Logger.warn("Invalid query parameters detected and ignored: #{exception.message}")
+        Logger.warning("Invalid query parameters detected and ignored: #{exception.message}")
 
         # Continue without query params
         %{conn | query_params: %{}, params: %{}}

@@ -39,8 +39,7 @@ defmodule TrialApp.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
-       {:pdf_generator, "~> 0.6"},
-      
+      {:pdf_generator, "~> 0.6"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
@@ -64,7 +63,8 @@ defmodule TrialApp.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:timex, "~> 3.7"}
+      {:timex, "~> 3.7"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 

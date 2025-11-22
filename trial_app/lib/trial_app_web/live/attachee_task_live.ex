@@ -41,9 +41,11 @@ defmodule TrialAppWeb.AttacheeTasksLive do
      |> assign(:uploaded_files, [])
      |> assign(:page_title, "My Tasks")
      |> allow_upload(:task_files,
-        accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
-        max_entries: 5,
-        max_file_size: 10_000_000)}  # 10MB
+       accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
+       max_entries: 5,
+       # 10MB
+       max_file_size: 10_000_000
+     )}
   end
 
   @impl true
@@ -136,11 +138,12 @@ defmodule TrialAppWeb.AttacheeTasksLive do
     current_links = socket.assigns.submission_links
     new_link = Map.get(params, "link", "") |> String.trim()
 
-    final_links = if new_link != "" and valid_url?(new_link) do
-      current_links ++ [new_link]
-    else
-      current_links
-    end
+    final_links =
+      if new_link != "" and valid_url?(new_link) do
+        current_links ++ [new_link]
+      else
+        current_links
+      end
 
     uploaded_files = upload_files(socket)
 
@@ -175,19 +178,20 @@ defmodule TrialAppWeb.AttacheeTasksLive do
       {:ok, updated_user} ->
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
 
-        redirect_path = case new_role do
-          "admin" -> ~p"/admin/dashboard"
-          "supervisor" -> ~p"/supervisor/dashboard"
-          "attachee" -> ~p"/attachee"
-          "manager" -> ~p"/dashboard"
-          "employee" -> ~p"/dashboard"
-          _ -> ~p"/dashboard"
-        end
+        redirect_path =
+          case new_role do
+            "admin" -> ~p"/admin/dashboard"
+            "supervisor" -> ~p"/supervisor/dashboard"
+            "attachee" -> ~p"/attachee"
+            "manager" -> ~p"/dashboard"
+            "employee" -> ~p"/dashboard"
+            _ -> ~p"/dashboard"
+          end
 
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-       #  |> put_flash(:info, "Switched to #{new_role} role")
+         #  |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->
@@ -201,7 +205,9 @@ defmodule TrialAppWeb.AttacheeTasksLive do
   # Upload files helper
   defp upload_files(socket) do
     consume_uploaded_entries(socket, :task_files, fn %{path: temp_path}, entry ->
-      upload_dir = Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
+      upload_dir =
+        Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
+
       File.mkdir_p!(upload_dir)
 
       ext = Path.extname(entry.client_name)
@@ -257,31 +263,15 @@ defmodule TrialAppWeb.AttacheeTasksLive do
 
     Enum.filter(tasks, fn task ->
       task.due_on &&
-      Date.compare(task.due_on, today) == :lt &&
-      task.status not in ["completed", "submitted"]
+        Date.compare(task.due_on, today) == :lt &&
+        task.status not in ["completed", "submitted"]
     end)
   end
 
   defp is_overdue?(task) do
     task.due_on &&
-    Date.compare(task.due_on, Date.utc_today()) == :lt &&
-    task.status not in ["completed", "submitted"]
-  end
-
-  defp days_until_due(task) do
-    if task.due_on do
-      Date.diff(task.due_on, Date.utc_today())
-    else
-      nil
-    end
-  end
-
-  defp days_overdue(task) do
-    if task.due_on do
-      Date.diff(Date.utc_today(), task.due_on)
-    else
-      0
-    end
+      Date.compare(task.due_on, Date.utc_today()) == :lt &&
+      task.status not in ["completed", "submitted"]
   end
 
   defp truncate(text, length) do
@@ -302,6 +292,7 @@ defmodule TrialAppWeb.AttacheeTasksLive do
 
   defp due_date_class(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
+
     cond do
       diff < 0 -> "text-red-600 text-xs font-medium"
       diff <= 2 -> "text-orange-600 text-xs font-medium"
@@ -312,6 +303,7 @@ defmodule TrialAppWeb.AttacheeTasksLive do
 
   defp relative_date(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
+
     cond do
       diff < 0 -> "Overdue"
       diff == 0 -> "Today"
@@ -346,98 +338,126 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                 <h1 class="text-2xl font-semibold text-gray-800">My Tasks</h1>
                 <p class="text-gray-600 mt-1">View and manage your assigned tasks</p>
               </div>
-              <.link navigate={~p"/attachee"} class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium">
+              <.link
+                navigate={~p"/attachee"}
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
+              >
                 ← Back to Dashboard
               </.link>
             </div>
-
-            <!-- Stats Cards -->
+            
+    <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
               <div class="bg-white shadow rounded-xl p-6">
                 <p class="text-sm text-gray-600">Total Tasks</p>
-                <p class="text-3xl font-bold text-purple-600 mt-2"><%= length(@all_tasks) %></p>
+                <p class="text-3xl font-bold text-purple-600 mt-2">{length(@all_tasks)}</p>
               </div>
 
               <div class="bg-gradient-to-br from-yellow-500 to-orange-500 text-white shadow rounded-xl p-6">
                 <p class="text-sm opacity-90">Pending</p>
-                <p class="text-3xl font-bold mt-2"><%= length(@pending_tasks) %></p>
+                <p class="text-3xl font-bold mt-2">{length(@pending_tasks)}</p>
               </div>
 
               <div class="bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow rounded-xl p-6">
                 <p class="text-sm opacity-90">In Progress</p>
-                <p class="text-3xl font-bold mt-2"><%= length(@in_progress_tasks) %></p>
+                <p class="text-3xl font-bold mt-2">{length(@in_progress_tasks)}</p>
               </div>
 
               <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white shadow rounded-xl p-6">
                 <p class="text-sm opacity-90">Submitted</p>
-                <p class="text-3xl font-bold mt-2"><%= length(@submitted_tasks) %></p>
+                <p class="text-3xl font-bold mt-2">{length(@submitted_tasks)}</p>
               </div>
 
               <div class="bg-gradient-to-br from-green-500 to-green-700 text-white shadow rounded-xl p-6">
                 <p class="text-sm opacity-90">Completed</p>
-                <p class="text-3xl font-bold mt-2"><%= length(@completed_tasks) %></p>
+                <p class="text-3xl font-bold mt-2">{length(@completed_tasks)}</p>
               </div>
             </div>
-
-            <!-- Overdue Alert -->
+            
+    <!-- Overdue Alert -->
             <%= if length(@overdue_tasks) > 0 do %>
               <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-6 w-6 text-red-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
                 <div>
                   <span class="font-semibold text-red-800">Warning!</span>
-                  <span class="text-red-700"> You have <%= length(@overdue_tasks) %> overdue task<%= if length(@overdue_tasks) > 1, do: "s" %></span>
+                  <span class="text-red-700">
+                    You have {length(@overdue_tasks)} overdue task{if length(@overdue_tasks) > 1,
+                      do: "s"}
+                  </span>
                 </div>
               </div>
             <% end %>
-
-            <!-- Tabs -->
+            
+    <!-- Tabs -->
             <div class="bg-gray-100 p-2 rounded-xl inline-flex gap-2">
               <button
                 phx-click="select_tab"
                 phx-value-tab="all"
                 class={"px-4 py-2 rounded-lg font-medium transition #{if @selected_tab == "all", do: "bg-white text-gray-900 shadow", else: "text-gray-600 hover:text-gray-900"}"}
               >
-                All Tasks (<%= length(@all_tasks) %>)
+                All Tasks ({length(@all_tasks)})
               </button>
               <button
                 phx-click="select_tab"
                 phx-value-tab="pending"
                 class={"px-4 py-2 rounded-lg font-medium transition #{if @selected_tab == "pending", do: "bg-white text-gray-900 shadow", else: "text-gray-600 hover:text-gray-900"}"}
               >
-                Pending (<%= length(@pending_tasks) %>)
+                Pending ({length(@pending_tasks)})
               </button>
               <button
                 phx-click="select_tab"
                 phx-value-tab="in_progress"
                 class={"px-4 py-2 rounded-lg font-medium transition #{if @selected_tab == "in_progress", do: "bg-white text-gray-900 shadow", else: "text-gray-600 hover:text-gray-900"}"}
               >
-                In Progress (<%= length(@in_progress_tasks) %>)
+                In Progress ({length(@in_progress_tasks)})
               </button>
               <button
                 phx-click="select_tab"
                 phx-value-tab="submitted"
                 class={"px-4 py-2 rounded-lg font-medium transition #{if @selected_tab == "submitted", do: "bg-white text-gray-900 shadow", else: "text-gray-600 hover:text-gray-900"}"}
               >
-                Submitted (<%= length(@submitted_tasks) %>)
+                Submitted ({length(@submitted_tasks)})
               </button>
               <button
                 phx-click="select_tab"
                 phx-value-tab="completed"
                 class={"px-4 py-2 rounded-lg font-medium transition #{if @selected_tab == "completed", do: "bg-white text-gray-900 shadow", else: "text-gray-600 hover:text-gray-900"}"}
               >
-                Completed (<%= length(@completed_tasks) %>)
+                Completed ({length(@completed_tasks)})
               </button>
             </div>
-
-            <!-- Tasks Table -->
+            
+    <!-- Tasks Table -->
             <div class="bg-white shadow rounded-xl overflow-hidden">
               <div class="p-6">
                 <%= if get_tasks_for_tab(assigns) == [] do %>
                   <div class="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-16 w-16 mx-auto text-gray-300 mb-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     <p class="text-gray-500">No tasks found</p>
                   </div>
@@ -457,30 +477,34 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                         <%= for task <- get_tasks_for_tab(assigns) do %>
                           <tr class={"border-t hover:bg-gray-50 transition #{if is_overdue?(task), do: "bg-red-50"}"}>
                             <td class="px-4 py-3">
-                              <div class="font-medium text-gray-900"><%= task.title %></div>
-                              <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
+                              <div class="font-medium text-gray-900">{task.title}</div>
+                              <p class="text-sm text-gray-500 mt-1">
+                                {truncate(task.description, 80)}
+                              </p>
                               <%= if task.reject_reason do %>
                                 <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
                                   <span class="font-medium text-red-800">Feedback:</span>
-                                  <span class="text-red-700"><%= task.reject_reason %></span>
+                                  <span class="text-red-700">{task.reject_reason}</span>
                                 </div>
                               <% end %>
                             </td>
                             <td class="px-4 py-3">
                               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <%= task.project && task.project.name %>
+                                {task.project && task.project.name}
                               </span>
                             </td>
                             <td class="px-4 py-3">
                               <span class={status_badge_class(task.status)}>
-                                <%= format_status(task.status) %>
+                                {format_status(task.status)}
                               </span>
                             </td>
                             <td class="px-4 py-3">
                               <%= if task.due_on do %>
-                                <div class="font-medium text-gray-900"><%= format_date(task.due_on) %></div>
+                                <div class="font-medium text-gray-900">
+                                  {format_date(task.due_on)}
+                                </div>
                                 <div class={due_date_class(task.due_on)}>
-                                  <%= relative_date(task.due_on) %>
+                                  {relative_date(task.due_on)}
                                 </div>
                               <% else %>
                                 <span class="text-gray-400">—</span>
@@ -523,8 +547,8 @@ defmodule TrialAppWeb.AttacheeTasksLive do
           </div>
         </main>
       </div>
-
-      <!-- SUBMIT TASK MODAL -->
+      
+    <!-- SUBMIT TASK MODAL -->
       <%= if @show_submit_modal && @selected_task do %>
         <div
           id="submit-task-modal"
@@ -537,14 +561,19 @@ defmodule TrialAppWeb.AttacheeTasksLive do
           >
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-bold text-gray-900">
-                Submit Task: <%= @selected_task.title %>
+                Submit Task: {@selected_task.title}
               </h2>
               <button
                 phx-click="close_modal"
                 class="text-gray-400 hover:text-gray-600"
               >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -564,8 +593,8 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                   required
                 ><%= @submission_comment %></textarea>
               </div>
-
-              <!-- Links Section -->
+              
+    <!-- Links Section -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Links (Optional)
@@ -576,10 +605,26 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                   <div class="space-y-2 mb-3">
                     <%= for {link, index} <- Enum.with_index(@submission_links) do %>
                       <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        <svg
+                          class="w-4 h-4 text-blue-500 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          />
                         </svg>
-                        <a href={link} target="_blank" class="text-sm text-blue-600 hover:underline flex-1 truncate"><%= link %></a>
+                        <a
+                          href={link}
+                          target="_blank"
+                          class="text-sm text-blue-600 hover:underline flex-1 truncate"
+                        >
+                          {link}
+                        </a>
                         <button
                           type="button"
                           phx-click="remove_link"
@@ -587,7 +632,12 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                           class="text-red-500 hover:text-red-700 flex-shrink-0"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -606,7 +656,12 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                   <button
                     type="button"
                     phx-click="add_link"
-                    phx-value-link={Phoenix.HTML.Form.normalize_value("text", Phoenix.HTML.Form.input_value(:link, "link-input"))}
+                    phx-value-link={
+                      Phoenix.HTML.Form.normalize_value(
+                        "text",
+                        Phoenix.HTML.Form.input_value(:link, "link-input")
+                      )
+                    }
                     onclick="document.getElementById('link-input').value = ''"
                     class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
                   >
@@ -614,8 +669,8 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                   </button>
                 </div>
               </div>
-
-              <!-- File Upload Section -->
+              
+    <!-- File Upload Section -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Attach Files (Optional)
@@ -625,31 +680,57 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                 <div class="mt-1">
                   <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      <svg
+                        class="w-8 h-8 mb-2 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
                       </svg>
-                      <p class="mb-1 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                      <p class="mb-1 text-sm text-gray-500">
+                        <span class="font-semibold">Click to upload</span> or drag and drop
+                      </p>
                       <p class="text-xs text-gray-500">PDF, DOC, DOCX, TXT, PNG, JPG, ZIP</p>
                     </div>
                     <.live_file_input upload={@uploads.task_files} class="hidden" />
                   </label>
                 </div>
-
-                <!-- Display uploaded files -->
+                
+    <!-- Display uploaded files -->
                 <%= for entry <- @uploads.task_files.entries do %>
                   <div class="mt-2 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div class="flex items-center gap-2 flex-1">
-                      <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      <svg
+                        class="w-5 h-5 text-purple-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
                       </svg>
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 truncate"><%= entry.client_name %></p>
-                        <p class="text-xs text-gray-500"><%= format_file_size(entry.client_size) %></p>
+                        <p class="text-sm font-medium text-gray-900 truncate">{entry.client_name}</p>
+                        <p class="text-xs text-gray-500">{format_file_size(entry.client_size)}</p>
                       </div>
                       <!-- Progress bar -->
                       <div class="w-24">
                         <div class="w-full bg-gray-200 rounded-full h-1.5">
-                          <div class="bg-purple-600 h-1.5 rounded-full" style={"width: #{entry.progress}%"}></div>
+                          <div
+                            class="bg-purple-600 h-1.5 rounded-full"
+                            style={"width: #{entry.progress}%"}
+                          >
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -660,13 +741,18 @@ defmodule TrialAppWeb.AttacheeTasksLive do
                       class="ml-3 text-red-500 hover:text-red-700"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
 
                   <%= for err <- upload_errors(@uploads.task_files, entry) do %>
-                    <p class="mt-1 text-sm text-red-600"><%= error_to_string(err) %></p>
+                    <p class="mt-1 text-sm text-red-600">{error_to_string(err)}</p>
                   <% end %>
                 <% end %>
               </div>
@@ -694,12 +780,23 @@ defmodule TrialAppWeb.AttacheeTasksLive do
     """
   end
 
-  defp status_badge_class("pending"), do: "px-2.5 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
-  defp status_badge_class("in_progress"), do: "px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-  defp status_badge_class("submitted"), do: "px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-  defp status_badge_class("completed"), do: "px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium"
-  defp status_badge_class("rejected"), do: "px-2.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium"
-  defp status_badge_class(_), do: "px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+  defp status_badge_class("pending"),
+    do: "px-2.5 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("in_progress"),
+    do: "px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("submitted"),
+    do: "px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("completed"),
+    do: "px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("rejected"),
+    do: "px-2.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class(_),
+    do: "px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
 
   defp format_status(status) do
     status

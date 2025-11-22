@@ -33,7 +33,17 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
     {:noreply, socket}
   end
 
-  def handle_event("form_change", %{"title" => title, "content" => content, "category" => category, "priority" => priority} = params, socket) do
+  def handle_event("close_modal", _, socket) do
+    send(self(), {:close_modal, nil})
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "form_change",
+        %{"title" => title, "content" => content, "category" => category, "priority" => priority} =
+          params,
+        socket
+      ) do
     form_data = %{
       "title" => title,
       "content" => content,
@@ -41,17 +51,19 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
       "priority" => priority,
       "pinned" => Map.get(params, "pinned", "false")
     }
+
     {:noreply, assign(socket, :form_data, form_data)}
   end
 
   def handle_event("toggle_target", %{"target" => target}, socket) do
     selected_targets = socket.assigns.selected_targets
 
-    new_selected_targets = if target in selected_targets do
-      List.delete(selected_targets, target)
-    else
-      [target | selected_targets]
-    end
+    new_selected_targets =
+      if target in selected_targets do
+        List.delete(selected_targets, target)
+      else
+        [target | selected_targets]
+      end
 
     {:noreply, assign(socket, :selected_targets, new_selected_targets)}
   end
@@ -132,26 +144,42 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
     end)
   end
 
-  def handle_event("close_modal", _, socket) do
-    send(self(), {:close_modal, nil})
-    {:noreply, socket}
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" phx-click="close_modal">
-      <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" phx-click="stop_propagation" phx-target={@myself}>
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      phx-click="close_modal"
+    >
+      <div
+        class="bg-white rounded-xl shadow-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+        phx-click="stop_propagation"
+        phx-target={@myself}
+      >
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
           <h2 class="text-xl font-bold text-gray-900">Create Announcement</h2>
-          <button phx-click="close_modal" phx-target={@myself} class="text-gray-400 hover:text-gray-600">
+          <button
+            phx-click="close_modal"
+            phx-target={@myself}
+            class="text-gray-400 hover:text-gray-600"
+          >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
-        <form phx-submit="create_announcement" phx-change="form_change" phx-target={@myself} class="p-6 space-y-5">
+        <form
+          phx-submit="create_announcement"
+          phx-change="form_change"
+          phx-target={@myself}
+          class="p-6 space-y-5"
+        >
           <!-- Title -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Title *</label>
@@ -164,8 +192,8 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               placeholder="Enter announcement title"
             />
           </div>
-
-          <!-- Content -->
+          
+    <!-- Content -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Content *</label>
             <textarea
@@ -176,8 +204,8 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               placeholder="Write your announcement here..."
             ><%= @form_data["content"] %></textarea>
           </div>
-
-          <!-- Category -->
+          
+    <!-- Category -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Category *</label>
             <select
@@ -186,17 +214,34 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="">Choose a category</option>
-              <option value="general_update" selected={@form_data["category"] == "general_update"}>General Update</option>
-              <option value="training" selected={@form_data["category"] == "training"}>Training/Workshop</option>
-              <option value="policy_change" selected={@form_data["category"] == "policy_change"}>Policy Change</option>
-              <option value="event" selected={@form_data["category"] == "event"}>Event/Activity</option>
-              <option value="deadline" selected={@form_data["category"] == "deadline"}>Deadline Reminder</option>
-              <option value="recognition" selected={@form_data["category"] == "recognition"}>Recognition/Achievement</option>
-              <option value="learning_materials" selected={@form_data["category"] == "learning_materials"}>Learning Materials</option>
+              <option value="general_update" selected={@form_data["category"] == "general_update"}>
+                General Update
+              </option>
+              <option value="training" selected={@form_data["category"] == "training"}>
+                Training/Workshop
+              </option>
+              <option value="policy_change" selected={@form_data["category"] == "policy_change"}>
+                Policy Change
+              </option>
+              <option value="event" selected={@form_data["category"] == "event"}>
+                Event/Activity
+              </option>
+              <option value="deadline" selected={@form_data["category"] == "deadline"}>
+                Deadline Reminder
+              </option>
+              <option value="recognition" selected={@form_data["category"] == "recognition"}>
+                Recognition/Achievement
+              </option>
+              <option
+                value="learning_materials"
+                selected={@form_data["category"] == "learning_materials"}
+              >
+                Learning Materials
+              </option>
             </select>
           </div>
-
-          <!-- Priority -->
+          
+    <!-- Priority -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Priority *</label>
             <select
@@ -205,12 +250,14 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="normal" selected={@form_data["priority"] == "normal"}>Normal</option>
-              <option value="important" selected={@form_data["priority"] == "important"}>Important</option>
+              <option value="important" selected={@form_data["priority"] == "important"}>
+                Important
+              </option>
               <option value="urgent" selected={@form_data["priority"] == "urgent"}>Urgent</option>
             </select>
           </div>
-
-          <!-- Pin to Top -->
+          
+    <!-- Pin to Top -->
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
@@ -222,8 +269,8 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
             />
             <label for="pinned" class="text-sm font-medium text-gray-700">Pin to top</label>
           </div>
-
-          <!-- Target Audience -->
+          
+    <!-- Target Audience -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-3">Target Audience *</label>
 
@@ -246,31 +293,31 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
                     class="mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                   />
                   <div class="flex-1">
-                    <div class="text-sm font-medium text-gray-900"><%= option.label %></div>
+                    <div class="text-sm font-medium text-gray-900">{option.label}</div>
                     <%= if option[:description] do %>
-                      <div class="text-xs text-gray-500 mt-1"><%= option.description %></div>
+                      <div class="text-xs text-gray-500 mt-1">{option.description}</div>
                     <% end %>
                   </div>
                 </label>
               <% end %>
             </div>
-
-            <!-- Selected Targets Summary -->
+            
+    <!-- Selected Targets Summary -->
             <%= if @selected_targets != [] do %>
               <div class="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                 <p class="text-xs font-medium text-purple-900 mb-2">Selected Recipients:</p>
                 <div class="flex flex-wrap gap-2">
                   <%= for target <- @selected_targets do %>
                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
-                      <%= get_target_label(target, @target_options) %>
+                      {get_target_label(target, @target_options)}
                     </span>
                   <% end %>
                 </div>
               </div>
             <% end %>
           </div>
-
-          <!-- Links Section -->
+          
+    <!-- Links Section -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Learning Materials / Links (Optional)
@@ -280,15 +327,25 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               <div class="space-y-2 mb-3">
                 <%= for {link, index} <- Enum.with_index(@links) do %>
                   <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                    <svg class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    <svg
+                      class="w-4 h-4 text-purple-500 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                      />
                     </svg>
                     <div class="flex-1 min-w-0">
                       <%= if link.title do %>
-                        <p class="text-sm font-medium text-gray-900 truncate"><%= link.title %></p>
-                        <p class="text-xs text-gray-500 truncate"><%= link.url %></p>
+                        <p class="text-sm font-medium text-gray-900 truncate">{link.title}</p>
+                        <p class="text-xs text-gray-500 truncate">{link.url}</p>
                       <% else %>
-                        <p class="text-sm text-gray-900 truncate"><%= link.url %></p>
+                        <p class="text-sm text-gray-900 truncate">{link.url}</p>
                       <% end %>
                     </div>
                     <button
@@ -299,7 +356,12 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
                       class="text-red-500 hover:text-red-700 flex-shrink-0"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -340,8 +402,8 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
               + Add Link
             </button>
           </div>
-
-          <!-- Actions -->
+          
+    <!-- Actions -->
           <div class="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
