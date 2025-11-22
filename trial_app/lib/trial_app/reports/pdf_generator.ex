@@ -8,7 +8,7 @@ defmodule TrialApp.Reports.PDFGenerator do
   def generate_pdf(report, assigns, options, file_path) do
     attachee = assigns.attachee
 
-    # DEBUG LOGS (Optional but helpful)
+    # DEBUG LOGS
     Logger.info("=== PDF GENERATOR DEBUG ===")
     Logger.info("Attachee: #{attachee.id}")
     Logger.info("Tasks received: #{length(Map.get(assigns, :attachee_tasks, []))}")
@@ -22,7 +22,7 @@ defmodule TrialApp.Reports.PDFGenerator do
       tasks: Map.get(assigns, :attachee_tasks, []),
       task_scores: Map.get(assigns, :task_scores, %{}),
       evaluations: Map.get(assigns, :general_evaluations, []),
-      projects: Map.get(assigns, :attachee_projects, []), # Include projects
+      projects: Map.get(assigns, :attachee_projects, []),
       custom_comments: Map.get(options, :custom_comments, ""),
       # Pass include flags
       include_tasks: Map.get(options, :include_tasks, true),
@@ -42,22 +42,21 @@ defmodule TrialApp.Reports.PDFGenerator do
 
     options = [
       page_size: "A4",
-      margin_top: "10mm",
-      margin_bottom: "10mm",
-      margin_left: "10mm",
-      margin_right: "10mm",
+      margin_top: "15mm",
+      margin_bottom: "15mm",
+      margin_left: "15mm",
+      margin_right: "15mm",
       footer_html: footer_html(),
-      disable_smart_shrinking: true
+      disable_smart_shrinking: true,
+      print_media_type: true
     ]
 
-    # FIX: Use generate_binary directly. It handles temp files internally.
     case PdfGenerator.generate_binary(html, options) do
       {:ok, pdf_binary} ->
         File.write!(file_path, pdf_binary)
         Logger.info("PDF generated successfully: #{file_path}")
         {:ok, file_path}
 
-      # Fallback pattern for some library versions that return 3 elements
       {:ok, _filename, pdf_binary} when is_binary(pdf_binary) ->
          File.write!(file_path, pdf_binary)
          Logger.info("PDF generated successfully (tuple match): #{file_path}")
@@ -67,7 +66,6 @@ defmodule TrialApp.Reports.PDFGenerator do
         Logger.error("PDF Generation failed: #{inspect(reason)}")
         {:error, "Failed to generate PDF: #{inspect(reason)}"}
 
-      # CATCH-ALL: Log exactly what we got so we don't crash with "Unknown"
       unexpected ->
         Logger.error("Unknown PDF Generator return format: #{inspect(unexpected)}")
         {:error, "Unknown PDF generation error (Check server logs)"}
@@ -75,12 +73,7 @@ defmodule TrialApp.Reports.PDFGenerator do
   end
 
   defp render_report_html(report, data) do
-    title = case report.report_type do
-      "evaluation_summary" -> "EVALUATION SUMMARY REPORT"
-      "monthly_report" -> "MONTHLY PERFORMANCE REPORT"
-      "final_report" -> "FINAL ATTACHMENT REPORT"
-      _ -> "ATTACHEE PERFORMANCE REPORT"
-    end
+    title = get_report_title(report.report_type)
 
     # --- Robust Name Display ---
     user = data.attachee.user
@@ -91,47 +84,32 @@ defmodule TrialApp.Reports.PDFGenerator do
         true -> user.email
       end
 
-    attachee_email = user.email
-    dept_name = if data.department, do: data.department.name, else: "—"
-    org_name = if data.organization, do: data.organization.name, else: "Organization"
-    position = data.attachee.position || "Industrial Attachee"
-
-    start_date = format_date(data.attachee.starts_on)
-    end_date = format_date(data.attachee.ends_on)
-    period_start = format_date(report.period_start)
-    period_end = format_date(report.period_end)
-
     # --- Dynamic Stats Calculation ---
-    # Filter by period if needed
     filtered_tasks = filter_by_period(data.tasks, data.period_start, data.period_end)
     filtered_evals = filter_evaluations_by_period(data.evaluations, data.period_start, data.period_end)
 
     total_tasks = length(filtered_tasks)
     completed_count = Enum.count(filtered_tasks, &(&1.status == "completed"))
-    comp_rate =
-      if total_tasks > 0 do
-        Float.round(completed_count * 100.0 / total_tasks, 1)
-      else
-        0.0
-      end
+    comp_rate = if total_tasks > 0, do: Float.round(completed_count * 100.0 / total_tasks, 1), else: 0.0
 
     eval_count = length(filtered_evals)
     avg_score =
       if eval_count > 0 do
-        total_score = Enum.reduce(filtered_evals, 0, fn e, acc -> (e.score || 0) + acc end)
-        Float.round(total_score / eval_count, 1)
+        total = Enum.reduce(filtered_evals, 0, fn e, acc -> (e.score || 0) + acc end)
+        Float.round(total / eval_count, 1)
       else
         0.0
       end
 
-    # Generate sections based on flags
-    stats_html = if data.include_stats, do: performance_summary_html(avg_score, eval_count, total_tasks, comp_rate), else: ""
-    tasks_html = if data.include_tasks, do: task_performance_html(filtered_tasks, data.task_scores), else: ""
-    eval_html = if data.include_evaluations, do: evaluation_history_html(filtered_evals), else: ""
-    projects_html = if data.include_projects && length(data.projects) > 0, do: projects_section_html(data.projects), else: ""
-    comments_html = supervisor_comments_html(data.custom_comments)
+    # --- Components ---
+    header = component_header(data.organization, title, report.period_start, report.period_end)
+    info_grid = component_info_grid(attachee_name, data.attachee, data.department)
 
-    now = format_datetime(DateTime.utc_now())
+    stats_section = if data.include_stats, do: component_stats(avg_score, eval_count, total_tasks, comp_rate), else: ""
+    projects_section = if data.include_projects && length(data.projects) > 0, do: component_projects(data.projects), else: ""
+    tasks_section = if data.include_tasks, do: component_tasks(filtered_tasks, data.task_scores), else: ""
+    evals_section = if data.include_evaluations, do: component_evaluations(filtered_evals), else: ""
+    comments_section = component_comments(data.custom_comments)
 
     """
     <!DOCTYPE html>
@@ -139,74 +117,341 @@ defmodule TrialApp.Reports.PDFGenerator do
     <head>
       <meta charset="UTF-8">
       <title>#{title}</title>
-      <style>
-        #{pdf_styles()}
-      </style>
+      <style>#{pdf_styles()}</style>
     </head>
     <body>
-      <div class="header">
-        <h1>#{org_name}</h1>
-        <p>Attachment Management System</p>
-      </div>
+      #{header}
+      #{info_grid}
 
-      <div class="report-title">
-        <h2>#{title}</h2>
-        <div class="period">Period: #{period_start} – #{period_end}</div>
-      </div>
-
-      <h2>Attachee Information</h2>
-      <div class="info-grid">
-        <div class="info-label">Full Name</div>
-        <div class="info-value">#{attachee_name}</div>
-
-        <div class="info-label">Email</div>
-        <div class="info-value">#{attachee_email}</div>
-
-        <div class="info-label">Department</div>
-        <div class="info-value">#{dept_name}</div>
-
-        <div class="info-label">Position</div>
-        <div class="info-value">#{position}</div>
-
-        <div class="info-label">Duration</div>
-        <div class="info-value">#{start_date} – #{end_date}</div>
-      </div>
-
-      #{stats_html}
-      #{projects_html}
-      #{tasks_html}
-      #{eval_html}
-      #{comments_html}
-
-      <div class="footer">
-        <p><strong>Report generated on:</strong> #{now} UTC</p>
-        <p>This is a system-generated confidential report • For internal use only</p>
+      <div class="content-body">
+        #{stats_section}
+        #{projects_section}
+        #{tasks_section}
+        #{evals_section}
+        #{comments_section}
       </div>
     </body>
     </html>
     """
   end
 
-  # --- FILTERING HELPERS ---
+  # --- COMPONENT FUNCTIONS ---
+
+  defp component_header(org, title, start_date, end_date) do
+    org_name = if org, do: org.name, else: "Company Name"
+
+    # LOGO PLACEHOLDER: Replace with <img> tag if you have a file path
+    # Example: <img src='file:///absolute/path/to/logo.png' class='logo-img' />
+    logo_html = """
+    <div class="logo-placeholder">
+      #{String.slice(org_name, 0, 2) |> String.upcase()}
+    </div>
+    """
+
+    """
+    <div class="header-container">
+      <div class="header-left">
+        #{logo_html}
+      </div>
+      <div class="header-right">
+        <h1 class="company-name">#{org_name}</h1>
+        <div class="report-meta">
+          <h2 class="report-name">#{title}</h2>
+          <p class="report-period">Period: #{format_date(start_date)} – #{format_date(end_date)}</p>
+        </div>
+      </div>
+    </div>
+    <div class="header-divider"></div>
+    """
+  end
+
+  defp component_info_grid(name, attachee, department) do
+    user = attachee.user
+    dept_name = if department, do: department.name, else: "—"
+    position = attachee.position || "Industrial Attachee"
+
+    """
+    <div class="info-box">
+      <table class="info-table">
+        <tr>
+          <td class="info-label">Attachee Name</td>
+          <td class="info-value"><strong>#{name}</strong></td>
+          <td class="info-label">Department</td>
+          <td class="info-value">#{dept_name}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Email</td>
+          <td class="info-value">#{user.email}</td>
+          <td class="info-label">Position</td>
+          <td class="info-value">#{position}</td>
+        </tr>
+        <tr>
+          <td class="info-label">Attachment Duration</td>
+          <td class="info-value" colspan="3">
+            #{format_date(attachee.starts_on)} — #{format_date(attachee.ends_on)}
+          </td>
+        </tr>
+      </table>
+    </div>
+    """
+  end
+
+  defp component_stats(avg, evals, tasks, rate) do
+    """
+    <div class="section-container">
+      <h3 class="section-title">Performance Overview</h3>
+      <div class="stats-row">
+        <div class="stat-item highlight">
+          <span class="stat-val">#{avg}</span>
+          <span class="stat-lbl">Avg. Score</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">#{evals}</span>
+          <span class="stat-lbl">Evaluations</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">#{tasks}</span>
+          <span class="stat-lbl">Tasks</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">#{rate}%</span>
+          <span class="stat-lbl">Completion</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp component_projects(projects) do
+    items = Enum.map(projects, fn p ->
+      """
+      <div class="project-card">
+        <div class="proj-name">#{safe_html(p.name)}</div>
+        <div class="proj-code">Code: #{p.code}</div>
+      </div>
+      """
+    end) |> Enum.join()
+
+    """
+    <div class="section-container">
+      <h3 class="section-title">Assigned Projects</h3>
+      <div class="projects-grid">#{items}</div>
+    </div>
+    """
+  end
+
+  defp component_tasks(tasks, scores) do
+    rows = if Enum.empty?(tasks) do
+      "<tr><td colspan='4' class='empty-msg'>No tasks assigned during this period.</td></tr>"
+    else
+      Enum.map(tasks, fn t ->
+        score_info = Map.get(scores, t.id)
+        score = if score_info, do: score_info.score, else: nil
+        score_display = if score, do: "#{score}", else: "—"
+        status_cls = "status-#{t.status}"
+
+        """
+        <tr>
+          <td class="col-task">#{safe_html(t.title)}</td>
+          <td class="col-status"><span class="badge #{status_cls}">#{format_status(t.status)}</span></td>
+          <td class="col-score">#{score_display}</td>
+          <td class="col-rating">#{if score, do: score_to_label(score), else: "—"}</td>
+        </tr>
+        """
+      end) |> Enum.join()
+    end
+
+    """
+    <div class="section-container">
+      <h3 class="section-title">Task Performance</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="th-task">Task Description</th>
+            <th class="th-status">Status</th>
+            <th class="th-score">Score</th>
+            <th class="th-rating">Rating</th>
+          </tr>
+        </thead>
+        <tbody>#{rows}</tbody>
+      </table>
+    </div>
+    """
+  end
+
+  defp component_evaluations(evaluations) do
+    items = if Enum.empty?(evaluations) do
+      "<p class='empty-msg'>No evaluations recorded.</p>"
+    else
+      Enum.map(evaluations, fn e ->
+        evaluator = if e.evaluator, do: e.evaluator.username || "Supervisor", else: "System"
+        comment = if e.comments && e.comments != "", do: "<div class='eval-comment'>\"#{safe_html(e.comments)}\"</div>", else: ""
+
+        """
+        <div class="eval-item">
+          <div class="eval-meta">
+            <span class="eval-author">#{evaluator}</span>
+            <span class="eval-date">#{format_datetime(e.inserted_at)}</span>
+          </div>
+          <div class="eval-content">
+            <div class="score-circle level-#{score_to_level(e.score)}">#{e.score}</div>
+            <div class="eval-text">
+              <span class="eval-label">#{score_to_label(e.score)}</span>
+              #{comment}
+            </div>
+          </div>
+        </div>
+        """
+      end) |> Enum.join()
+    end
+
+    """
+    <div class="section-container page-break-avoid">
+      <h3 class="section-title">Evaluation History</h3>
+      <div class="eval-list">#{items}</div>
+    </div>
+    """
+  end
+
+  defp component_comments(comments) do
+    content = if comments && comments != "", do: format_comments(comments), else: "No additional comments."
+
+    """
+    <div class="section-container page-break-avoid">
+      <h3 class="section-title">Supervisor Remarks</h3>
+      <div class="remarks-box">#{content}</div>
+    </div>
+    """
+  end
+
+  defp footer_html do
+    """
+    <div style="text-align:center; font-size:9px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:10px;">
+      Generated by Attachment Management System • Confidential • Page <span class="pageNumber"></span>
+    </div>
+    """
+  end
+
+  # --- CSS STYLES ---
+  defp pdf_styles do
+    """
+    /* Base */
+    @page { margin: 0; size: A4; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; margin: 0; padding: 40px; font-size: 12px; line-height: 1.5; }
+
+    /* Header */
+    .header-container { display: table; width: 100%; margin-bottom: 15px; }
+    .header-left { display: table-cell; width: 80px; vertical-align: middle; }
+    .header-right { display: table-cell; vertical-align: middle; padding-left: 20px; }
+
+    .logo-placeholder {
+      width: 60px; height: 60px; background-color: #4c1d95; border-radius: 8px;
+      text-align: center; line-height: 60px; color: white; font-weight: bold; font-size: 20px;
+    }
+    .company-name { margin: 0; color: #1e293b; font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+    .report-name { margin: 4px 0 0 0; color: #64748b; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+    .report-period { margin: 2px 0 0 0; font-size: 11px; color: #94a3b8; }
+    .header-divider { height: 3px; background: linear-gradient(90deg, #4c1d95, #a78bfa); margin-bottom: 25px; border-radius: 2px; }
+
+    /* Info Box */
+    .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 30px; }
+    .info-table { width: 100%; border-collapse: collapse; }
+    .info-table td { padding: 4px 0; vertical-align: top; }
+    .info-label { color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 700; width: 15%; }
+    .info-value { color: #0f172a; font-size: 13px; width: 35%; }
+
+    /* Sections */
+    .section-container { margin-bottom: 30px; }
+    .section-title {
+      font-size: 15px; color: #4c1d95; border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px; margin: 0 0 12px 0; font-weight: 700;
+    }
+
+    /* Stats */
+    .stats-row { display: table; width: 100%; table-layout: fixed; border-spacing: 10px 0; margin-left: -10px; }
+    .stat-item {
+      display: table-cell; background: white; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .stat-item.highlight { background: #4c1d95; border-color: #4c1d95; }
+    .stat-item.highlight .stat-val { color: white; }
+    .stat-item.highlight .stat-lbl { color: #e9d5ff; }
+    .stat-val { display: block; font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .stat-lbl { display: block; font-size: 10px; text-transform: uppercase; font-weight: 600; color: #64748b; }
+
+    /* Projects */
+    .projects-grid { overflow: hidden; }
+    .project-card {
+      display: inline-block; width: 45%; background: #f1f5f9; padding: 8px 12px;
+      border-radius: 6px; border-left: 3px solid #7c3aed; margin-right: 10px; margin-bottom: 10px;
+    }
+    .proj-name { font-weight: 600; color: #334155; font-size: 12px; }
+    .proj-code { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+    /* Data Table */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th {
+      text-align: left; padding: 8px; background: #f8fafc; color: #475569;
+      text-transform: uppercase; font-size: 10px; font-weight: 700; border-bottom: 2px solid #e2e8f0;
+    }
+    .data-table td { padding: 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .th-task { width: 50%; } .th-status { width: 20%; } .th-score { width: 15%; } .th-rating { width: 15%; }
+    .empty-msg { color: #94a3b8; font-style: italic; padding: 10px 0; text-align: center; }
+
+    /* Badges */
+    .badge { padding: 3px 8px; border-radius: 10px; font-size: 9px; font-weight: 700; text-transform: uppercase; display: inline-block; }
+    .status-completed { background: #dcfce7; color: #166534; }
+    .status-submitted { background: #e0e7ff; color: #3730a3; }
+    .status-in_progress { background: #dbeafe; color: #1e40af; }
+    .status-pending { background: #f1f5f9; color: #64748b; }
+
+    /* Evaluations */
+    .eval-item { margin-bottom: 15px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; }
+    .eval-item:last-child { border: none; }
+    .eval-meta { font-size: 10px; color: #64748b; margin-bottom: 6px; }
+    .eval-author { font-weight: 700; color: #475569; margin-right: 5px; }
+    .eval-content { display: table; width: 100%; }
+    .score-circle {
+      display: table-cell; vertical-align: middle; width: 36px; height: 36px;
+      border-radius: 50%; text-align: center; font-weight: 800; font-size: 14px;
+      border: 2px solid #e2e8f0; background: #fff;
+    }
+    .eval-text { display: table-cell; vertical-align: top; padding-left: 12px; }
+    .eval-label { font-weight: 700; font-size: 12px; color: #1e293b; display: block; margin-bottom: 2px; }
+    .eval-comment { font-style: italic; color: #64748b; font-size: 11px; }
+
+    .level-excellent { border-color: #22c55e; color: #15803d; background: #f0fdf4; }
+    .level-good { border-color: #3b82f6; color: #1d4ed8; background: #eff6ff; }
+    .level-satisfactory { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+    .level-poor { border-color: #ef4444; color: #b91c1c; background: #fef2f2; }
+
+    /* Remarks */
+    .remarks-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 12px; color: #92400e; font-size: 12px; }
+
+    .page-break-avoid { page-break-inside: avoid; }
+    """
+  end
+
+  # --- HELPERS (Same as before) ---
+  defp get_report_title("evaluation_summary"), do: "Evaluation Summary"
+  defp get_report_title("monthly_report"), do: "Monthly Progress Report"
+  defp get_report_title("final_report"), do: "Final Attachment Report"
+  defp get_report_title(_), do: "Attachee Report"
+
+  defp format_status(status), do: status |> to_string() |> String.replace("_", " ") |> String.capitalize()
+
+  # Re-using your previous helper logic for these:
   defp filter_by_period(tasks, period_start, period_end) do
     Enum.filter(tasks, fn task ->
       task_date = extract_date(task.inserted_at)
-      if task_date do
-        Date.compare(task_date, period_start) != :lt and Date.compare(task_date, period_end) != :gt
-      else
-        true
-      end
+      if task_date, do: Date.compare(task_date, period_start) != :lt and Date.compare(task_date, period_end) != :gt, else: true
     end)
   end
 
   defp filter_evaluations_by_period(evaluations, period_start, period_end) do
     Enum.filter(evaluations, fn eval ->
       eval_date = extract_date(eval.inserted_at)
-      if eval_date do
-        Date.compare(eval_date, period_start) != :lt and Date.compare(eval_date, period_end) != :gt
-      else
-        true
-      end
+      if eval_date, do: Date.compare(eval_date, period_start) != :lt and Date.compare(eval_date, period_end) != :gt, else: true
     end)
   end
 
@@ -215,202 +460,7 @@ defmodule TrialApp.Reports.PDFGenerator do
   defp extract_date(%Date{} = d), do: d
   defp extract_date(_), do: nil
 
-  # --- STYLES & HTML HELPERS ---
-  defp pdf_styles do
-    """
-    @page { margin: 0; size: A4; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #2d3748; margin: 0; padding: 30px; background: white; }
-    h1 { color: #5b21b6; font-size: 28pt; margin: 0; text-align: center; }
-    h2 { color: #4c1d95; font-size: 18pt; border-bottom: 3px solid #c4b5fd; padding-bottom: 8px; margin: 30px 0 15px; }
-    .header { text-align: center; padding-bottom: 20px; border-bottom: 4px double #a78bfa; margin-bottom: 30px; }
-    .report-title { background: linear-gradient(90deg, #a78bfa, #c4b5fd); color: white; padding: 20px; border-radius: 10px; text-align: center; margin: 20px 0; }
-    .period { font-size: 12pt; opacity: 0.9; }
-    .info-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 8px 15px; background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 11pt; }
-    .info-label { font-weight: bold; color: #4c1d95; }
-    .info-value { color: #1f2937; }
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
-    .stat-card { background: white; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
-    .stat-card.main { background: #5b21b6; color: white; }
-    .stat-value { font-size: 24pt; font-weight: bold; display: block; }
-    .stat-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; background: white; }
-    th { background: #f1f5f9; color: #475569; padding: 12px; text-transform: uppercase; font-size: 9pt; text-align: left; }
-    td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-    tr:hover { background: #f8fafc; }
-    .badge { padding: 4px 10px; border-radius: 20px; font-size: 9pt; font-weight: bold; display: inline-block; }
-    .excellent { background: #dcfce7; color: #166534; }
-    .good { background: #dbeafe; color: #1e40af; }
-    .satisfactory { background: #fef3c7; color: #92400e; }
-    .poor { background: #fee2e2; color: #991b1b; }
-    .pending { background: #f3f4f6; color: #6b7280; }
-    .completed { background: #dcfce7; color: #166534; }
-    .in_progress { background: #dbeafe; color: #1e40af; }
-    .rejected { background: #fee2e2; color: #991b1b; }
-    .submitted { background: #e0e7ff; color: #3730a3; }
-    .eval-card { background: #f8fafc; border-left: 5px solid #7c3aed; padding: 15px; border-radius: 0 8px 8px 0; margin: 12px 0; }
-    .eval-score { float: right; background: #7c3aed; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16pt; font-weight: bold; }
-    .comments { font-style: italic; color: #64748b; margin-top: 10px; }
-    .footer { margin-top: 50px; padding-top: 20px; border-top: 2px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 9pt; }
-    .project-item { background: #f8fafc; padding: 12px; margin: 8px 0; border-radius: 6px; border-left: 4px solid #7c3aed; }
-    """
-  end
-
-  defp performance_summary_html(avg_score, eval_count, total_tasks, comp_rate) do
-    """
-    <h2>Performance Summary</h2>
-    <div class="stats-grid">
-      <div class="stat-card main">
-        <span class="stat-value">#{avg_score}</span>
-        <span class="stat-label">Average Score</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">#{eval_count}</span>
-        <span class="stat-label">Evaluations</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">#{total_tasks}</span>
-        <span class="stat-label">Total Tasks</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-value">#{comp_rate}%</span>
-        <span class="stat-label">Completion</span>
-      </div>
-    </div>
-    """
-  end
-
-  defp projects_section_html(projects) do
-    items = Enum.map(projects, fn proj ->
-      program_name = if proj.program, do: proj.program.name, else: "N/A"
-      """
-      <div class="project-item">
-        <strong>#{safe_html(proj.name)}</strong><br>
-        <span style="color: #64748b; font-size: 10pt;">Program: #{safe_html(program_name)}</span>
-      </div>
-      """
-    end)
-    |> Enum.join()
-
-    """
-    <h2>Projects Assigned</h2>
-    #{items}
-    """
-  end
-
-  defp task_performance_html(tasks, task_scores) do
-    rows = if Enum.empty?(tasks) do
-      """
-      <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">No tasks assigned during this period</td></tr>
-      """
-    else
-      Enum.map(tasks, fn task ->
-        score_info = Map.get(task_scores, task.id)
-        score = if score_info, do: score_info.score, else: nil
-        level_class = if score, do: score_to_level(score), else: "pending"
-        level_label = if score, do: score_to_label(score), else: "Pending"
-
-        # Safe Title Access
-        task_title = Map.get(task, :title) || "Task ##{task.id}"
-
-        status_display = task.status |> to_string() |> String.replace("_", " ") |> String.capitalize()
-        status_class = task.status
-
-        """
-        <tr>
-          <td>#{safe_html(task_title)}</td>
-          <td><span class="badge #{status_class}">#{status_display}</span></td>
-          <td>#{if score, do: "#{score}/100", else: "—"}</td>
-          <td><span class="badge #{level_class}">#{level_label}</span></td>
-        </tr>
-        """
-      end)
-      |> Enum.join()
-    end
-
-    """
-    <h2>Task Performance</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Task</th>
-          <th>Status</th>
-          <th>Score</th>
-          <th>Performance</th>
-        </tr>
-      </thead>
-      <tbody>
-        #{rows}
-      </tbody>
-    </table>
-    """
-  end
-
-  defp evaluation_history_html(evaluations) do
-    cards = if Enum.empty?(evaluations) do
-      """
-      <p style="color:#94a3b8; text-align:center; padding:30px;">No evaluations recorded during this period.</p>
-      """
-    else
-      evaluations
-      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
-      |> Enum.take(10)
-      |> Enum.map(fn e ->
-        name = if e.evaluator, do: e.evaluator.username || e.evaluator.email, else: "System"
-
-        comments_html = if e.comments && e.comments != "" do
-          """
-          <div class="comments">"#{safe_html(e.comments)}"</div>
-          """
-        else
-          ""
-        end
-
-        """
-        <div class="eval-card">
-          <div class="eval-score">#{e.score}</div>
-          <strong>#{safe_html(name)}</strong> • #{format_datetime(e.inserted_at)}<br>
-          <em>Score: #{e.score}/100 – #{score_to_label(e.score)}</em>
-          #{comments_html}
-        </div>
-        """
-      end)
-      |> Enum.join()
-    end
-
-    """
-    <h2>Recent Evaluations</h2>
-    #{cards}
-    """
-  end
-
-  defp supervisor_comments_html(comments) do
-    text = if comments && comments != "", do: format_comments(comments), else: "No additional comments provided."
-
-    """
-    <h2>Supervisor Comments</h2>
-    <div style="background:#f8fafc; padding:20px; border-radius:8px; border-left:5px solid #7c3aed;">
-      #{text}
-    </div>
-    """
-  end
-
-  defp footer_html do
-    """
-    <div style="text-align:center; font-size:9pt; color:#94a3b8; width:100%;">
-      Page <span class="pageNumber"></span> of <span class="totalPages"></span> • Confidential Report
-    </div>
-    """
-  end
-
   defp safe_html(nil), do: ""
-  defp safe_html(text) when is_binary(text) do
-    text
-    |> String.replace("&", "&amp;")
-    |> String.replace("<", "&lt;")
-    |> String.replace(">", "&gt;")
-    |> String.replace("\"", "&quot;")
-    |> String.replace("'", "&#39;")
-  end
   defp safe_html(text), do: to_string(text)
 
   defp score_to_level(score) when score >= 81, do: "excellent"
@@ -424,13 +474,11 @@ defmodule TrialApp.Reports.PDFGenerator do
   defp score_to_label(_), do: "Needs Improvement"
 
   defp format_date(nil), do: "N/A"
-  defp format_date(date), do: Calendar.strftime(date, "%B %d, %Y")
+  defp format_date(date), do: Calendar.strftime(date, "%d %b, %Y")
 
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%B %d, %Y at %H:%M")
+  defp format_datetime(dt), do: Calendar.strftime(dt, "%d %b %Y, %H:%M")
 
   defp format_comments(text) do
-    text
-    |> safe_html()
-    |> String.replace("\n", "<br>")
+    text |> safe_html() |> String.replace("\n", "<br>")
   end
 end
