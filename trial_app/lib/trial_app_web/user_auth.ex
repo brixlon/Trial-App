@@ -222,7 +222,6 @@ defmodule TrialAppWeb.UserAuth do
     end
   end
 
-
   defp mount_current_scope(socket, session) do
     scope =
       case session["user_token"] do
@@ -243,7 +242,29 @@ defmodule TrialAppWeb.UserAuth do
       end
 
     # Use assign instead of assign_new to force update on every mount
-    Phoenix.Component.assign(socket, :current_scope, scope)
+    socket = Phoenix.Component.assign(socket, :current_scope, scope)
+
+    # Only attach the hook if it hasn't been attached yet
+    if Phoenix.LiveView.connected?(socket) && !hook_attached?(socket, :set_current_path) do
+      Phoenix.LiveView.attach_hook(socket, :set_current_path, :handle_params, &set_current_path/3)
+    else
+      socket
+    end
+  end
+
+  defp hook_attached?(socket, hook_id) do
+    case socket.private do
+      %{lifecycle: %{handle_params: hooks}} ->
+        Enum.any?(hooks, fn hook -> hook.id == hook_id end)
+
+      _ ->
+        false
+    end
+  end
+
+  defp set_current_path(_params, url, socket) do
+    uri = URI.parse(url)
+    {:cont, Phoenix.Component.assign(socket, :current_path, uri.path)}
   end
 
   # ============================================================================

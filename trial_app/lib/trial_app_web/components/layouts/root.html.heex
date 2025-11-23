@@ -1,27 +1,38 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light" class="scroll-smooth" x-data="{ darkMode: false }" x-init="darkMode = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches); $watch('darkMode', val => { localStorage.setItem('theme', val ? 'dark' : 'light'); document.documentElement.setAttribute('data-theme', val ? 'dark' : 'light'); })">
+<html
+  lang="en"
+  data-theme="light"
+  class="scroll-smooth"
+  x-data="{ darkMode: false }"
+  x-init="darkMode = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches); $watch('darkMode', val => { localStorage.setItem('theme', val ? 'dark' : 'light'); document.documentElement.setAttribute('data-theme', val ? 'dark' : 'light'); })"
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-   
-    <!-- SEO -->
+    
+<!-- SEO -->
     <meta name="description" content="AMS - Attachment Management System" />
     <meta name="author" content="Value8" />
-   
+
     <.live_title default="AMS" suffix=" · Attachment Management System">
       {assigns[:page_title]}
     </.live_title>
-
-    <!-- Fonts & Assets -->
+    
+<!-- Fonts & Assets -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />
-    <script defer phx-track-static src={~p"/assets/app.js"}></script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <!-- Dark Mode & Animations -->
+    <script defer phx-track-static src={~p"/assets/app.js"}>
+    </script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js">
+    </script>
+    
+<!-- Dark Mode & Animations -->
     <style>
       * { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
       html[data-theme="light"] body { background: #fff; color: #111; }
@@ -30,23 +41,36 @@
       html[data-theme="dark"] .text-gray-900 { color: #f9fafb !important; }
       nav.scrolled { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
       .fade-in { animation: fadeIn 0.4s ease-out; }
+      .animate-slide-in { animation: slideIn 0.3s ease-out; }
     </style>
   </head>
 
   <body class="bg-white text-gray-900 min-h-screen antialiased">
     <!-- LOADING BAR -->
-    <div class="phx-loading fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 z-[100] opacity-0 transition-opacity" phx-connected-class="opacity-100"></div>
-
-    <!-- MAIN CONTENT -->
+    <div
+      class="phx-loading fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 z-[100] opacity-0 transition-opacity"
+      phx-connected-class="opacity-100"
+    >
+    </div>
+    
+<!-- MAIN CONTENT -->
     <div class="fade-in">
       {@inner_content}
     </div>
-
-    <!-- FLASH - Positioned globally -->
-    <div id="flash-group" class="fixed top-20 right-4 z-50 space-y-2">
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:error} flash={@flash} />
-    </div>
+    
+<!-- FLASH - Positioned globally -->
+    <.flash kind={:info} flash={@flash} />
+    <.flash kind={:error} flash={@flash} />
   </body>
 </html>

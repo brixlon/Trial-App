@@ -19,10 +19,12 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:teams, teams)
      |> assign(:departments, departments)
      |> assign(:filter, "all")
+     |> assign(:search_query, "")
      |> assign(:selected_user, nil)
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
      |> assign(:show_view_modal, false)
+     |> assign(:show_delete_modal, false)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})
      |> assign(:available_teams, [])
@@ -33,11 +35,13 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
 
   def handle_params(params, _url, socket) do
     filter = Map.get(params, "filter", "all")
-    users = apply_filter(Accounts.list_users_with_assignments(), filter)
+    all_users = Accounts.list_users_with_assignments()
+    filtered_users = apply_filter(all_users, filter)
+    searched_users = apply_search(filtered_users, socket.assigns.search_query)
 
     {:noreply,
      socket
-     |> assign(:users, users)
+     |> assign(:users, searched_users)
      |> assign(:filter, filter)}
   end
 
@@ -148,12 +152,33 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:team_assignments, current_assignments)}
   end
 
+  def handle_event("search", %{"query" => query}, socket) do
+    all_users = Accounts.list_users_with_assignments()
+    filtered_users = apply_filter(all_users, socket.assigns.filter)
+    searched_users = apply_search(filtered_users, query)
+
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> assign(:users, searched_users)}
+  end
+
+  def handle_event("confirm_delete_user", %{"user-id" => user_id}, socket) do
+    user = Accounts.get_user!(user_id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_user, user)
+     |> assign(:show_delete_modal, true)}
+  end
+
   def handle_event("close_modal", _, socket) do
     {:noreply,
      socket
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
      |> assign(:show_view_modal, false)
+     |> assign(:show_delete_modal, false)
      |> assign(:selected_user, nil)
      |> assign(:user_form, %{})
      |> assign(:team_assignments, %{})}
@@ -324,19 +349,22 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end
   end
 
-  def handle_event("delete_user", %{"user-id" => user_id}, socket) do
-    user = Accounts.get_user!(user_id)
+  def handle_event("delete_user", _, socket) do
+    user = socket.assigns.selected_user
 
     case Accounts.delete_user(user) do
       {:ok, _user} ->
-        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
+        all_users = Accounts.list_users_with_assignments()
+        filtered_users = apply_filter(all_users, socket.assigns.filter)
+        searched_users = apply_search(filtered_users, socket.assigns.search_query)
 
         {:noreply,
          socket
          |> put_flash(:info, "User deleted successfully!")
-         |> assign(:users, users)
+         |> assign(:users, searched_users)
          |> assign(:show_view_modal, false)
          |> assign(:show_edit_modal, false)
+         |> assign(:show_delete_modal, false)
          |> assign(:selected_user, nil)}
 
       {:error, _changeset} ->
@@ -347,6 +375,17 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   defp apply_filter(users, "all"), do: users
   defp apply_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
   defp apply_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
+
+  defp apply_search(users, ""), do: users
+
+  defp apply_search(users, query) do
+    query_lower = String.downcase(query)
+
+    Enum.filter(users, fn user ->
+      String.contains?(String.downcase(user.username || ""), query_lower) ||
+        String.contains?(String.downcase(user.email || ""), query_lower)
+    end)
+  end
 
   defp user_status_class("pending"), do: "badge-warning"
   defp user_status_class("active"), do: "badge-success"

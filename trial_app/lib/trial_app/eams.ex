@@ -300,6 +300,25 @@ defmodule TrialApp.Eams do
     |> Repo.update()
   end
 
+  def approve_project(%Project{} = project) do
+    project
+    |> Project.changeset(%{status: "active", is_active: true})
+    |> Repo.update()
+  end
+
+  def reject_project(%Project{} = project) do
+    project
+    |> Project.changeset(%{status: "rejected", is_active: false})
+    |> Repo.update()
+  end
+
+  def list_pending_projects do
+    Project
+    |> where([p], p.status == "pending")
+    |> preload([:supervisor, :department, :organization, :program])
+    |> Repo.all()
+  end
+
   def delete_project(%Project{} = project), do: Repo.delete(project)
 
   def count_projects do
@@ -394,6 +413,7 @@ defmodule TrialApp.Eams do
       join: t in Task,
       on: t.project_id == pr.id,
       where: t.assignee_id == ^attachee_id,
+      where: pr.status == "active",
       distinct: true
     )
     |> preload([:program, :department, :organization])
@@ -713,6 +733,31 @@ defmodule TrialApp.Eams do
     |> Repo.all()
   end
 
+  @doc """
+  Lists all attachees for a supervisor based on their assigned projects.
+  Includes attachees assigned to the projects OR having tasks in the projects.
+  """
+  def list_attachees_for_supervisor(supervisor_id) do
+    # Get all projects for this supervisor
+    projects = list_projects_for_supervisor(supervisor_id)
+    project_ids = Enum.map(projects, & &1.id)
+
+    if Enum.empty?(project_ids) do
+      []
+    else
+      from(a in Attachee,
+        left_join: pa in ProjectAttachee,
+        on: pa.attachee_id == a.id and pa.project_id in ^project_ids,
+        left_join: t in Task,
+        on: t.assignee_id == a.id and t.project_id in ^project_ids,
+        where: not is_nil(pa.id) or not is_nil(t.id),
+        distinct: true,
+        preload: [:user, :department, :organization]
+      )
+      |> Repo.all()
+    end
+  end
+
   # SUPERVISOR DASHBOARD HELPERS
   defp get_supervisor_department(supervisor_id) do
     user = Accounts.get_user!(supervisor_id)
@@ -721,7 +766,7 @@ defmodule TrialApp.Eams do
 
   def list_projects_for_supervisor(supervisor_id) do
     Project
-    |> where([p], p.supervisor_id == ^supervisor_id and p.is_active == true)
+    |> where([p], p.supervisor_id == ^supervisor_id)
     |> preload([:program, :department, :organization])
     |> Repo.all()
   end
@@ -768,13 +813,35 @@ defmodule TrialApp.Eams do
       on: task.assignee_id == a.id,
       join: tm in TeamMember,
       on: tm.user_id == a.user_id,
-      join: t in Team,
-      on: t.id == tm.team_id,
-      where: t.supervisor_id == ^supervisor_id,
-      where: task.status == "submitted",
+      where:
+        tm.team_id in subquery(
+          from t in Team,
+            where: t.department_id == ^get_supervisor_department(supervisor_id).id,
+            select: t.id
+        ),
+      where: task.status != "completed",
       select: count(task.id)
     )
     |> Repo.one() || 0
+  end
+
+  # DASHBOARD AGGREGATIONS
+  def count_attachees_by_department do
+    from(a in Attachee,
+      join: d in Orgs.Department,
+      on: a.department_id == d.id,
+      group_by: d.name,
+      select: {d.name, count(a.id)}
+    )
+    |> Repo.all()
+  end
+
+  def count_projects_by_status do
+    from(p in Project,
+      group_by: p.status,
+      select: {p.status, count(p.id)}
+    )
+    |> Repo.all()
   end
 
   def count_completed_tasks_this_week(supervisor_id) do

@@ -69,7 +69,13 @@ defmodule TrialApp.Accounts do
   Lists all users.
   """
   def list_users do
+    Repo.all(User)
+  end
+
+  def list_recent_users(limit \\ 5) do
     User
+    |> order_by(desc: :inserted_at)
+    |> limit(^limit)
     |> preload(employees: [:organization, :department, :team])
     |> Repo.all()
   end
@@ -729,7 +735,56 @@ defmodule TrialApp.Accounts do
   Deletes a user and associated data.
   """
   def delete_user(%User{} = user) do
-    Repo.delete(user)
+    Repo.transaction(fn ->
+      # 1. Handle Attachee specific data if user is an attachee
+      # We need to find the attachee record first to get its ID
+      attachee = Repo.get_by(Eams.Attachee, user_id: user.id)
+
+      if attachee do
+        # Delete evaluations where this attachee is the subject
+        from(e in "evaluations", where: e.attachee_id == ^attachee.id)
+        |> Repo.delete_all()
+
+        # Delete project attachees (join table)
+        from(pa in "project_attachees", where: pa.attachee_id == ^attachee.id)
+        |> Repo.delete_all()
+
+        # Delete attachee programs (join table)
+        from(ap in "attachee_programs", where: ap.attachee_id == ^attachee.id)
+        |> Repo.delete_all()
+
+        # Handle tasks assigned to this attachee
+        # Option A: Delete them
+        from(t in "tasks", where: t.assignee_id == ^attachee.id)
+        |> Repo.delete_all()
+
+        # Finally delete the attachee record itself
+        Repo.delete!(attachee)
+      end
+
+      # 2. Delete other user associations
+      # Delete employees
+      from(e in "employees", where: e.user_id == ^user.id)
+      |> Repo.delete_all()
+
+      # Delete team members
+      from(tm in "team_members", where: tm.user_id == ^user.id)
+      |> Repo.delete_all()
+
+      # Delete user tokens
+      from(t in "users_tokens", where: t.user_id == ^user.id)
+      |> Repo.delete_all()
+
+      # Delete announcement reads
+      from(ar in "announcement_reads", where: ar.user_id == ^user.id)
+      |> Repo.delete_all()
+
+      # 3. Finally delete the user
+      case Repo.delete(user) do
+        {:ok, deleted_user} -> deleted_user
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   # Private helpers

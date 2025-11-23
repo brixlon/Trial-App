@@ -57,9 +57,15 @@ defmodule TrialApp.Reports.ReportHTML do
     ~H"""
     <div class="header-container">
       <div class="header-left">
-        <div class="logo-placeholder">
-          {if @organization, do: String.slice(@organization.name, 0, 2) |> String.upcase(), else: "CO"}
-        </div>
+        <%= if url = logo_data_url() do %>
+          <img src={url} class="logo-img" alt="Value8" />
+        <% else %>
+          <div class="logo-placeholder">
+            {if @organization,
+              do: String.slice(@organization.name, 0, 2) |> String.upcase(),
+              else: "CO"}
+          </div>
+        <% end %>
       </div>
       <div class="header-right">
         <h1 class="company-name">{if @organization, do: @organization.name, else: "Company Name"}</h1>
@@ -244,6 +250,7 @@ defmodule TrialApp.Reports.ReportHTML do
     .header-left { display: table-cell; width: 80px; vertical-align: middle; }
     .header-right { display: table-cell; vertical-align: middle; padding-left: 20px; }
 
+    .logo-img { width: 80px; height: auto; display: block; }
     .logo-placeholder {
       width: 60px; height: 60px; background-color: #4c1d95; border-radius: 8px;
       text-align: center; line-height: 60px; color: white; font-weight: bold; font-size: 20px;
@@ -350,4 +357,13 @@ defmodule TrialApp.Reports.ReportHTML do
   defp score_to_label(score) when score >= 61, do: "Good"
   defp score_to_label(score) when score >= 41, do: "Satisfactory"
   defp score_to_label(_), do: "Needs Improvement"
+
+  defp logo_data_url do
+    path = Application.app_dir(:trial_app, "priv/static/images/value8-logo.png")
+
+    case File.read(path) do
+      {:ok, binary} -> "data:image/png;base64,#{Base.encode64(binary)}"
+      _ -> nil
+    end
+  end
 end

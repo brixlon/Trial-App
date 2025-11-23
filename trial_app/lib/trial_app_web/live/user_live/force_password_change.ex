@@ -7,11 +7,15 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
   def mount(%{"user_id" => user_id}, _session, socket) do
     user = Accounts.get_user!(user_id)
 
-    form = to_form(%{
-      "current_password" => "",
-      "password" => "",
-      "password_confirmation" => ""
-    }, as: "user")
+    form =
+      to_form(
+        %{
+          "current_password" => "",
+          "password" => "",
+          "password_confirmation" => ""
+        },
+        as: "user"
+      )
 
     {:ok,
      socket
@@ -26,17 +30,19 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
     # Simple client-side validation feedback
     errors = []
 
-    errors = if String.length(user_params["password"] || "") < 8 do
-      ["Password must be at least 8 characters" | errors]
-    else
-      errors
-    end
+    errors =
+      if String.length(user_params["password"] || "") < 8 do
+        ["Password must be at least 8 characters" | errors]
+      else
+        errors
+      end
 
-    errors = if user_params["password"] != user_params["password_confirmation"] do
-      ["Passwords do not match" | errors]
-    else
-      errors
-    end
+    errors =
+      if user_params["password"] != user_params["password_confirmation"] do
+        ["Passwords do not match" | errors]
+      else
+        errors
+      end
 
     {:noreply, assign(socket, :error_message, Enum.join(errors, ", "))}
   end
@@ -55,8 +61,11 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
 
       case Accounts.update_user_password(user, attrs) do
         {:ok, {updated_user, _tokens}} ->
-          # Update must_change_password flag
-          Accounts.update_user(updated_user, %{must_change_password: false})
+          # Update must_change_password flag and activate account
+          Accounts.update_user(updated_user, %{
+            must_change_password: false,
+            status: "active"
+          })
 
           {:noreply,
            socket
@@ -84,9 +93,18 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
         <div class="bg-white rounded-2xl shadow-xl p-8">
           <div class="text-center mb-8">
             <div class="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <svg
+                class="w-8 h-8 text-yellow-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
               </svg>
             </div>
             <h2 class="text-3xl font-bold text-gray-900 mb-2">Change Your Password</h2>
@@ -128,7 +146,10 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
             </div>
 
             <div>
-              <label for="password_confirmation" class="block text-sm font-semibold text-gray-700 mb-2">
+              <label
+                for="password_confirmation"
+                class="block text-sm font-semibold text-gray-700 mb-2"
+              >
                 Confirm New Password
               </label>
               <input
@@ -144,7 +165,7 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
 
             <%= if @error_message do %>
               <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                <%= @error_message %>
+                {@error_message}
               </div>
             <% end %>
 
@@ -172,8 +193,7 @@ defmodule TrialAppWeb.UserLive.ForcePasswordChange do
       </div>
 
       <%= if @trigger_submit do %>
-        <form id="redirect-form" action={~p"/users/login?user_id=#{@user.id}"} method="get">
-        </form>
+        <form id="redirect-form" action={~p"/users/login?user_id=#{@user.id}"} method="get"></form>
         <script>
           document.getElementById('redirect-form').submit();
         </script>

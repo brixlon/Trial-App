@@ -2,85 +2,79 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
   use TrialAppWeb, :live_view
 
   alias TrialApp.{Accounts, Eams, Repo}
-@impl true
-def mount(_params, _session, socket) do
-  current_scope = socket.assigns.current_scope
-  user = current_scope.user
+  @impl true
+  def mount(_params, _session, socket) do
+    current_scope = socket.assigns.current_scope
+    user = current_scope.user
 
-  # Check if active role is attachee
-  if current_scope.active_role == "attachee" or "attachee" in user.roles do
-    # User should be an attachee, try to load their profile
-    attachee = Eams.get_attachee_by_user(user.id)
+    # Check if active role is attachee
+    if current_scope.active_role == "attachee" or "attachee" in user.roles do
+      # User should be an attachee, try to load their profile
+      attachee = Eams.get_attachee_by_user(user.id)
 
-    if attachee do
-      programs = Eams.list_programs_for_attachee(attachee.id)
-      tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
-      projects = Eams.list_projects_for_attachee(attachee.id)
-      team_mates = get_team_mates(attachee.department_id)
+      if attachee do
+        programs = Eams.list_programs_for_attachee(attachee.id)
+        tasks = Eams.list_tasks_for_attachee(attachee.id) |> Repo.preload([:project])
+        projects = Eams.list_projects_for_attachee(attachee.id)
+        team_mates = get_team_mates(attachee.department_id)
 
-      # Get REAL evaluation data
-      evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-      avg_score = Eams.get_average_evaluation_score(attachee.id)
-      eval_count = Eams.count_evaluations_for_attachee(attachee.id)
-      evaluation_data = Eams.get_evaluation_categories_for_attachee(attachee.id)
+        # Get REAL evaluation data
+        evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
+        avg_score = Eams.get_average_evaluation_score(attachee.id)
+        eval_count = Eams.count_evaluations_for_attachee(attachee.id)
 
-      # Calculate not meeting expectations (scores below 41)
-      not_meeting = Enum.count(evaluation_data, fn cat -> cat.score < 41 end)
-
-      {:ok,
-       socket
-       |> assign(:current_scope, current_scope)
-       |> assign(:attachee, attachee)
-       |> assign(:programs, programs)
-       |> assign(:tasks, tasks)
-       |> assign(:projects, projects)
-       |> assign(:team_mates, team_mates)
-       |> assign(:evaluations, evaluations)
-       |> assign(:evaluation_data, evaluation_data)
-       |> assign(:avg_score, avg_score)
-       |> assign(:eval_count, eval_count)
-       |> assign(:not_meeting, not_meeting)
-       |> assign(:show_task_modal, false)
-       |> assign(:selected_task, nil)
-       |> assign(:submission_comment, "")
-       |> assign(:submission_links, [])
-       |> assign(:uploaded_files, [])
-       |> allow_upload(:task_files,
-          accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
-          max_entries: 5,
-          max_file_size: 10_000_000)}
+        {:ok,
+         socket
+         |> assign(:current_scope, current_scope)
+         |> assign(:attachee, attachee)
+         |> assign(:programs, programs)
+         |> assign(:tasks, tasks)
+         |> assign(:projects, projects)
+         |> assign(:team_mates, team_mates)
+         |> assign(:evaluations, evaluations)
+         |> assign(:avg_score, avg_score)
+         |> assign(:eval_count, eval_count)
+         |> assign(:show_task_modal, false)
+         |> assign(:selected_task, nil)
+         |> assign(:submission_comment, "")
+         |> assign(:submission_links, [])
+         |> assign(:uploaded_files, [])
+         |> allow_upload(:task_files,
+           accept: ~w(.pdf .doc .docx .txt .png .jpg .jpeg .zip .rar),
+           max_entries: 5,
+           max_file_size: 10_000_000
+         )}
+      else
+        # User is marked as attachee but has no profile
+        {:ok,
+         socket
+         |> assign(:current_scope, current_scope)
+         |> assign(:attachee, nil)
+         |> assign(:tasks, [])
+         |> assign(:show_task_modal, false)
+         |> assign(:projects, [])
+         |> assign(:programs, [])
+         |> assign(:team_mates, [])
+         |> assign(:evaluations, [])
+         |> assign(:avg_score, 0)
+         |> assign(:eval_count, 0)
+         |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
+      end
     else
-      # User is marked as attachee but has no profile
+      # Not an attachee - redirect to appropriate dashboard
+      redirect_path =
+        case current_scope.active_role do
+          "admin" -> ~p"/admin/dashboard"
+          "supervisor" -> ~p"/supervisor/dashboard"
+          _ -> ~p"/dashboard"
+        end
+
       {:ok,
        socket
-       |> assign(:current_scope, current_scope)
-       |> assign(:attachee, nil)
-       |> assign(:tasks, [])
-       |> assign(:show_task_modal, false)
-       |> assign(:projects, [])
-       |> assign(:programs, [])
-       |> assign(:team_mates, [])
-       |> assign(:evaluations, [])
-       |> assign(:evaluation_data, [])
-       |> assign(:avg_score, 0)
-       |> assign(:eval_count, 0)
-       |> assign(:not_meeting, 0)
-       |> put_flash(:error, "No attachee profile found. Please contact your admin.")}
+       |> put_flash(:info, "Redirecting to #{current_scope.active_role} dashboard")
+       |> push_navigate(to: redirect_path)}
     end
-  else
-    # Not an attachee - redirect to appropriate dashboard
-    redirect_path = case current_scope.active_role do
-      "admin" -> ~p"/admin/dashboard"
-      "supervisor" -> ~p"/supervisor/dashboard"
-      _ -> ~p"/dashboard"
-    end
-
-    {:ok,
-     socket
-     |> put_flash(:info, "Redirecting to #{current_scope.active_role} dashboard")
-     |> push_navigate(to: redirect_path)}
   end
-end
 
   @impl true
   def handle_params(_params, _uri, socket) do
@@ -90,6 +84,7 @@ end
   @impl true
   def handle_event("open_submit_modal", %{"task_id" => task_id}, socket) do
     task = Enum.find(socket.assigns.tasks, &(&1.id == String.to_integer(task_id)))
+
     {:noreply,
      socket
      |> assign(:show_task_modal, true)
@@ -140,11 +135,12 @@ end
     current_links = socket.assigns.submission_links
     new_link = Map.get(params, "link", "") |> String.trim()
 
-    final_links = if new_link != "" and valid_url?(new_link) do
-      current_links ++ [new_link]
-    else
-      current_links
-    end
+    final_links =
+      if new_link != "" and valid_url?(new_link) do
+        current_links ++ [new_link]
+      else
+        current_links
+      end
 
     uploaded_files = upload_files(socket)
 
@@ -156,8 +152,9 @@ end
 
     case Eams.submit_attachee_task(task.id, submission_data) do
       {:ok, _} ->
-        updated_tasks = Eams.list_tasks_for_attachee(socket.assigns.attachee.id)
-                       |> Repo.preload([:project])
+        updated_tasks =
+          Eams.list_tasks_for_attachee(socket.assigns.attachee.id)
+          |> Repo.preload([:project])
 
         {:noreply,
          socket
@@ -182,19 +179,20 @@ end
       {:ok, updated_user} ->
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
 
-        redirect_path = case new_role do
-          "admin" -> ~p"/admin/dashboard"
-          "supervisor" -> ~p"/supervisor/dashboard"
-          "attachee" -> ~p"/attachee"
-          "manager" -> ~p"/dashboard"
-          "employee" -> ~p"/dashboard"
-          _ -> ~p"/dashboard"
-        end
+        redirect_path =
+          case new_role do
+            "admin" -> ~p"/admin/dashboard"
+            "supervisor" -> ~p"/supervisor/dashboard"
+            "attachee" -> ~p"/attachee"
+            "manager" -> ~p"/dashboard"
+            "employee" -> ~p"/dashboard"
+            _ -> ~p"/dashboard"
+          end
 
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-       #  |> put_flash(:info, "Switched to #{new_role} role")
+         #  |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->
@@ -226,24 +224,25 @@ end
                 </div>
                 <div class="flex gap-3">
                   <span class="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-semibold">
-                    <%= length(@tasks) %> Active Tasks
+                    {length(@tasks)} Active Tasks
                   </span>
                   <span class="px-4 py-2 bg-purple-100 text-purple-800 rounded-lg text-sm font-semibold">
-                    <%= length(@projects) %> Projects
+                    {length(@projects)} Projects
                   </span>
                 </div>
               </div>
-
-              <!-- Overview Section -->
+              
+    <!-- Overview Section -->
               <div class="bg-gray-50 p-6 rounded-xl shadow">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Overview</h2>
-
-                <!-- User Info -->
+                
+    <!-- User Info -->
                 <div class="flex items-center space-x-4 mb-6">
                   <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                     <span class="text-purple-700 font-bold text-lg">
                       <%= if @attachee.user do %>
-                        <%= String.first(@attachee.user.username || @attachee.user.email) |> String.upcase() %>
+                        {String.first(@attachee.user.username || @attachee.user.email)
+                        |> String.upcase()}
                       <% else %>
                         U
                       <% end %>
@@ -252,16 +251,20 @@ end
                   <div>
                     <div class="font-semibold text-gray-900">
                       <%= if @attachee.user do %>
-                        <%= String.upcase(@attachee.user.username || String.split(@attachee.user.email, "@") |> hd()) %>
+                        {String.upcase(
+                          @attachee.user.username || String.split(@attachee.user.email, "@") |> hd()
+                        )}
                       <% else %>
                         User
                       <% end %>
                     </div>
-                    <div class="text-sm text-gray-600">Attachee INT<%= String.pad_leading(to_string(@attachee.id), 4, "0") %></div>
+                    <div class="text-sm text-gray-600">
+                      Attachee INT{String.pad_leading(to_string(@attachee.id), 4, "0")}
+                    </div>
                   </div>
                 </div>
-
-                <!-- Position & Job Level Table -->
+                
+    <!-- Position & Job Level Table -->
                 <div class="mb-6">
                   <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
                     <table class="min-w-full text-sm">
@@ -269,24 +272,28 @@ end
                         <tr>
                           <th class="px-4 py-3 text-left font-medium text-gray-700">Position</th>
                           <th class="px-4 py-3 text-left font-medium text-gray-700">Job Level</th>
-                          <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract Start Date</th>
-                          <th class="px-4 py-3 text-left font-medium text-gray-700">Current Contract End Date</th>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">
+                            Current Contract Start Date
+                          </th>
+                          <th class="px-4 py-3 text-left font-medium text-gray-700">
+                            Current Contract End Date
+                          </th>
                         </tr>
                       </thead>
                       <tbody class="divide-y divide-gray-200">
                         <tr>
-                          <td class="px-4 py-3 text-gray-900"><%= @attachee.position %></td>
+                          <td class="px-4 py-3 text-gray-900">{@attachee.position}</td>
                           <td class="px-4 py-3 text-gray-900">Beginner</td>
-                          <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.starts_on) %></td>
-                          <td class="px-4 py-3 text-gray-900"><%= format_date(@attachee.ends_on) %></td>
+                          <td class="px-4 py-3 text-gray-900">{format_date(@attachee.starts_on)}</td>
+                          <td class="px-4 py-3 text-gray-900">{format_date(@attachee.ends_on)}</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
               </div>
-
-              <!-- Programs & Projects -->
+              
+    <!-- Programs & Projects -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Enrolled Programs -->
                 <div class="bg-white shadow rounded-xl overflow-hidden">
@@ -298,16 +305,18 @@ end
                       <div class="space-y-3">
                         <%= for program <- @programs do %>
                           <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                            <h4 class="font-medium text-gray-900"><%= program.name %></h4>
-                            <p class="text-sm text-gray-500 mt-1"><%= program.description || "Ongoing training" %></p>
+                            <h4 class="font-medium text-gray-900">{program.name}</h4>
+                            <p class="text-sm text-gray-500 mt-1">
+                              {program.description || "Ongoing training"}
+                            </p>
                           </div>
                         <% end %>
                       </div>
                     <% end %>
                   </div>
                 </div>
-
-                <!-- Assigned Projects -->
+                
+    <!-- Assigned Projects -->
                 <div class="bg-white shadow rounded-xl overflow-hidden">
                   <div class="p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Assigned Projects</h3>
@@ -319,11 +328,13 @@ end
                           <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                             <div class="flex justify-between items-center">
                               <div>
-                                <h4 class="font-medium text-gray-900"><%= project.name %></h4>
-                                <p class="text-sm text-gray-500 mt-1"><%= project.description || "No description" %></p>
+                                <h4 class="font-medium text-gray-900">{project.name}</h4>
+                                <p class="text-sm text-gray-500 mt-1">
+                                  {project.description || "No description"}
+                                </p>
                               </div>
                               <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-700 font-medium">
-                                <%= count_tasks_in_project(@tasks, project.id) %> tasks
+                                {count_tasks_in_project(@tasks, project.id)} tasks
                               </span>
                             </div>
                           </div>
@@ -333,8 +344,8 @@ end
                   </div>
                 </div>
               </div>
-
-              <!-- My Tasks Table -->
+              
+    <!-- My Tasks Table -->
               <div class="bg-white shadow rounded-xl overflow-hidden">
                 <div class="p-6">
                   <h2 class="text-xl font-semibold text-gray-800 mb-4">My Tasks</h2>
@@ -359,32 +370,36 @@ end
                           <%= for task <- @tasks do %>
                             <tr class="border-t hover:bg-gray-50 transition">
                               <td class="px-4 py-3">
-                                <div class="font-medium text-gray-900"><%= task.title %></div>
+                                <div class="font-medium text-gray-900">{task.title}</div>
                                 <%= if task.description do %>
-                                  <p class="text-sm text-gray-500 mt-1"><%= truncate(task.description, 80) %></p>
+                                  <p class="text-sm text-gray-500 mt-1">
+                                    {truncate(task.description, 80)}
+                                  </p>
                                 <% end %>
                                 <%= if task.reject_reason do %>
                                   <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
                                     <span class="font-medium text-red-800">Feedback:</span>
-                                    <span class="text-red-700"><%= task.reject_reason %></span>
+                                    <span class="text-red-700">{task.reject_reason}</span>
                                   </div>
                                 <% end %>
                               </td>
                               <td class="px-4 py-3">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                  <%= task.project && task.project.name %>
+                                  {task.project && task.project.name}
                                 </span>
                               </td>
                               <td class="px-4 py-3">
                                 <span class={status_badge_class(task.status)}>
-                                  <%= format_status(task.status) %>
+                                  {format_status(task.status)}
                                 </span>
                               </td>
                               <td class="px-4 py-3">
                                 <%= if task.due_on do %>
-                                  <div class="font-medium text-gray-900"><%= format_date(task.due_on) %></div>
+                                  <div class="font-medium text-gray-900">
+                                    {format_date(task.due_on)}
+                                  </div>
                                   <div class={due_date_class(task.due_on)}>
-                                    <%= relative_date(task.due_on) %>
+                                    {relative_date(task.due_on)}
                                   </div>
                                 <% else %>
                                   <span class="text-gray-400">—</span>
@@ -397,11 +412,15 @@ end
                                     phx-value-task_id={task.id}
                                     class="bg-purple-600 text-white px-4 py-2 rounded-lg shadow hover:bg-purple-700 text-sm font-medium"
                                   >
-                                    <%= if task.status == "in_progress", do: "Submit", else: "Submit Work" %>
+                                    {if task.status == "in_progress",
+                                      do: "Submit",
+                                      else: "Submit Work"}
                                   </button>
                                 <% else %>
                                   <span class="text-sm text-gray-500">
-                                    <%= if task.status == "submitted", do: "Under Review", else: "Completed" %>
+                                    {if task.status == "submitted",
+                                      do: "Under Review",
+                                      else: "Completed"}
                                   </span>
                                 <% end %>
                               </td>
@@ -413,13 +432,13 @@ end
                   <% end %>
                 </div>
               </div>
-
-              <!-- Team Mates Table -->
+              
+    <!-- Team Mates Table -->
               <div class="bg-white shadow rounded-xl overflow-hidden">
                 <div class="p-6">
                   <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-gray-800">Team Mates</h2>
-                    <span class="text-sm text-gray-500"><%= @attachee.department.name %> Team</span>
+                    <span class="text-sm text-gray-500">{@attachee.department.name} Team</span>
                   </div>
                   <div class="overflow-x-auto">
                     <table class="min-w-full text-sm text-left text-gray-700">
@@ -439,19 +458,24 @@ end
                               <div class="flex items-center">
                                 <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
                                   <span class="text-purple-700 font-bold text-xs">
-                                    <%= String.first(mate.user.username || mate.user.email) |> String.upcase() %>
+                                    {String.first(mate.user.username || mate.user.email)
+                                    |> String.upcase()}
                                   </span>
                                 </div>
                                 <div>
-                                  <div class="font-medium text-gray-900"><%= mate.user.username || mate.user.email %></div>
-                                  <div class="text-xs text-gray-500">INT<%= String.pad_leading(to_string(mate.id), 4, "0") %></div>
+                                  <div class="font-medium text-gray-900">
+                                    {mate.user.username || mate.user.email}
+                                  </div>
+                                  <div class="text-xs text-gray-500">
+                                    INT{String.pad_leading(to_string(mate.id), 4, "0")}
+                                  </div>
                                 </div>
                               </div>
                             </td>
-                            <td class="px-4 py-3"><%= mate.organization.name %></td>
-                            <td class="px-4 py-3"><%= mate.department.name %></td>
+                            <td class="px-4 py-3">{mate.organization.name}</td>
+                            <td class="px-4 py-3">{mate.department.name}</td>
                             <td class="px-4 py-3">
-                              Attachee <%= format_date(mate.starts_on) %>-<%= format_date(mate.ends_on) %>
+                              Attachee {format_date(mate.starts_on)}-{format_date(mate.ends_on)}
                             </td>
                             <td class="px-4 py-3">
                               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -465,119 +489,85 @@ end
                   </div>
                 </div>
               </div>
-
               <!-- Account Evaluation Summary -->
               <div class="bg-gray-50 p-6 rounded-xl shadow">
                 <div class="flex justify-between items-center mb-4">
                   <h3 class="text-md font-semibold text-gray-800">Account Evaluation Summary</h3>
                   <div class="text-sm">
                     <span class="text-gray-600">Total Evaluations</span>
-                    <span class="font-bold text-purple-600 ml-2"><%= @eval_count %></span>
+                    <span class="font-bold text-purple-600 ml-2">{@eval_count}</span>
                   </div>
                 </div>
 
                 <%= if @eval_count == 0 do %>
                   <!-- No Evaluations Yet -->
                   <div class="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-16 w-16 mx-auto text-gray-300 mb-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      />
                     </svg>
                     <h4 class="text-lg font-semibold text-gray-900 mb-2">No Evaluations Yet</h4>
                     <p class="text-gray-600">Your supervisor will evaluate your performance soon.</p>
                   </div>
                 <% else %>
-                  <!-- Evaluation Chart -->
-                  <div class="space-y-4">
-                    <%= for eval <- @evaluation_data do %>
-                      <div class="flex items-center justify-between">
-                        <div class="w-1/4">
-                          <span class="text-sm font-medium text-gray-700"><%= eval.category %></span>
-                        </div>
-                        <div class="w-2/4">
-                          <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div
-                              class={"h-3 rounded-full #{score_bar_color(eval.score)}"}
-                              style={"width: #{eval.score}%"}
-                            ></div>
-                          </div>
-                        </div>
-                        <div class="w-1/4 text-right">
-                          <span class="text-sm font-semibold text-gray-900">
-                            <%= eval.score %>/<%= eval.max %>
-                          </span>
-                        </div>
-                      </div>
-                    <% end %>
-                  </div>
-
                   <!-- Overall Performance -->
-                  <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                  <div class="p-4 bg-white rounded-lg border border-gray-200 mb-6">
                     <div class="flex items-center justify-between">
                       <div>
                         <h4 class="font-semibold text-gray-900">Overall Performance</h4>
-                        <p class="text-sm text-gray-600">Based on <%= @eval_count %> evaluation(s)</p>
+                        <p class="text-sm text-gray-600">Based on {@eval_count} evaluation(s)</p>
                       </div>
                       <div class="text-right">
                         <div class={"text-2xl font-bold #{overall_score_color(@avg_score)}"}>
-                          <%= @avg_score %>%
+                          {@avg_score}%
                         </div>
                         <div class={"text-sm font-medium #{overall_label_color(@avg_score)}"}>
-                          <%= overall_label(@avg_score) %>
+                          {overall_label(@avg_score)}
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  <!-- Recent Evaluations -->
-                  <div class="mt-6">
-                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Recent Evaluations</h4>
+                  
+    <!-- All Evaluations List -->
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-800 mb-3">All Evaluations</h4>
                     <div class="space-y-2">
-                      <%= for evaluation <- Enum.take(@evaluations, 3) do %>
+                      <%= for evaluation <- @evaluations do %>
                         <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
                           <div class="flex items-center gap-3">
                             <div class={"w-10 h-10 rounded-full flex items-center justify-center font-bold #{evaluation_badge_bg(evaluation.score)}"}>
-                              <%= evaluation.score %>
+                              {evaluation.score}
                             </div>
                             <div>
                               <p class="text-sm font-medium text-gray-900">
-                                <%= evaluation.evaluator.username || evaluation.evaluator.email %>
+                                {evaluation.evaluator.username || evaluation.evaluator.email}
                               </p>
                               <p class="text-xs text-gray-500">
-                                <%= Calendar.strftime(evaluation.inserted_at, "%b %d, %Y") %>
+                                {Calendar.strftime(evaluation.inserted_at, "%b %d, %Y")}
                               </p>
                             </div>
                           </div>
                           <span class={"px-2 py-1 text-xs rounded font-medium #{evaluation_badge_class(evaluation.score)}"}>
-                            <%= evaluation_label(evaluation.score) %>
+                            {evaluation_label(evaluation.score)}
                           </span>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
-
-                  <!-- Not Meeting Expectations -->
-                  <div class="mt-4">
-                    <div class="flex items-center justify-between">
-                      <div>
-                        <div class="text-sm font-medium text-gray-700 mb-1">Areas Needing Improvement</div>
-                        <div class={"text-2xl font-bold #{if @not_meeting > 0, do: "text-red-600", else: "text-green-600"}"}>
-                          <%= @not_meeting %>/5
-                        </div>
-                      </div>
-                      <%= if @not_meeting == 0 do %>
-                        <div class="flex items-center gap-2 text-green-600">
-                          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span class="text-sm font-medium">All areas meeting expectations!</span>
                         </div>
                       <% end %>
                     </div>
                   </div>
                 <% end %>
               </div>
-
-              <!-- Announcements Widget -->
+              
+    <!-- Announcements Widget -->
               <.live_component
                 module={TrialAppWeb.AnnouncementsWidget}
                 id="attachee-announcements"
@@ -588,20 +578,36 @@ end
           <% else %>
             <!-- No Attachee Profile -->
             <div class="max-w-2xl mx-auto text-center py-12">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto text-gray-300 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-24 w-24 mx-auto text-gray-300 mb-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               <h2 class="text-2xl font-semibold text-gray-900 mb-4">No Attachee Profile Found</h2>
-              <p class="text-gray-600 mb-6">You don't appear to have an attachee profile set up. Please contact your administrator to get started.</p>
-              <.link navigate={~p"/dashboard"} class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+              <p class="text-gray-600 mb-6">
+                You don't appear to have an attachee profile set up. Please contact your administrator to get started.
+              </p>
+              <.link
+                navigate={~p"/dashboard"}
+                class="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+              >
                 Go to Dashboard
               </.link>
             </div>
           <% end %>
         </main>
       </div>
-
-      <!-- SUBMISSION MODAL -->
+      
+    <!-- SUBMISSION MODAL -->
       <%= if @show_task_modal && @selected_task do %>
         <div
           id="submit-task-modal"
@@ -609,19 +615,24 @@ end
           phx-click="close_modal"
         >
           <div
-          class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
+            class="bg-white rounded-xl shadow-lg w-full max-w-lg mx-4 p-6"
             phx-click="stop_propagation"
           >
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-bold text-gray-900">
-                Submit Task: <%= @selected_task.title %>
+                Submit Task: {@selected_task.title}
               </h2>
               <button
                 phx-click="close_modal"
                 class="text-gray-400 hover:text-gray-600"
               >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -641,8 +652,8 @@ end
                   required
                 ><%= @submission_comment %></textarea>
               </div>
-
-              <!-- Links Section -->
+              
+    <!-- Links Section -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Links (Optional)
@@ -653,10 +664,26 @@ end
                   <div class="space-y-2 mb-3">
                     <%= for {link, index} <- Enum.with_index(@submission_links) do %>
                       <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                        <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        <svg
+                          class="w-4 h-4 text-blue-500 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                          />
                         </svg>
-                        <a href={link} target="_blank" class="text-sm text-blue-600 hover:underline flex-1 truncate"><%= link %></a>
+                        <a
+                          href={link}
+                          target="_blank"
+                          class="text-sm text-blue-600 hover:underline flex-1 truncate"
+                        >
+                          {link}
+                        </a>
                         <button
                           type="button"
                           phx-click="remove_link"
@@ -664,7 +691,12 @@ end
                           class="text-red-500 hover:text-red-700 flex-shrink-0"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
                           </svg>
                         </button>
                       </div>
@@ -683,7 +715,12 @@ end
                   <button
                     type="button"
                     phx-click="add_link"
-                    phx-value-link={Phoenix.HTML.Form.normalize_value("text", Phoenix.HTML.Form.input_value(:link, "link-input"))}
+                    phx-value-link={
+                      Phoenix.HTML.Form.normalize_value(
+                        "text",
+                        Phoenix.HTML.Form.input_value(:link, "link-input")
+                      )
+                    }
                     onclick="document.getElementById('link-input').value = ''"
                     class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
                   >
@@ -691,8 +728,8 @@ end
                   </button>
                 </div>
               </div>
-
-              <!-- File Upload Section -->
+              
+    <!-- File Upload Section -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Attach Files (Optional)
@@ -702,31 +739,57 @@ end
                 <div class="mt-1">
                   <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                      <svg class="w-8 h-8 mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      <svg
+                        class="w-8 h-8 mb-2 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
                       </svg>
-                      <p class="mb-1 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                      <p class="mb-1 text-sm text-gray-500">
+                        <span class="font-semibold">Click to upload</span> or drag and drop
+                      </p>
                       <p class="text-xs text-gray-500">PDF, DOC, DOCX, TXT, PNG, JPG, ZIP</p>
                     </div>
                     <.live_file_input upload={@uploads.task_files} class="hidden" />
                   </label>
                 </div>
-
-                <!-- Display uploaded files -->
+                
+    <!-- Display uploaded files -->
                 <%= for entry <- @uploads.task_files.entries do %>
                   <div class="mt-2 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div class="flex items-center gap-2 flex-1">
-                      <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      <svg
+                        class="w-5 h-5 text-purple-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
                       </svg>
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-900 truncate"><%= entry.client_name %></p>
-                        <p class="text-xs text-gray-500"><%= format_file_size(entry.client_size) %></p>
+                        <p class="text-sm font-medium text-gray-900 truncate">{entry.client_name}</p>
+                        <p class="text-xs text-gray-500">{format_file_size(entry.client_size)}</p>
                       </div>
                       <!-- Progress bar -->
                       <div class="w-24">
                         <div class="w-full bg-gray-200 rounded-full h-1.5">
-                          <div class="bg-purple-600 h-1.5 rounded-full" style={"width: #{entry.progress}%"}></div>
+                          <div
+                            class="bg-purple-600 h-1.5 rounded-full"
+                            style={"width: #{entry.progress}%"}
+                          >
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -737,13 +800,18 @@ end
                       class="ml-3 text-red-500 hover:text-red-700"
                     >
                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
 
                   <%= for err <- upload_errors(@uploads.task_files, entry) do %>
-                    <p class="mt-1 text-sm text-red-600"><%= error_to_string(err) %></p>
+                    <p class="mt-1 text-sm text-red-600">{error_to_string(err)}</p>
                   <% end %>
                 <% end %>
               </div>
@@ -775,7 +843,9 @@ end
 
   defp upload_files(socket) do
     consume_uploaded_entries(socket, :task_files, fn %{path: temp_path}, entry ->
-      upload_dir = Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
+      upload_dir =
+        Path.join([:code.priv_dir(:trial_app), "static", "uploads", "task_submissions"])
+
       File.mkdir_p!(upload_dir)
 
       ext = Path.extname(entry.client_name)
@@ -803,7 +873,9 @@ end
   defp error_to_string(_), do: "Upload error"
 
   defp get_team_mates(department_id) do
-    Eams.list_attachees_by_department(department_id, %{preloads: [:user, :organization, :department]})
+    Eams.list_attachees_by_department(department_id, %{
+      preloads: [:user, :organization, :department]
+    })
   end
 
   defp count_tasks_in_project(tasks, project_id) do
@@ -834,15 +906,27 @@ end
     |> Enum.join(" ")
   end
 
-  defp status_badge_class("pending"), do: "px-2.5 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
-  defp status_badge_class("in_progress"), do: "px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
-  defp status_badge_class("submitted"), do: "px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
-  defp status_badge_class("completed"), do: "px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium"
-  defp status_badge_class("rejected"), do: "px-2.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium"
-  defp status_badge_class(_), do: "px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
+  defp status_badge_class("pending"),
+    do: "px-2.5 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("in_progress"),
+    do: "px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("submitted"),
+    do: "px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("completed"),
+    do: "px-2.5 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class("rejected"),
+    do: "px-2.5 py-0.5 bg-red-100 text-red-800 rounded-full text-xs font-medium"
+
+  defp status_badge_class(_),
+    do: "px-2.5 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"
 
   defp due_date_class(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
+
     cond do
       diff < 0 -> "text-red-600 text-xs font-medium"
       diff <= 2 -> "text-orange-600 text-xs font-medium"
@@ -853,6 +937,7 @@ end
 
   defp relative_date(due_date) do
     diff = Date.diff(due_date, Date.utc_today())
+
     cond do
       diff < 0 -> "Overdue"
       diff == 0 -> "Today"
@@ -862,10 +947,15 @@ end
     end
   end
 
-  defp score_bar_color(score) when score >= 81, do: "bg-gradient-to-r from-green-400 to-green-600"
-  defp score_bar_color(score) when score >= 61, do: "bg-gradient-to-r from-blue-400 to-blue-600"
-  defp score_bar_color(score) when score >= 41, do: "bg-gradient-to-r from-yellow-400 to-yellow-600"
-  defp score_bar_color(_), do: "bg-gradient-to-r from-red-400 to-red-600"
+  defp _score_bar_color(score) when score >= 81,
+    do: "bg-gradient-to-r from-green-400 to-green-600"
+
+  defp _score_bar_color(score) when score >= 61, do: "bg-gradient-to-r from-blue-400 to-blue-600"
+
+  defp _score_bar_color(score) when score >= 41,
+    do: "bg-gradient-to-r from-yellow-400 to-yellow-600"
+
+  defp _score_bar_color(_), do: "bg-gradient-to-r from-red-400 to-red-600"
 
   defp overall_score_color(score) when score >= 81, do: "text-green-600"
   defp overall_score_color(score) when score >= 61, do: "text-blue-600"

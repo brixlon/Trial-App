@@ -6,6 +6,7 @@ defmodule TrialApp.Eams.Project do
     field :name, :string
     field :description, :string
     field :code, :string
+    field :status, :string, default: "pending"
     field :is_active, :boolean, default: true
     field :starts_on, :date
     field :ends_on, :date
@@ -39,9 +40,11 @@ defmodule TrialApp.Eams.Project do
       :organization_id,
       :department_id,
       :program_id,
-      :supervisor_id
+      :supervisor_id,
+      :status
     ])
     |> validate_required([:name, :organization_id, :department_id, :program_id])
+    |> validate_inclusion(:status, ["pending", "active", "rejected", "completed", "archived"])
     |> validate_length(:code, min: 2, max: 16)
     |> validate_date_range()
     |> assoc_constraint(:organization)

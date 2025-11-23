@@ -35,7 +35,7 @@ defmodule TrialAppWeb.SidebarComponent do
         0
       end
 
-    current_path = assigns[:uri] && assigns[:uri].path
+    current_path = assigns[:current_path] || (assigns[:uri] && assigns[:uri].path)
 
     {:ok,
      socket
@@ -48,8 +48,8 @@ defmodule TrialAppWeb.SidebarComponent do
   end
 
   # === EVENT HANDLERS ===
-  def handle_event("toggle_sidebar", _params, socket),
-    do: {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
+  # Sidebar toggle is now handled by Alpine.js in the layout
+  def handle_event("toggle_sidebar", _params, socket), do: {:noreply, socket}
 
   def handle_event("toggle_admin", _params, socket),
     do: {:noreply, assign(socket, :admin_open, !socket.assigns.admin_open)}
@@ -126,12 +126,10 @@ defmodule TrialAppWeb.SidebarComponent do
   def render(assigns) do
     ~H"""
     <div>
-      <aside class={
-          "#{if @sidebar_open, do: "translate-x-0", else: "-translate-x-full"}
-          w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800
-          h-screen fixed top-0 left-0 shadow-xl border-r border-purple-200 z-40
-          transition-transform duration-300 flex flex-col"
-        }>
+      <aside
+        class="w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 h-screen fixed top-0 left-0 shadow-xl border-r border-purple-200 z-40 transition-transform duration-300 flex flex-col"
+        x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+      >
         <div class="p-6 space-y-6 flex-shrink-0">
           <div class="text-center">
             <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
@@ -448,6 +446,14 @@ defmodule TrialAppWeb.SidebarComponent do
                   </li>
                   <li>
                     <.link
+                      navigate={~p"/admin/pending-approvals"}
+                      class={link_class(@current_path, "/admin/pending-approvals", exact: true)}
+                    >
+                      Pending Approvals
+                    </.link>
+                  </li>
+                  <li>
+                    <.link
                       navigate={~p"/organizations"}
                       class={link_class(@current_path, "/organizations", exact: true)}
                     >
@@ -754,20 +760,29 @@ defmodule TrialAppWeb.SidebarComponent do
       </aside>
 
       <button
-        phx-click="toggle_sidebar"
-        phx-target={@myself}
+        @click="sidebarOpen = !sidebarOpen"
         type="button"
-        class={"#{if @sidebar_open, do: "left-64", else: "left-0"} fixed top-1/2 -translate-y-1/2 z-50 bg-purple-600 text-white p-1.5 rounded-r-md shadow-md transition-all duration-300 hover:bg-purple-700"}
+        class="fixed top-1/2 -translate-y-1/2 z-50 bg-purple-600 text-white p-1.5 rounded-r-md shadow-md transition-all duration-300 hover:bg-purple-700"
+        x-bind:class="sidebarOpen ? 'left-64' : 'left-0'"
       >
-        <%= if @sidebar_open do %>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
-          </svg>
-        <% else %>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
-          </svg>
-        <% end %>
+        <svg
+          x-show="sidebarOpen"
+          class="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+        </svg>
+        <svg
+          x-show="!sidebarOpen"
+          class="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+        </svg>
       </button>
     </div>
     """

@@ -36,24 +36,40 @@ defmodule TrialAppWeb.ForcePasswordResetLive do
   @impl true
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.update_user_password(socket.assigns.user, user_params) do
-      {:ok, {user, _tokens}} ->
-        # Update authenticated_at to mark this as an authenticated session
-        {:ok, user} =
-          user
-          |> Ecto.Changeset.change(%{
-            authenticated_at: DateTime.utc_now() |> DateTime.truncate(:second),
-            must_change_password: false
-          })
-          |> Repo.update()
+      {:ok, result} ->
+        # Handle different return formats from update_user_password
+        user = case result do
+          {user_struct, _tokens} when is_struct(user_struct) -> user_struct
+          user_struct when is_struct(user_struct) -> user_struct
+          _ ->
+            # If we get :ok or something unexpected, reload the user from DB
+            Repo.get!(TrialApp.Accounts.User, socket.assigns.user.id)
+        end
 
-        token = Accounts.generate_user_session_token(user)
-        # URL-encode the binary token for safe transmission in URLs
-        encoded_token = Base.url_encode64(token, padding: false)
+        # Update authenticated_at, status to active, and must_change_password to false
+        case user
+             |> Ecto.Changeset.change(%{
+               authenticated_at: DateTime.utc_now() |> DateTime.truncate(:second),
+               must_change_password: false,
+               status: "active"
+             })
+             |> Repo.update() do
+          {:ok, updated_user} ->
+            token = Accounts.generate_user_session_token(updated_user)
+            # URL-encode the binary token for safe transmission in URLs
+            encoded_token = Base.url_encode64(token, padding: false)
 
-        {:noreply,
-         socket
-         |> put_flash(:info, "Password set successfully! Welcome!")
-         |> redirect(to: ~p"/?user_token=#{encoded_token}")}
+            {:noreply,
+             socket
+             |> put_flash(:info, "Password set successfully! Welcome!")
+             |> redirect(to: ~p"/?user_token=#{encoded_token}")}
+
+          {:error, _changeset} ->
+            {:noreply,
+             socket
+             |> put_flash(:error, "Failed to update user session")
+             |> assign(form: to_form(socket.assigns.changeset))}
+        end
 
       {:error, changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}

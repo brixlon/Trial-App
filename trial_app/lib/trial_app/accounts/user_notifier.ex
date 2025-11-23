@@ -17,11 +17,29 @@ defmodule TrialApp.Accounts.UserNotifier do
       |> subject(subject)
       |> text_body(body)
 
+    # Attach logo as inline image
+    logo_path = Application.app_dir(:trial_app, "priv/static/images/value8-logo.png")
+
+    email =
+      if File.exists?(logo_path) do
+        attachment =
+          logo_path
+          |> Swoosh.Attachment.new(filename: "logo.png", type: :inline)
+          |> Map.put(:content_id, "logo.png")
+
+        email |> attachment(attachment)
+      else
+        email
+      end
+
     email = if html_body, do: html_body(email, html_body), else: email
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
-    end
+    # Deliver the email - Mailer.deliver expects the email struct directly
+    Mailer.deliver(email)
+  end
+
+  defp logo_html do
+    "<img src=\"cid:logo.png\" alt=\"Value8\" style=\"display: block; margin: 0 auto 15px auto; width: 80px; height: auto;\" />"
   end
 
   @doc """
@@ -51,7 +69,7 @@ defmodule TrialApp.Accounts.UserNotifier do
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background-color: #4F46E5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
@@ -60,7 +78,8 @@ defmodule TrialApp.Accounts.UserNotifier do
         <body>
           <div class="container">
             <div class="header">
-              <h1>Update Email Address</h1>
+              #{logo_html()}
+              <h1 style="margin: 0;">Update Email Address</h1>
             </div>
             <div class="content">
               <p>Hi #{user.email},</p>
@@ -113,24 +132,56 @@ defmodule TrialApp.Accounts.UserNotifier do
   end
 
   @doc """
-  Deliver welcome email to new attachee with their password.
+  Deliver welcome email to new attachee with secure password reset link.
   """
-  def deliver_attachee_welcome_email(user, password) do
+  def deliver_attachee_welcome_email(user, _password) do
+    # === 1. Set must_change_password flag ===
+    user
+    |> Ecto.Changeset.change(%{must_change_password: true})
+    |> TrialApp.Repo.update!()
+
+    # === 2. Generate secure token ===
+    token = TrialApp.Accounts.generate_force_reset_token(user)
+
+    # === 3. Build secure URL with token ===
+    url = Phoenix.VerifiedRoutes.unverified_url(
+      TrialAppWeb.Endpoint,
+      "/users/force-reset/#{token}"
+    )
+
+    # Get a friendly name - prefer first_name, fall back to username
+    name =
+      cond do
+        user.first_name && String.trim(user.first_name) != "" ->
+          user.first_name |> String.split() |> List.first()
+
+        user.username && String.trim(user.username) != "" ->
+          user.username
+
+        true ->
+          user.email |> String.split("@") |> List.first()
+      end
+
     deliver(
       user.email,
-      "Welcome to Value8 - Your Account Details",
+      "Welcome to Value8 - Set Your Password",
       """
       ==============================
 
-      Hi #{user.email},
+      Hi #{name},
 
       Welcome to Value8! Your account has been created.
 
-      Here are your login details:
-      Email: #{user.email}
-      Password: #{password}
+      For your security, you must set your own password before accessing the system.
 
-      Please log in and change your password immediately.
+      Please click the link below to set your new password:
+      #{url}
+
+      SECURITY NOTICE:
+      - This link expires in 24 hours
+      - Do not share this link with anyone
+      - You will be logged in automatically after setting your password
+      - If the link expires, contact your supervisor for a new one
 
       ==============================
       """,
@@ -141,29 +192,47 @@ defmodule TrialApp.Accounts.UserNotifier do
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background-color: #4F46E5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
             .credentials { background-color: #fff; padding: 15px; border-radius: 4px; border: 1px solid #e5e7eb; margin: 20px 0; }
+            .security-note { background-color: #FFFBEB; border: 1px solid #FCD34D; padding: 15px; border-radius: 6px; margin: 15px 0; }
+            .security-note strong { color: #D97706; }
+            ul { margin: 10px 0; padding-left: 20px; }
+            li { margin-bottom: 5px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to Value8!</h1>
+              #{logo_html()}
+              <h1 style="margin: 0;">Welcome to Value8!</h1>
             </div>
             <div class="content">
-              <p>Hi #{user.email},</p>
+              <p>Hi #{name},</p>
               <p>Your account has been successfully created. We're excited to have you on board!</p>
 
-              <div class="credentials">
-                <p><strong>Your Login Details:</strong></p>
-                <p>Email: #{user.email}</p>
-                <p>Password: <strong>#{password}</strong></p>
+              <div class="security-note">
+                <strong>🔒 Security First:</strong> For your protection, you must set your own password before accessing the system.
               </div>
 
-              <p>Please log in and change your password immediately to keep your account secure.</p>
+              <p style="text-align: center;">
+                <a href="#{url}" class="button">Set Your Password</a>
+              </p>
+
+              <div class="credentials">
+                <p><strong>⚠️ Security Notice:</strong></p>
+                <ul>
+                  <li>This link expires in <strong>24 hours</strong></li>
+                  <li>Do not share this link with anyone</li>
+                  <li>You will be logged in automatically after setting your password</li>
+                  <li>If the link expires, contact your supervisor for a new one</li>
+                </ul>
+              </div>
+
+              <p style="font-size: 12px; color: #666;">If the button doesn't work, copy and paste this link into your browser:<br>
+              <span style="word-break: break-all; color: #4F46E5;">#{url}</span></p>
             </div>
             <div class="footer">
               <p>© #{DateTime.utc_now().year} Value8. All rights reserved.</p>
@@ -206,7 +275,7 @@ defmodule TrialApp.Accounts.UserNotifier do
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background-color: #4F46E5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
@@ -215,7 +284,8 @@ defmodule TrialApp.Accounts.UserNotifier do
         <body>
           <div class="container">
             <div class="header">
-              <h1>Confirm Your Account</h1>
+              #{logo_html()}
+              <h1 style="margin: 0;">Confirm Your Account</h1>
             </div>
             <div class="content">
               <p>Hi #{user.email},</p>
@@ -266,7 +336,7 @@ defmodule TrialApp.Accounts.UserNotifier do
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background-color: #4F46E5; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
@@ -275,7 +345,8 @@ defmodule TrialApp.Accounts.UserNotifier do
         <body>
           <div class="container">
             <div class="header">
-              <h1>Reset Your Password</h1>
+              #{logo_html()}
+              <h1 style="margin: 0;">Reset Your Password</h1>
             </div>
             <div class="content">
               <p>Hi #{user.email},</p>
@@ -323,7 +394,7 @@ defmodule TrialApp.Accounts.UserNotifier do
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background-color: #10B981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .header { background-color: #10B981; color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
             .content { background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
             .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
             .alert { background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 12px; margin: 20px 0; }
@@ -332,7 +403,8 @@ defmodule TrialApp.Accounts.UserNotifier do
         <body>
           <div class="container">
             <div class="header">
-              <h1>✓ Password Reset Successful</h1>
+              #{logo_html()}
+              <h1 style="margin: 0;">✓ Password Reset Successful</h1>
             </div>
             <div class="content">
               <p>Hi #{user.email},</p>

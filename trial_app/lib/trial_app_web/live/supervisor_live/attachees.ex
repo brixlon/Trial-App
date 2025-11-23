@@ -1,7 +1,7 @@
 defmodule TrialAppWeb.SupervisorLive.Attachees do
   use TrialAppWeb, :live_view
   import Ecto.Query
-  alias TrialApp.{Eams, Orgs, Repo}
+  alias TrialApp.{Eams, Repo}
   alias TrialAppWeb.SupervisorLive.EvaluationForm
   # Assuming you will create this component as per your Phase 5 plan
   alias TrialAppWeb.SupervisorLive.ReportModal
@@ -54,16 +54,46 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
   # --------------------- FILTER EVENTS ---------------------
   @impl true
   def handle_event("select_attachee", %{"id" => id}, socket) do
-    attachee = Eams.get_attachee!(id, %{preloads: [:user, :department, :organization]})
+    # OPTIMIZED: Single query with all necessary preloads
+    attachee =
+      Eams.get_attachee!(id, %{
+        preloads: [
+          :user,
+          :department,
+          :organization
+        ]
+      })
 
-    project_ids =
-      from(t in Eams.Task,
-        where: t.assignee_id == ^id,
-        distinct: t.project_id,
-        select: t.project_id
-      )
-      |> Repo.all()
+    # Run queries in parallel using Task.async for better performance
+    tasks = [
+      Task.async(fn ->
+        # Get all tasks for the attachee
+        Eams.list_tasks_for_attachee(id)
+      end),
+      Task.async(fn ->
+        # Get general evaluations (task_id is nil)
+        Eams.list_evaluations_for_attachee(id, %{preloads: [:evaluator]})
+      end),
+      Task.async(fn ->
+        # Get task evaluations (task_id is NOT nil)
+        Eams.list_task_evaluations_by_attachee(id, %{preloads: [:evaluator]})
+      end),
+      Task.async(fn ->
+        # Get project IDs from tasks
+        from(t in Eams.Task,
+          where: t.assignee_id == ^id,
+          distinct: t.project_id,
+          select: t.project_id
+        )
+        |> Repo.all()
+      end)
+    ]
 
+    # Wait for all async tasks to complete (5 second timeout)
+    [task_list, general_evaluations, task_evaluations, project_ids] =
+      Task.await_many(tasks, 5000)
+
+    # Get projects based on project_ids
     projects =
       if project_ids == [] do
         []
@@ -78,38 +108,25 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     primary_project = List.first(projects)
     attachee = Map.put(attachee, :project, primary_project)
 
-    tasks = Eams.list_tasks_for_attachee(attachee.id)
-
-    # Get GENERAL evaluations (for history display) - task_id is nil
-    evaluations = Eams.list_evaluations_for_attachee(attachee.id, %{preloads: [:evaluator]})
-
-    # Get TASK evaluations (for task scores) - task_id is NOT nil
-    task_evaluations =
-      Eams.list_task_evaluations_by_attachee(attachee.id, %{preloads: [:evaluator]})
-
-    avg_score =
-      Eams.get_average_evaluation_score(attachee.id)
-      |> safe_round_decimal()
-
-    eval_count = Eams.count_evaluations_for_attachee(attachee.id)
-    stats = calculate_attachee_stats(attachee)
-
-    # Build task scores from TASK evaluations (not general evaluations)
+    # Calculate metrics from loaded data
+    avg_score = calculate_avg_from_evaluations(general_evaluations)
+    eval_count = length(general_evaluations)
+    stats = calculate_attachee_stats_from_tasks(task_list)
     task_scores = build_task_scores(task_evaluations)
 
     {:noreply,
      socket
      |> assign(:selected_attachee, attachee)
-     |> assign(:attachee_tasks, tasks)
+     |> assign(:attachee_tasks, task_list)
      |> assign(:attachee_projects, projects)
      |> assign(:task_scores, task_scores)
      |> assign(:attachee_stats, stats)
-     |> assign(:evaluations, evaluations)
+     |> assign(:evaluations, general_evaluations)
      |> assign(:avg_score, avg_score)
      |> assign(:eval_count, eval_count)
      |> assign(:profile_tab, "overview")
      |> assign(:view_mode, "details")
-     |> assign(:page_title, "Attachee Details - #{attachee.full_name}")}
+     |> assign(:page_title, "Attachee Details - #{attachee.user.username || attachee.user.email}")}
   end
 
   def handle_event("close_profile", _, socket),
@@ -193,124 +210,61 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
 
   # --------------------- LOAD ALL ATTACHEES FOR ADMIN ---------------------
   defp load_all_attachees do
-    query =
-      from a in Eams.Attachee,
-        join: t in Eams.Task,
-        on: t.assignee_id == a.id,
-        join: p in Eams.Project,
-        on: t.project_id == p.id,
-        join: pr in Eams.Program,
-        on: pr.id == p.program_id,
-        join: d in Orgs.Department,
-        on: d.id == pr.department_id,
-        join: o in Orgs.Organization,
-        on: o.id == d.organization_id,
-        distinct: a.id,
-        preload: [:user],
-        select: %{
-          attachee: a,
-          project: p,
-          program: pr,
-          department: d,
-          organization: o
-        },
-        order_by: [asc: a.inserted_at]
+    Eams.list_attachees()
+    |> Enum.map(fn attachee ->
+      # Attempt to find context from tasks/projects, but don't filter by it
+      project =
+        case Eams.list_projects_by_attachee(attachee.id) do
+          [first | _] -> first
+          [] -> nil
+        end
 
-    Repo.all(query)
-    |> Enum.map(fn item ->
       %{
-        id: item.attachee.id,
-        user: item.attachee.user,
-        status: item.attachee.user.status,
-        organization: item.organization,
-        department: item.department,
-        program: item.program,
-        project: item.project,
-        project_name: item.project.name,
-        department_name: item.department.name,
-        program_name: item.program.name
+        id: attachee.id,
+        user: attachee.user,
+        status: attachee.user.status,
+        organization: attachee.organization,
+        department: attachee.department,
+        program: if(project && project.program, do: project.program, else: nil),
+        project: project,
+        project_name: if(project, do: project.name, else: "N/A"),
+        department_name: attachee.department.name,
+        program_name: if(project && project.program, do: project.program.name, else: "N/A")
       }
     end)
   end
 
   # --------------------- SUPERVISOR ATTACHEES ---------------------
   defp load_supervisor_attachees(supervisor_id) do
-    query =
-      from a in Eams.Attachee,
-        join: t in Eams.Task,
-        on: t.assignee_id == a.id,
-        join: p in Eams.Project,
-        on: t.project_id == p.id,
-        where: p.supervisor_id == ^supervisor_id,
-        distinct: a.id,
-        preload: [:user, :department, :organization]
+    # Get attachees strictly associated with supervisor's projects
+    attachees = Eams.list_attachees_for_supervisor(supervisor_id)
 
-    result = Repo.all(query)
+    # Get supervisor's projects for context matching
+    supervisor_projects = Eams.list_projects_for_supervisor(supervisor_id)
+    supervisor_project_ids = Enum.map(supervisor_projects, & &1.id)
 
-    if result == [] do
-      dept_id = get_supervisor_department_id(supervisor_id)
+    Enum.map(attachees, fn attachee ->
+      # Find the project context for this supervisor
+      # We prioritize projects that this supervisor actually manages
+      all_attachee_projects = Eams.list_projects_by_attachee(attachee.id)
 
-      if dept_id do
-        from(a in Eams.Attachee,
-          where: a.department_id == ^dept_id,
-          preload: [:user, :department, :organization]
-        )
-        |> Repo.all()
-        |> Enum.map(fn attachee ->
-          %{
-            id: attachee.id,
-            user: attachee.user,
-            status: attachee.user.status,
-            organization: attachee.organization,
-            department: attachee.department,
-            program: nil,
-            project: nil,
-            project_name: "N/A",
-            department_name: attachee.department.name,
-            program_name: "N/A"
-          }
-        end)
-      else
-        []
-      end
-    else
-      Enum.map(result, fn attachee ->
-        project_ids =
-          from(t in Eams.Task,
-            where: t.assignee_id == ^attachee.id,
-            distinct: t.project_id,
-            select: t.project_id
-          )
-          |> Repo.all()
+      project =
+        Enum.find(all_attachee_projects, fn p -> p.id in supervisor_project_ids end) ||
+          List.first(all_attachee_projects)
 
-        project =
-          if length(project_ids) > 0 do
-            Repo.get(Eams.Project, hd(project_ids)) |> Repo.preload(:program)
-          else
-            nil
-          end
-
-        %{
-          id: attachee.id,
-          user: attachee.user,
-          status: attachee.user.status,
-          organization: attachee.organization,
-          department: attachee.department,
-          program: if(project && project.program, do: project.program, else: nil),
-          project: project,
-          project_name: if(project, do: project.name, else: "N/A"),
-          department_name: attachee.department.name,
-          program_name: if(project && project.program, do: project.program.name, else: "N/A")
-        }
-      end)
-    end
-  end
-
-  defp get_supervisor_department_id(supervisor_id) do
-    case Orgs.get_department_for_user(supervisor_id) do
-      nil -> nil
-      dept -> dept.id
-    end
+      %{
+        id: attachee.id,
+        user: attachee.user,
+        status: attachee.user.status,
+        organization: attachee.organization,
+        department: attachee.department,
+        program: if(project && project.program, do: project.program, else: nil),
+        project: project,
+        project_name: if(project, do: project.name, else: "N/A"),
+        department_name: attachee.department.name,
+        program_name: if(project && project.program, do: project.program.name, else: "N/A")
+      }
+    end)
   end
 
   # Close Handlers (General)
@@ -336,13 +290,19 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
        assign(socket, :show_evaluation_form, false) |> assign(:show_report_modal, false)}
 
   # --------------------- HELPERS ---------------------
-  defp safe_round_decimal(nil), do: 0.0
-  defp safe_round_decimal(%Decimal{} = d), do: d |> Decimal.round(1) |> Decimal.to_float()
-  defp safe_round_decimal(n) when is_number(n), do: Float.round(n, 1)
-  defp safe_round_decimal(_), do: 0.0
 
-  defp calculate_attachee_stats(attachee) do
-    tasks = Eams.list_tasks_for_attachee(attachee.id)
+  # Calculate average from already-loaded evaluations
+  defp calculate_avg_from_evaluations([]), do: 0.0
+
+  defp calculate_avg_from_evaluations(evaluations) do
+    sum = Enum.reduce(evaluations, 0, fn eval, acc -> acc + eval.score end)
+
+    (sum / length(evaluations))
+    |> Float.round(1)
+  end
+
+  # NEW: Calculate stats from already-loaded tasks
+  defp calculate_attachee_stats_from_tasks(tasks) do
     total_tasks = length(tasks)
     completed = Enum.count(tasks, &(&1.status == "completed"))
 

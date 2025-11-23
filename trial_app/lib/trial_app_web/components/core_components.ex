@@ -54,26 +54,38 @@ defmodule TrialAppWeb.CoreComponents do
     <div
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
+      phx-mounted={JS.show()}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="fixed top-20 right-4 z-50 animate-slide-in"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "alert shadow-lg w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap backdrop-blur-sm cursor-pointer",
+        @kind == :info &&
+          "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800",
+        @kind == :error &&
+          "bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 text-red-800"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
+        <div class="flex items-start gap-3 w-full">
+          <.icon :if={@kind == :info} name="hero-check-circle" class="size-5 shrink-0 text-green-600" />
+          <.icon
+            :if={@kind == :error}
+            name="hero-exclamation-circle"
+            class="size-5 shrink-0 text-red-600"
+          />
+          <div class="flex-1">
+            <p :if={@title} class="font-semibold text-sm">{@title}</p>
+            <p class="text-sm">{msg}</p>
+          </div>
+          <button
+            type="button"
+            class="group self-start cursor-pointer hover:opacity-70 transition"
+            aria-label={gettext("close")}
+          >
+            <.icon name="hero-x-mark" class="size-5 opacity-60" />
+          </button>
         </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
-        </button>
       </div>
     </div>
     """

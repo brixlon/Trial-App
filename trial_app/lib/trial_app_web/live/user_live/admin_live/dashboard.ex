@@ -17,19 +17,20 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
 
         # Redirect to the appropriate dashboard for the new role
-        redirect_path = case new_role do
-          "admin" -> ~p"/admin/dashboard"
-          "supervisor" -> ~p"/supervisor/dashboard"
-          "attachee" -> ~p"/attachee"
-          "manager" -> ~p"/dashboard"
-          "employee" -> ~p"/dashboard"
-          _ -> ~p"/dashboard"
-        end
+        redirect_path =
+          case new_role do
+            "admin" -> ~p"/admin/dashboard"
+            "supervisor" -> ~p"/supervisor/dashboard"
+            "attachee" -> ~p"/attachee"
+            "manager" -> ~p"/dashboard"
+            "employee" -> ~p"/dashboard"
+            _ -> ~p"/dashboard"
+          end
 
         {:noreply,
          socket
          |> assign(:current_scope, updated_scope)
-        # |> put_flash(:info, "Switched to #{new_role} role")
+         # |> put_flash(:info, "Switched to #{new_role} role")
          |> push_navigate(to: redirect_path)}
 
       {:error, :unauthorized_role} ->
@@ -56,7 +57,11 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
     |> assign(:pending_users, pending_users)
     |> assign(:active_users, active_users)
     |> assign(:admin_users, admin_users)
-    |> assign(:recent_activity, [])
+    |> assign(:pending_projects_count, length(TrialApp.Eams.list_pending_projects()))
+    |> assign(:recent_activity, TrialApp.ActivityLogs.list_recent_activity(10))
+    |> assign(:recent_users, Accounts.list_recent_users(5))
+    |> assign(:attachees_by_dept, TrialApp.Eams.count_attachees_by_department())
+    |> assign(:projects_by_status, TrialApp.Eams.count_projects_by_status())
     |> assign(:page_title, "Admin Dashboard")
   end
 end

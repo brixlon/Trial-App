@@ -1,6 +1,6 @@
 defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   use TrialAppWeb, :live_view
-  alias TrialApp.{Orgs, Repo, Emails}
+  alias TrialApp.{Orgs, Repo}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -156,7 +156,7 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      socket
      |> assign(:show_create_modal, true)
      |> assign(:selected_user_type, nil)
-     |> assign(:attachee_form, %{})
+     |> assign(:user_form, %{})
      |> assign(:email_error, nil)}
   end
 
@@ -167,10 +167,8 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
      |> assign(:show_create_modal, false)
      |> assign(:user_form, %{})
      |> assign(:selected_user_type, nil)
-     |> assign(:attachee_form, %{})
      |> assign(:email_error, nil)
      |> assign(:creating_user, false)
-     |> assign(:creating_attachee, false)
      # Also close assignment modal
      |> assign(:show_assign_modal, false)
      |> assign(:user_to_assign, nil)
@@ -178,97 +176,151 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   end
 
   @impl true
-  def handle_event("create_user", %{"user" => user_params}, socket) do
+  def handle_event("create_supervisor", %{"user" => user_params}, socket) do
     socket = assign(socket, :creating_user, true)
 
-    # Build roles array from checkboxes
-    roles = []
+    # Generate secure password
+    password = generate_secure_password()
 
-    roles =
-      if Map.get(user_params, "is_attachee") == "true", do: ["attachee" | roles], else: roles
+    # 1. Create User
+    user_data = %{
+      email: user_params["email"],
+      username: String.split(user_params["email"], "@") |> hd(),
+      first_name: user_params["first_name"],
+      password: password,
+      password_confirmation: password,
+      role: "supervisor",
+      roles: ["supervisor"],
+      active_role: "supervisor",
+      status: "active"
+    }
 
-    roles =
-      if Map.get(user_params, "is_supervisor") == "true", do: ["supervisor" | roles], else: roles
+    case TrialApp.Accounts.register_user(user_data) do
+      {:ok, user} ->
+        # 2. Create Employee Record (link to Org/Dept)
+        employee_attrs = %{
+          name: user_params["first_name"],
+          email: user.email,
+          role: "manager",
+          user_id: user.id,
+          organization_id: user_params["organization_id"],
+          department_id: user_params["department_id"],
+          team_id: get_default_team_id(user_params["department_id"])
+        }
 
-    roles = if Map.get(user_params, "is_admin") == "true", do: ["admin" | roles], else: roles
+        if employee_attrs.team_id do
+          case TrialApp.Orgs.create_employee(employee_attrs) do
+            {:ok, _employee} ->
+              # Send email - FIXED: removed duplicate Mailer.deliver call
+              TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
 
-    # Validate at least one role is selected
-    if Enum.empty?(roles) do
-      {:noreply,
-       socket
-       |> assign(:creating_user, false)
-       |> put_flash(:error, "Please select at least one role")}
-    else
-      # Generate secure password
-      password = generate_secure_password()
+              handle_creation_success(
+                socket,
+                "✅ Supervisor created successfully! Credentials sent."
+              )
 
-      # Get team IDs
-      team_ids =
-        case Map.get(user_params, "team_ids") do
-          nil -> []
-          teams when is_list(teams) -> Enum.map(teams, &String.to_integer/1)
-          teams when is_map(teams) -> Map.values(teams) |> Enum.map(&String.to_integer/1)
-          _ -> []
+            {:error, changeset} ->
+              handle_creation_error(socket, changeset, user_params)
+          end
+        else
+          # FIXED: removed duplicate Mailer.deliver call
+          TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
+
+          handle_creation_success(
+            socket,
+            "✅ Supervisor user created, but could not assign to department (no teams found)."
+          )
         end
 
-      # Prepare user data
-      user_data = %{
-        email: user_params["email"],
-        username: user_params["username"],
-        password: password,
-        password_confirmation: password,
-        roles: roles,
-        # Primary role
-        role: List.first(roles),
-        status: "active"
-      }
-
-      # Create user with assignments
-      case TrialApp.Accounts.register_user(user_data) do
-        {:ok, user} ->
-          # Assign to teams if any selected
-          if Enum.any?(team_ids) do
-            TrialApp.Accounts.update_user_with_assignments(user, %{}, team_ids, %{})
-          end
-
-          # Send credentials email
-          TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
-          |> TrialApp.Mailer.deliver()
-
-          # Reload all users
-          all_users = TrialApp.Accounts.list_users_with_assignments()
-
-          {assigned_users, unassigned_users} =
-            Enum.split_with(all_users, fn user ->
-              length(user.employees) > 0
-            end)
-
-          departments = load_departments()
-
-          {:noreply,
-           socket
-           |> assign(:all_users, all_users)
-           |> assign(:assigned_users, assigned_users)
-           |> assign(:unassigned_users, unassigned_users)
-           |> assign(:departments, departments)
-           |> assign(:total_users, length(all_users))
-           |> assign(:assigned_count, length(assigned_users))
-           |> assign(:unassigned_count, length(unassigned_users))
-           |> assign(:show_create_modal, false)
-           |> assign(:user_form, %{})
-           |> assign(:creating_user, false)
-           |> put_flash(:info, "✅ User created successfully! Credentials sent to #{user.email}")}
-
-        {:error, changeset} ->
-          error_message = extract_error_message(changeset)
-
-          {:noreply,
-           socket
-           |> assign(:creating_user, false)
-           |> assign(:user_form, user_params)
-           |> put_flash(:error, "Failed to create user: #{error_message}")}
-      end
+      {:error, changeset} ->
+        handle_creation_error(socket, changeset, user_params)
     end
+  end
+
+  @impl true
+  def handle_event("create_admin", %{"user" => user_params}, socket) do
+    socket = assign(socket, :creating_user, true)
+
+    password = generate_secure_password()
+
+    user_data = %{
+      email: user_params["email"],
+      username: String.split(user_params["email"], "@") |> hd(),
+      first_name: user_params["first_name"],
+      password: password,
+      password_confirmation: password,
+      role: "admin",
+      roles: ["admin"],
+      active_role: "admin",
+      status: "active"
+    }
+
+    case TrialApp.Accounts.register_user(user_data) do
+      {:ok, user} ->
+        # FIXED: removed duplicate Mailer.deliver call
+        TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
+
+        handle_creation_success(socket, "✅ Admin created successfully! Credentials sent.")
+
+      {:error, changeset} ->
+        handle_creation_error(socket, changeset, user_params)
+    end
+  end
+
+  # Helper to reload data and update socket
+  defp handle_creation_success(socket, message) do
+    all_users = TrialApp.Accounts.list_users_with_assignments()
+
+    {assigned_users, unassigned_users} =
+      Enum.split_with(all_users, fn user ->
+        length(user.employees) > 0
+      end)
+
+    departments = load_departments()
+
+    {:noreply,
+     socket
+     |> assign(:all_users, all_users)
+     |> assign(:assigned_users, assigned_users)
+     |> assign(:unassigned_users, unassigned_users)
+     |> assign(:departments, departments)
+     |> assign(:total_users, length(all_users))
+     |> assign(:assigned_count, length(assigned_users))
+     |> assign(:unassigned_count, length(unassigned_users))
+     |> assign(:show_create_modal, false)
+     |> assign(:selected_user_type, nil)
+     # Reset all form states
+     |> assign(:user_form, %{})
+     |> assign(:attachee_form, %{})
+     |> assign(:supervisor_form, %{})
+     |> assign(:admin_form, %{})
+     |> assign(:email_error, nil)
+     # Reset all loading states
+     |> assign(:creating_user, false)
+     |> assign(:creating_attachee, false)
+     |> assign(:creating_supervisor, false)
+     |> assign(:creating_admin, false)
+     |> put_flash(:info, message)}
+  end
+
+  defp handle_creation_error(socket, changeset, params) do
+    error_message = extract_error_message(changeset)
+
+    {:noreply,
+     socket
+     |> assign(:creating_user, false)
+     |> assign(:user_form, params)
+     |> put_flash(:error, "Failed to create user: #{error_message}")}
+  end
+
+  defp get_default_team_id(department_id) do
+    import Ecto.Query
+
+    TrialApp.Orgs.Team
+    |> where([t], t.department_id == ^department_id)
+    |> limit(1)
+    |> select([t], t.id)
+    |> TrialApp.Repo.one()
   end
 
   @impl true
@@ -355,112 +407,98 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   end
 
   @impl true
-  def handle_event("create_attachee", %{"attachee" => attachee_params}, socket) do
+  def handle_event("select_user_type", %{"type" => type}, socket) do
+    {:noreply, assign(socket, :selected_user_type, type)}
+  end
+
+  @impl true
+  def handle_event("create_attachee", %{"user" => user_params}, socket) do
+    IO.inspect(user_params, label: "DEBUG: Create Attachee Params")
     # Set creating state to show loading spinner
     socket = assign(socket, :creating_attachee, true)
 
     # Validate email uniqueness
-    case validate_unique_email(attachee_params["email"]) do
+    case validate_unique_email(user_params["email"]) do
       {:error, message} ->
+        IO.inspect(message, label: "DEBUG: Email Validation Failed")
+
         {:noreply,
          socket
          |> assign(:email_error, message)
          |> assign(:creating_attachee, false)
-         |> assign(:attachee_form, attachee_params)}
+         |> assign(:attachee_form, user_params)}
 
       :ok ->
         # Generate secure password
         password = generate_secure_password()
 
-        # Prepare attachee data
-        attachee_data = %{
-          full_name: attachee_params["full_name"],
-          email: attachee_params["email"],
-          organization: attachee_params["organization"],
-          department_id: attachee_params["department_id"],
-          program: attachee_params["program"],
+        # 1. Create User
+        user_data = %{
+          email: user_params["email"],
+          username: String.split(user_params["email"], "@") |> hd(),
+          first_name: user_params["first_name"],
           password: password,
-          is_active: true
+          password_confirmation: password,
+          role: "user",
+          roles: ["attachee"],
+          status: "pending",
+          must_change_password: true
         }
 
-        # Create attachee
-        case Orgs.create_attachee(attachee_data) do
-          {:ok, attachee} ->
-            # Preload the user association to access email
-            attachee = Repo.preload(attachee, :user)
+        case TrialApp.Accounts.register_user(user_data) do
+          {:ok, user} ->
+            IO.inspect(user, label: "DEBUG: User Created")
+            # 2. Create Attachee Record
+            attachee_data = %{
+              user_id: user.id,
+              position: "Attachee",
+              organization_id: user_params["organization_id"],
+              department_id: user_params["department_id"],
+              status: "active",
+              starts_on: Date.utc_today()
+            }
 
-            # Send magic link email
-            case Emails.attachee_credentials_email(attachee, password)
-                 |> TrialApp.Mailer.deliver() do
-              {:ok, _} ->
-                # Reload all users and recalculate statistics
-                all_users = TrialApp.Accounts.list_users_with_assignments()
+            IO.inspect(attachee_data, label: "DEBUG: Attachee Data")
 
-                {assigned_users, unassigned_users} =
-                  Enum.split_with(all_users, fn user ->
-                    length(user.employees) > 0
-                  end)
+            case TrialApp.Eams.create_attachee(attachee_data) do
+              {:ok, attachee} ->
+                IO.inspect(attachee, label: "DEBUG: Attachee Created")
+                # 3. Enroll in Program (if selected)
+                if user_params["program_id"] && user_params["program_id"] != "" do
+                  TrialApp.Eams.enroll_attachee_in_program(
+                    attachee.id,
+                    String.to_integer(user_params["program_id"])
+                  )
+                end
 
-                departments = load_departments()
+                # 4. Send Email
+                TrialApp.Accounts.UserNotifier.deliver_user_credentials(user, password)
 
-                {:noreply,
-                 socket
-                 |> assign(:show_create_modal, false)
-                 |> assign(:selected_user_type, nil)
-                 |> assign(:attachee_form, %{})
-                 |> assign(:email_error, nil)
-                 |> assign(:creating_attachee, false)
-                 |> assign(:all_users, all_users)
-                 |> assign(:assigned_users, assigned_users)
-                 |> assign(:unassigned_users, unassigned_users)
-                 |> assign(:departments, departments)
-                 |> assign(:total_users, length(all_users))
-                 |> assign(:assigned_count, length(assigned_users))
-                 |> assign(:unassigned_count, length(unassigned_users))
-                 |> put_flash(
-                   :info,
-                   "✅ Success! Attachee #{attachee_params["full_name"]} has been created and login credentials sent to #{attachee.user.email}"
-                 )}
+                handle_creation_success(
+                  socket,
+                  "✅ Success! Attachee #{user_params["first_name"]} has been created and login credentials sent to #{user.email}"
+                )
 
-              {:error, _reason} ->
-                # Reload all users even if email failed
-                all_users = TrialApp.Accounts.list_users_with_assignments()
-
-                {assigned_users, unassigned_users} =
-                  Enum.split_with(all_users, fn user ->
-                    length(user.employees) > 0
-                  end)
-
-                departments = load_departments()
+              {:error, changeset} ->
+                IO.inspect(changeset, label: "DEBUG: Attachee Creation Failed")
+                error_message = extract_error_message(changeset)
 
                 {:noreply,
                  socket
-                 |> assign(:show_create_modal, false)
-                 |> assign(:selected_user_type, nil)
-                 |> assign(:attachee_form, %{})
-                 |> assign(:email_error, nil)
                  |> assign(:creating_attachee, false)
-                 |> assign(:all_users, all_users)
-                 |> assign(:assigned_users, assigned_users)
-                 |> assign(:unassigned_users, unassigned_users)
-                 |> assign(:departments, departments)
-                 |> assign(:total_users, length(all_users))
-                 |> assign(:assigned_count, length(assigned_users))
-                 |> assign(:unassigned_count, length(unassigned_users))
-                 |> put_flash(
-                   :warning,
-                   "⚠️ Attachee created but email delivery failed. Please manually send credentials to #{attachee.user.email}"
-                 )}
+                 |> assign(:attachee_form, user_params)
+                 |> put_flash(:error, "Failed to create attachee record: #{error_message}")}
             end
 
           {:error, changeset} ->
+            IO.inspect(changeset, label: "DEBUG: User Creation Failed")
             error_message = extract_error_message(changeset)
 
             {:noreply,
              socket
              |> assign(:creating_attachee, false)
-             |> assign(:attachee_form, attachee_params)
-             |> put_flash(:error, "Failed to create attachee: #{error_message}")}
+             |> assign(:attachee_form, user_params)
+             |> put_flash(:error, "Failed to create user: #{error_message}")}
         end
     end
   end
@@ -474,13 +512,11 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
   # Load organizations from the system
   defp load_organizations do
-    # Fetch organizations from database
     Orgs.list_organizations()
   end
 
   # Load programs from the system
   defp load_programs do
-    # Fetch programs from database
     Orgs.list_programs()
   end
 
@@ -502,7 +538,6 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
 
   # Generate a secure random password
   defp generate_secure_password do
-    # Generate 12 character password with mix of characters
     length = 12
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%"
 

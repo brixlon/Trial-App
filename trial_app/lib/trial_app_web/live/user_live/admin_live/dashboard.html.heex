@@ -1,71 +1,329 @@
-  <div class="space-y-8">
-    <!-- Header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div>
-        <h1 class="text-3xl font-bold text-[#3B3B98]">Admin Dashboard</h1>
-        <p class="text-sm text-gray-500 mt-1">Manage users, departments, and organizational data</p>
-      </div>
-
-      <div class="flex gap-3">
-        <.link navigate={~p"/admin/users"} class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2">
-          <.icon name="hero-users" class="w-4 h-4" />
-          Manage Users
-        </.link>
-      </div>
+<div class="space-y-8">
+  <!-- Header -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-[#3B3B98]">Admin Dashboard</h1>
+      <p class="text-sm text-gray-500 mt-1">System Overview & Activity</p>
     </div>
+    <div class="flex gap-3">
+      <.link
+        navigate={~p"/admin/users"}
+        class="px-4 py-2 rounded-lg bg-[#6C63FF] text-white hover:bg-[#5A52E8] transition flex items-center gap-2 shadow-sm"
+      >
+        <.icon name="hero-users" class="w-4 h-4" /> Manage Users
+      </.link>
+    </div>
+  </div>
 
-    <!-- Stats Cards -->
+  <div class="bg-white shadow-md rounded-2xl border border-gray-100 p-6">
+    <h2 class="text-xl font-semibold text-[#3B3B98] mb-4">Quick Actions</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <.icon name="hero-clock" class="w-6 h-6" />
-          </div>
-          <span class="text-2xl font-bold"><%= @pending_users %></span>
+      <.link
+        navigate={~p"/admin/users"}
+        class="bg-[#6C63FF] text-white px-4 py-4 rounded-xl text-center hover:bg-[#5A52E8] transition flex flex-col items-center justify-center gap-2 shadow"
+      >
+        <.icon name="hero-users" class="w-6 h-6" /> Manage Users
+      </.link>
+      <.link
+        navigate={~p"/admin/pending-approvals"}
+        class="bg-orange-500 text-white px-4 py-4 rounded-xl text-center hover:bg-orange-600 transition flex flex-col items-center justify-center gap-2 shadow"
+      >
+        <.icon name="hero-clipboard-document-check" class="w-6 h-6" /> Approve Projects
+      </.link>
+    </div>
+  </div>
+  
+<!-- Top Stats Row -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Users</p>
+          <h3 class="text-2xl font-bold text-gray-900 mt-1">{@total_users}</h3>
         </div>
-        <p class="text-sm opacity-90">Pending Users</p>
-        <.link navigate={~p"/admin/users?filter=pending"} class="text-xs mt-2 inline-block text-white/80 hover:text-white underline">Review now →</.link>
-      </div>
-
-      <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <.icon name="hero-check-circle" class="w-6 h-6" />
-          </div>
-          <span class="text-2xl font-bold"><%= @active_users %></span>
+        <div class="p-2 bg-purple-50 rounded-lg text-purple-600">
+          <.icon name="hero-user-group" class="w-5 h-5" />
         </div>
-        <p class="text-sm opacity-90">Active Users</p>
-      </div>
-
-      <div class="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <.icon name="hero-user-group" class="w-6 h-6" />
-          </div>
-          <span class="text-2xl font-bold"><%= @total_users %></span>
-        </div>
-        <p class="text-sm opacity-90">Total Users</p>
-      </div>
-
-      <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
-        <div class="flex items-center justify-between mb-2">
-          <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-            <.icon name="hero-shield-check" class="w-6 h-6" />
-          </div>
-          <span class="text-2xl font-bold"><%= @admin_users %></span>
-        </div>
-        <p class="text-sm opacity-90">Administrators</p>
       </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="bg-white shadow-md rounded-2xl border border-gray-100 p-6">
-      <h2 class="text-xl font-semibold text-[#3B3B98] mb-4">Quick Actions</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <.link navigate={~p"/admin/users"} class="bg-[#6C63FF] text-white px-4 py-4 rounded-xl text-center hover:bg-[#5A52E8] transition flex flex-col items-center justify-center gap-2 shadow">
-          <.icon name="hero-users" class="w-6 h-6" />
-          Manage Users
-        </.link>
+    <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Users</p>
+          <h3 class="text-2xl font-bold text-gray-900 mt-1">{@active_users}</h3>
+        </div>
+        <div class="p-2 bg-green-50 rounded-lg text-green-600">
+          <.icon name="hero-check-circle" class="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Users</p>
+          <h3 class="text-2xl font-bold text-gray-900 mt-1">{@pending_users}</h3>
+        </div>
+        <div class="p-2 bg-yellow-50 rounded-lg text-yellow-600">
+          <.icon name="hero-clock" class="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Pending Projects
+          </p>
+          <h3 class="text-2xl font-bold text-gray-900 mt-1">{@pending_projects_count}</h3>
+        </div>
+        <div class="p-2 bg-orange-50 rounded-lg text-orange-600">
+          <.icon name="hero-clipboard-document-list" class="w-5 h-5" />
+        </div>
       </div>
     </div>
   </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Content Column (2/3) -->
+    <div class="lg:col-span-2 space-y-8">
+      
+<!-- Urgency / Action Items -->
+      <%= if @pending_users > 0 or @pending_projects_count > 0 do %>
+        <div class="bg-white rounded-xl border border-red-100 shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-red-50 bg-red-50/50 flex justify-between items-center">
+            <h3 class="font-semibold text-red-800 flex items-center gap-2">
+              <.icon name="hero-exclamation-circle" class="w-5 h-5" /> Action Required
+            </h3>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <%= if @pending_users > 0 do %>
+              <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                <div class="flex items-center gap-3">
+                  <span class="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 text-yellow-600">
+                    <.icon name="hero-user-plus" class="w-4 h-4" />
+                  </span>
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">
+                      {@pending_users} New User Registrations
+                    </p>
+                    <p class="text-xs text-gray-500">Waiting for approval</p>
+                  </div>
+                </div>
+                <.link
+                  navigate={~p"/admin/users?filter=pending"}
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Review
+                </.link>
+              </div>
+            <% end %>
+
+            <%= if @pending_projects_count > 0 do %>
+              <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                <div class="flex items-center gap-3">
+                  <span class="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                    <.icon name="hero-folder-plus" class="w-4 h-4" />
+                  </span>
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">
+                      {@pending_projects_count} Project Proposals
+                    </p>
+                    <p class="text-xs text-gray-500">Submitted by supervisors</p>
+                  </div>
+                </div>
+                <.link
+                  navigate={~p"/admin/pending-approvals"}
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Review
+                </.link>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+      
+<!-- Charts Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Department Distribution -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="font-semibold text-gray-800 mb-4">Attachees by Department</h3>
+          <div class="space-y-3">
+            <%= for {dept_name, count} <- @attachees_by_dept do %>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">{dept_name}</span>
+                  <span class="font-medium text-gray-900">{count}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                  <div
+                    class="bg-indigo-500 h-2 rounded-full"
+                    style={"width: #{min(count * 10, 100)}%"}
+                  >
+                  </div>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@attachees_by_dept) do %>
+              <p class="text-sm text-gray-400 text-center py-4">No data available</p>
+            <% end %>
+          </div>
+        </div>
+        
+<!-- Project Status -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="font-semibold text-gray-800 mb-4">Project Status</h3>
+          <div class="space-y-3">
+            <%= for {status, count} <- @projects_by_status do %>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600 capitalize">{status}</span>
+                  <span class="font-medium text-gray-900">{count}</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                  <div
+                    class={"h-2 rounded-full #{case status do
+                      "active" -> "bg-green-500"
+                      "pending" -> "bg-yellow-500"
+                      "completed" -> "bg-blue-500"
+                      _ -> "bg-gray-500"
+                    end}"}
+                    style={"width: #{min(count * 20, 100)}%"}
+                  >
+                  </div>
+                </div>
+              </div>
+            <% end %>
+            <%= if Enum.empty?(@projects_by_status) do %>
+              <p class="text-sm text-gray-400 text-center py-4">No data available</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+      
+<!-- Recent Users Table -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 class="font-semibold text-gray-800">Recent Joiners</h3>
+          <.link navigate={~p"/admin/users"} class="text-sm text-indigo-600 hover:text-indigo-700">
+            View All
+          </.link>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Joined
+                </th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <%= for user <- @recent_users do %>
+                <tr>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="flex items-center">
+                      <div class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs">
+                        {String.first(user.username || user.email) |> String.upcase()}
+                      </div>
+                      <div class="ml-3">
+                        <div class="text-sm font-medium text-gray-900">
+                          {user.username || "No Name"}
+                        </div>
+                        <div class="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                      {String.capitalize(user.role || "user")}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class={"px-2 inline-flex text-xs leading-5 font-semibold rounded-full #{if user.status == "active", do: "bg-green-100 text-green-800", else: "bg-yellow-100 text-yellow-800"}"}>
+                      {String.capitalize(user.status || "pending")}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {Calendar.strftime(user.inserted_at, "%b %d, %Y")}
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+<!-- Right Sidebar (Activity Feed) -->
+    <div class="space-y-6">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <.icon name="hero-signal" class="w-5 h-5 text-indigo-500" /> Live Activity
+        </h3>
+
+        <div class="space-y-6">
+          <%= for log <- @recent_activity do %>
+            <div class="relative pl-4 border-l-2 border-gray-100 last:border-0">
+              <div class="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full bg-indigo-400 ring-4 ring-white">
+              </div>
+              <p class="text-sm text-gray-600 mb-1">{log.message}</p>
+              <div class="flex items-center gap-2 text-xs text-gray-400">
+                <span>
+                  {if log.actor, do: log.actor.username || log.actor.email, else: "System"}
+                </span>
+                <span>•</span>
+                <span>{Calendar.strftime(log.inserted_at, "%H:%M")}</span>
+              </div>
+            </div>
+          <% end %>
+
+          <%= if Enum.empty?(@recent_activity) do %>
+            <div class="text-center py-8 text-gray-400 text-sm">
+              No recent activity
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+<!-- Quick Links Card -->
+      <div class="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-xl shadow-md p-6 text-white">
+        <h3 class="font-semibold text-lg mb-2">Quick Access</h3>
+        <p class="text-purple-100 text-sm mb-4">Common administrative tasks</p>
+
+        <div class="space-y-2">
+          <.link
+            navigate={~p"/admin/employees/new"}
+            class="block w-full py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition flex items-center gap-2"
+          >
+            <.icon name="hero-user-plus" class="w-4 h-4" /> Add Employee
+          </.link>
+          <.link
+            navigate={~p"/organizations"}
+            class="block w-full py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition flex items-center gap-2"
+          >
+            <.icon name="hero-building-office" class="w-4 h-4" /> Manage Orgs
+          </.link>
+          <.link
+            navigate={~p"/announcements"}
+            class="block w-full py-2 px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition flex items-center gap-2"
+          >
+            <.icon name="hero-megaphone" class="w-4 h-4" /> Post Announcement
+          </.link>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

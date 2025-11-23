@@ -124,7 +124,7 @@ defmodule TrialAppWeb.Router do
       live "/employees/new", AdminLive.EmployeeForm, :new
       live "/employees/:id/edit", AdminLive.EmployeeForm, :edit
       live "/employees/:id", AdminLive.EmployeeManagement, :show
-      live "/pending-approvals", AdminLive.PendingApprovalLive, :index
+      live "/pending-approvals", AdminLive.ProjectApprovalLive, :index
 
       # ════════════════════════════════════════════════════════════════
       # EAMS SECTION - HIERARCHICAL NAVIGATION
