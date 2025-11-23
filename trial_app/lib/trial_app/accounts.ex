@@ -1010,12 +1010,29 @@ defmodule TrialApp.Accounts do
   Assigns permissions to a role.
   """
   def assign_permissions_to_role(%Role{} = role, permission_ids) when is_list(permission_ids) do
-    permissions = Repo.all(from p in Permission, where: p.id in ^permission_ids)
+    Repo.transaction(fn ->
+      # 1. Delete existing permissions for this role
+      Repo.delete_all(from rp in "role_permissions", where: rp.role_id == ^role.id)
 
-    role
-    |> Repo.preload(:permissions)
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_assoc(:permissions, permissions)
-    |> Repo.update()
+      # 2. Insert new permissions
+      timestamp = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+      entries =
+        Enum.map(permission_ids, fn pid ->
+          %{
+            role_id: role.id,
+            permission_id: pid,
+            inserted_at: timestamp,
+            updated_at: timestamp
+          }
+        end)
+
+      if length(entries) > 0 do
+        Repo.insert_all("role_permissions", entries)
+      end
+
+      # Return the role with updated permissions (reloaded)
+      role |> Repo.preload(:permissions, force: true)
+    end)
   end
 end

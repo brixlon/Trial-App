@@ -73,12 +73,14 @@ defmodule TrialAppWeb.AdminLive.RoleManagement do
     result =
       if editing_role do
         with {:ok, role} <- Accounts.update_role(editing_role, form_data),
-             {:ok, _role} <- Accounts.assign_permissions_to_role(role, permission_ids) do
+             {:ok, _role} <-
+               Accounts.assign_permissions_to_role(role, permission_ids) do
           {:ok, role}
         end
       else
         with {:ok, role} <- Accounts.create_role(form_data),
-             {:ok, _role} <- Accounts.assign_permissions_to_role(role, permission_ids) do
+             {:ok, _role} <-
+               Accounts.assign_permissions_to_role(role, permission_ids) do
           {:ok, role}
         end
       end
