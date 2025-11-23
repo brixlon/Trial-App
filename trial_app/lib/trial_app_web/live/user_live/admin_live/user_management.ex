@@ -19,7 +19,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:teams, teams)
      |> assign(:departments, departments)
      |> assign(:filter, "all")
-     |> assign(:search_query, "")
+     |> assign(:role_filter, "all")
      |> assign(:selected_user, nil)
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
@@ -30,23 +30,41 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:available_teams, [])
      |> assign(:available_departments, [])
      |> assign(:selected_org_id, nil)
-     |> assign(:selected_dept_id, nil)}
+     |> assign(:selected_dept_id, nil)
+     |> assign(:search_query, "")}
   end
 
   def handle_params(params, _url, socket) do
     filter = Map.get(params, "filter", "all")
-    all_users = Accounts.list_users_with_assignments()
-    filtered_users = apply_filter(all_users, filter)
-    searched_users = apply_search(filtered_users, socket.assigns.search_query)
+    role_filter = Map.get(params, "role", "all")
+
+    users =
+      Accounts.list_users_with_assignments()
+      |> apply_status_filter(filter)
+      |> apply_role_filter(role_filter)
+      |> apply_search_filter(socket.assigns.search_query)
 
     {:noreply,
      socket
-     |> assign(:users, searched_users)
-     |> assign(:filter, filter)}
+     |> assign(:users, users)
+     |> assign(:filter, filter)
+     |> assign(:role_filter, role_filter)}
+  end
+
+  def handle_event("search", %{"query" => query}, socket) do
+    users =
+      Accounts.list_users_with_assignments()
+      |> apply_status_filter(socket.assigns.filter)
+      |> apply_role_filter(socket.assigns.role_filter)
+      |> apply_search_filter(query)
+
+    {:noreply,
+     socket
+     |> assign(:users, users)
+     |> assign(:search_query, query)}
   end
 
   def handle_event("open_add_modal", _, socket) do
-    # Use string keys to be consistent with update_form_field
     user_form = %{
       "email" => "",
       "first_name" => "",
@@ -60,37 +78,42 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:user_form, user_form)}
   end
 
-  # Handle form input changes to preserve values
   def handle_event("update_form_field", params, socket) do
     field = params["field"]
     value = params["value"] || Map.get(params, field, "")
-
-    # Use string keys to avoid String.to_atom memory leak
     user_form = Map.put(socket.assigns.user_form, field, value)
     {:noreply, assign(socket, :user_form, user_form)}
   end
 
   def handle_event("create_user", params, socket) do
-    # Extract user params
+    roles =
+      case params["roles"] do
+        nil -> ["employee"]
+        roles when is_list(roles) -> roles
+        role when is_binary(role) -> [role]
+      end
+
     user_params = %{
       "email" => params["email"],
       "first_name" => params["first_name"],
       "last_name" => params["last_name"],
       "phone_number" => params["phone_number"],
-      "role" => params["role"] || "employee",
+      "roles" => roles,
       "status" => params["status"] || "pending"
     }
 
     case Accounts.create_user(user_params) do
       {:ok, _new_user} ->
-        # Reload users list with fresh data
-        users = Accounts.list_users_with_assignments()
-        filtered_users = apply_filter(users, socket.assigns.filter)
+        users =
+          Accounts.list_users_with_assignments()
+          |> apply_status_filter(socket.assigns.filter)
+          |> apply_role_filter(socket.assigns.role_filter)
+          |> apply_search_filter(socket.assigns.search_query)
 
         {:noreply,
          socket
          |> put_flash(:info, "User created successfully!")
-         |> assign(:users, filtered_users)
+         |> assign(:users, users)
          |> assign(:show_add_modal, false)
          |> assign(:user_form, %{})}
 
@@ -291,7 +314,6 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       "status" => params["status"]
     }
 
-    # Extract team IDs from the form
     team_ids =
       case params["team_ids"] do
         nil -> []
@@ -299,7 +321,6 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
         id when is_binary(id) -> [String.to_integer(id)]
       end
 
-    # Attachee enrollment params
     attachee? = params["is_attachee"] == "true"
 
     attachee_dates = %{
@@ -312,7 +333,11 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
            attachee_dates: attachee_dates
          }) do
       {:ok, _updated_user} ->
-        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
+        users =
+          Accounts.list_users_with_assignments()
+          |> apply_status_filter(socket.assigns.filter)
+          |> apply_role_filter(socket.assigns.role_filter)
+          |> apply_search_filter(socket.assigns.search_query)
 
         {:noreply,
          socket
@@ -332,31 +357,16 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end
   end
 
-  def handle_event("make_admin", %{"user-id" => user_id}, socket) do
+  def handle_event("delete_user", %{"user-id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
-
-    case Accounts.update_user_role(user, "admin") do
-      {:ok, _user} ->
-        users = apply_filter(Accounts.list_users_with_assignments(), socket.assigns.filter)
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "User promoted to admin!")
-         |> assign(:users, users)}
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to promote user to admin")}
-    end
-  end
-
-  def handle_event("delete_user", _, socket) do
-    user = socket.assigns.selected_user
 
     case Accounts.delete_user(user) do
       {:ok, _user} ->
-        all_users = Accounts.list_users_with_assignments()
-        filtered_users = apply_filter(all_users, socket.assigns.filter)
-        searched_users = apply_search(filtered_users, socket.assigns.search_query)
+        users =
+          Accounts.list_users_with_assignments()
+          |> apply_status_filter(socket.assigns.filter)
+          |> apply_role_filter(socket.assigns.role_filter)
+          |> apply_search_filter(socket.assigns.search_query)
 
         {:noreply,
          socket
@@ -372,9 +382,29 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end
   end
 
-  defp apply_filter(users, "all"), do: users
-  defp apply_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
-  defp apply_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
+  # Filter functions
+  defp apply_status_filter(users, "all"), do: users
+  defp apply_status_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
+  defp apply_status_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
+
+  defp apply_role_filter(users, "all"), do: users
+  defp apply_role_filter(users, "employee"), do: Enum.filter(users, &has_role?(&1, "employee"))
+  defp apply_role_filter(users, "attachee"), do: Enum.filter(users, &has_role?(&1, "attachee"))
+  defp apply_role_filter(users, "supervisor"), do: Enum.filter(users, &has_role?(&1, "supervisor"))
+  defp apply_role_filter(users, "admin"), do: Enum.filter(users, &has_role?(&1, "admin"))
+
+  defp apply_search_filter(users, ""), do: users
+  defp apply_search_filter(users, query) do
+    query_lower = String.downcase(query)
+    Enum.filter(users, fn user ->
+      String.contains?(String.downcase(user.username || ""), query_lower) ||
+      String.contains?(String.downcase(user.email || ""), query_lower)
+    end)
+  end
+
+  defp has_role?(user, role) do
+    Enum.member?(user.roles || [], role)
+  end
 
   defp apply_search(users, ""), do: users
 
@@ -394,6 +424,18 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   defp user_status_label("pending"), do: "Pending"
   defp user_status_label("active"), do: "Active"
   defp user_status_label(_), do: "Unknown"
+
+  defp role_badge_class("admin"), do: "badge-error"
+  defp role_badge_class("supervisor"), do: "badge-info"
+  defp role_badge_class("attachee"), do: "badge-warning"
+  defp role_badge_class("employee"), do: "badge-primary"
+  defp role_badge_class(_), do: "badge-ghost"
+
+  defp role_label("admin"), do: "Admin"
+  defp role_label("supervisor"), do: "Supervisor"
+  defp role_label("attachee"), do: "Attachee"
+  defp role_label("employee"), do: "Employee"
+  defp role_label(role), do: String.capitalize(role)
 
   defp get_current_team_assignments(user) do
     user.employees
@@ -419,8 +461,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end)
   end
 
-  defp role_badge_color("attachee"), do: "bg-blue-100 text-blue-800"
-  defp role_badge_color("supervisor"), do: "bg-green-100 text-green-800"
-  defp role_badge_color("admin"), do: "bg-purple-100 text-purple-800"
-  defp role_badge_color(_), do: "bg-gray-100 text-gray-800"
+  defp count_by_role(users, role) do
+    Enum.count(users, &has_role?(&1, role))
+  end
 end
