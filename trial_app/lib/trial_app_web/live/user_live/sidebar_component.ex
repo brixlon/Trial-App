@@ -452,14 +452,6 @@ defmodule TrialAppWeb.SidebarComponent do
                       Pending Approvals
                     </.link>
                   </li>
-                  <li>
-                    <.link
-                      navigate={~p"/organizations"}
-                      class={link_class(@current_path, "/organizations", exact: true)}
-                    >
-                      Organizations
-                    </.link>
-                  </li>
 
                   <li>
                     <button
@@ -511,6 +503,14 @@ defmodule TrialAppWeb.SidebarComponent do
                             class={dropdown_link_class(@current_path, "/admin/users")}
                           >
                             User Management
+                          </.link>
+                        </li>
+                        <li>
+                          <.link
+                            navigate={~p"/admin/roles"}
+                            class={dropdown_link_class(@current_path, "/admin/roles")}
+                          >
+                            Roles & Permissions
                           </.link>
                         </li>
                         <li>
@@ -690,14 +690,7 @@ defmodule TrialAppWeb.SidebarComponent do
                       Dashboard
                     </.link>
                   </li>
-                  <li>
-                    <.link
-                      navigate={~p"/organizations"}
-                      class={link_class(@current_path, "/organizations", exact: true)}
-                    >
-                      Organizations
-                    </.link>
-                  </li>
+
                   <li>
                     <.link
                       navigate={~p"/admin/employees"}
@@ -714,6 +707,17 @@ defmodule TrialAppWeb.SidebarComponent do
                       Settings
                     </.link>
                   </li>
+              <% end %>
+
+              <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
+                <li>
+                  <.link
+                    navigate={~p"/organizations"}
+                    class={link_class(@current_path, "/organizations", exact: true)}
+                  >
+                    Organizations
+                  </.link>
+                </li>
               <% end %>
 
               <li class="mt-6 pt-6 border-t border-purple-200">

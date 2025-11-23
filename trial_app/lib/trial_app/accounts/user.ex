@@ -10,8 +10,10 @@ defmodule TrialApp.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
-    field :role, :string, default: "user"
+    # NOTE: 'role' field removed in migration - now using role_id
+    # Kept for backward compatibility during transition
     field :roles, {:array, :string}, default: []
+    # Kept for backward compatibility during transition
     field :active_role, :string
     field :first_name, :string
     field :last_name, :string
@@ -19,6 +21,9 @@ defmodule TrialApp.Accounts.User do
 
     field :must_change_password, :boolean, default: false
     field :password_changed_at, :utc_datetime
+
+    # RBAC: User belongs to a Role
+    belongs_to :role, TrialApp.Accounts.Role
 
     has_many :employees, TrialApp.Orgs.Employee
     has_many :teams, through: [:employees, :team]
@@ -33,15 +38,16 @@ defmodule TrialApp.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username, :password])
-    |> validate_required([:email, :username, :password])
+    |> cast(attrs, [:email, :username, :password, :role_id])
+    |> validate_required([:email, :username, :password, :role_id])
     |> validate_length(:username, min: 3, max: 50)
     |> validate_length(:password, min: 8, max: 72)
     |> validate_confirmation(:password, message: "does not match password")
     |> unique_constraint(:email)
     |> unique_constraint(:username)
+    |> foreign_key_constraint(:role_id)
     |> put_hashed_password(opts)
-    |> change(status: "pending", role: "user")
+    |> change(status: "pending")
   end
 
   defp put_hashed_password(changeset, opts) do
@@ -63,12 +69,12 @@ defmodule TrialApp.Accounts.User do
   """
   def profile_changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :username, :role, :status])
-    |> validate_required([:email, :username, :role])
-    |> validate_inclusion(:role, ["admin", "manager", "employee"])
+    |> cast(attrs, [:email, :username, :role_id, :status])
+    |> validate_required([:email, :username])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
+    |> foreign_key_constraint(:role_id)
   end
 
   @doc """
@@ -76,11 +82,12 @@ defmodule TrialApp.Accounts.User do
   """
   def admin_update_changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :username, :role, :roles, :status])
+    |> cast(attrs, [:email, :username, :role_id, :roles, :status])
     |> validate_required([:email, :username])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
+    |> foreign_key_constraint(:role_id)
     |> validate_roles()
   end
 
@@ -109,22 +116,22 @@ defmodule TrialApp.Accounts.User do
   """
   def admin_create_changeset(user, attrs) do
     status = Map.get(attrs, "status") || Map.get(attrs, :status) || "pending"
-    role = Map.get(attrs, "role") || Map.get(attrs, :role) || "employee"
+    role_id = Map.get(attrs, "role_id") || Map.get(attrs, :role_id)
 
     user
-    |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :role, :status])
+    |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :role_id, :status])
     |> validate_required([:email, :first_name, :last_name, :phone_number])
     |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
       message: "must have the @ sign and no spaces"
     )
     |> validate_length(:email, max: 160)
-    |> validate_inclusion(:role, ["admin", "manager", "employee"])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
+    |> foreign_key_constraint(:role_id)
     |> generate_username_from_name()
     |> generate_default_password()
     |> put_hashed_password([])
-    |> change(status: status, role: role)
+    |> change(status: status)
   end
 
   defp generate_username_from_name(changeset) do
@@ -179,10 +186,9 @@ defmodule TrialApp.Accounts.User do
   """
   def assignment_changeset(user, attrs) do
     user
-    |> cast(attrs, [:role, :status])
-    |> validate_required([:role])
-    |> validate_inclusion(:role, ["admin", "manager", "employee"])
+    |> cast(attrs, [:role_id, :status])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
+    |> foreign_key_constraint(:role_id)
   end
 
   @doc """

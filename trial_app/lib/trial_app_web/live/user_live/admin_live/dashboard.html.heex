@@ -248,7 +248,7 @@
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                      {String.capitalize(user.role || "user")}
+                      {if user.role, do: String.capitalize(user.role.name), else: "User"}
                     </span>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">

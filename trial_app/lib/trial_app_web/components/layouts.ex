@@ -14,13 +14,13 @@ defmodule TrialAppWeb.Layouts do
     ~H"""
     <div class="flex min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-100">
       
-      <!-- Main Content Area -->
+    <!-- Main Content Area -->
       <div class="flex flex-col flex-1 ml-64">
         <!-- <.topbar current_user={@current_user} /> -->
 
         <main class="flex-1 p-8">
           <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-purple-100">
-            <%= render_slot(@inner_block) %>
+            {render_slot(@inner_block)}
           </div>
         </main>
       </div>
@@ -42,7 +42,7 @@ defmodule TrialAppWeb.Layouts do
       <!-- <.topbar /> -->
       <main class="flex-1 flex items-center justify-center p-8">
         <div class="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg p-8 border border-purple-100 w-full max-w-3xl">
-          <%= render_slot(@inner_block) %>
+          {render_slot(@inner_block)}
         </div>
       </main>
     </div>
@@ -60,33 +60,49 @@ defmodule TrialAppWeb.Layouts do
     <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md shadow-sm border-b border-purple-100 flex items-center justify-between px-6 py-3">
       <!-- Left -->
       <div class="flex items-center space-x-3">
-        <a href="/" class="text-2xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent tracking-tight">
+        <a
+          href="/"
+          class="text-2xl font-extrabold bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent tracking-tight"
+        >
           trial<span class="text-gray-800">app</span>
         </a>
       </div>
-
-      <!-- Right -->
+      
+    <!-- Right -->
       <div class="flex items-center gap-4">
         <.theme_toggle />
 
         <%= if @current_user do %>
           <div class="relative group">
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold cursor-pointer select-none">
-              <%= String.first(@current_user.username || "U") |> String.upcase() %>
+              {String.first(@current_user.username || "U") |> String.upcase()}
             </div>
             <div class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-purple-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <div class="px-4 py-2 text-sm text-gray-700 border-b border-purple-50">
-                <%= @current_user.username %><br />
+                {@current_user.username}<br />
                 <span class="text-xs text-gray-500">
-                  <%= if @current_user.role == "admin", do: "Administrator", else: "User" %>
+                  {if @current_user.role, do: String.capitalize(@current_user.role.name), else: "User"}
                 </span>
               </div>
-              <a href={~p"/users/settings"} class="block px-4 py-2 text-sm hover:bg-purple-50">Settings</a>
-              <a href={~p"/users/logout"} phx-click={JS.push("logout")} class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">Logout</a>
+              <a href={~p"/users/settings"} class="block px-4 py-2 text-sm hover:bg-purple-50">
+                Settings
+              </a>
+              <a
+                href={~p"/users/logout"}
+                phx-click={JS.push("logout")}
+                class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                Logout
+              </a>
             </div>
           </div>
         <% else %>
-          <a href={~p"/users/login"} class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">Login</a>
+          <a
+            href={~p"/users/login"}
+            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+          >
+            Login
+          </a>
         <% end %>
       </div>
     </header>
@@ -124,10 +140,18 @@ defmodule TrialAppWeb.Layouts do
   def theme_toggle(assigns) do
     ~H"""
     <div class="flex items-center gap-1 bg-white/60 rounded-full border border-purple-100 shadow-inner p-1 backdrop-blur-sm">
-      <button phx-click={JS.dispatch("phx:set-theme")} data-phx-theme="light" class="p-2 rounded-full hover:bg-purple-50">
+      <button
+        phx-click={JS.dispatch("phx:set-theme")}
+        data-phx-theme="light"
+        class="p-2 rounded-full hover:bg-purple-50"
+      >
         <.icon name="hero-sun" class="w-4 h-4 text-purple-700" />
       </button>
-      <button phx-click={JS.dispatch("phx:set-theme")} data-phx-theme="dark" class="p-2 rounded-full hover:bg-purple-50">
+      <button
+        phx-click={JS.dispatch("phx:set-theme")}
+        data-phx-theme="dark"
+        class="p-2 rounded-full hover:bg-purple-50"
+      >
         <.icon name="hero-moon" class="w-4 h-4 text-purple-700" />
       </button>
     </div>

@@ -125,7 +125,7 @@
                 <% end %>
 
                 <!-- Enhanced Add Buttons -->
-                <%= if @show_departments and @current_scope.user.role == "admin" do %>
+                <%= if @show_departments and TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                   <button
                     phx-click="new_department"
                     class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 via-green-600 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:via-green-700 hover:to-emerald-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
@@ -136,7 +136,7 @@
                     Add Department
                   </button>
                 <% else %>
-                  <%= if @show_department_detail and @current_scope.user.role == "admin" do %>
+                  <%= if @show_department_detail and TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                     <button
                       phx-click="new_team"
                       phx-value-department_id={@selected_department.id}
@@ -148,7 +148,7 @@
                       Add Team
                     </button>
                   <% else %>
-                    <%= if @view == :list and @current_scope.user.role == "admin" do %>
+                    <%= if @view == :list and TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                       <button
                         phx-click="new_organization"
                         class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white rounded-xl hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
@@ -230,7 +230,7 @@
                       <p class="text-gray-600 mb-10 text-lg leading-relaxed">
                         Get started by creating your first organization to structure your company.
                       </p>
-                      <%= if @current_scope.user.role == "admin" do %>
+                      <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                         <button
                           phx-click="new_organization"
                           class="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 text-white rounded-2xl hover:from-indigo-600 hover:via-purple-700 hover:to-pink-700 transition-all shadow-xl hover:shadow-2xl font-semibold text-lg transform hover:-translate-y-1 hover:scale-105"
@@ -270,7 +270,7 @@
                                 </span>
                               </div>
                             </div>
-                            <%= if @current_scope.user.role == "admin" do %>
+                            <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                               <button
                                 phx-click="edit_organization"
                                 phx-value-id={org.id}
@@ -339,7 +339,7 @@
                         </div>
                         Teams in {@selected_department.name}
                       </h2>
-                      <%= if @current_scope.user.role == "admin" do %>
+                      <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                         <button
                           phx-click="edit_department"
                           phx-value-id={@selected_department.id}
@@ -365,7 +365,7 @@
                           </div>
                           <h3 class="text-2xl font-bold text-gray-800 mb-2">No Teams Yet</h3>
                           <p class="text-gray-600 mb-8 text-lg">Create your first team in this department.</p>
-                          <%= if @current_scope.user.role == "admin" do %>
+                          <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                             <button
                               phx-click="new_team"
                               phx-value-department_id={@selected_department.id}
@@ -398,7 +398,7 @@
                                   </div>
                                   <h3 class="font-bold text-blue-900 text-lg group-hover:text-blue-700 transition-colors">{team.name}</h3>
                                 </div>
-                                <%= if @current_scope.user.role == "admin" do %>
+                                <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                                   <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity" phx-click="stop">
                                     <button
                                       phx-click="edit_team"
@@ -479,7 +479,7 @@
                             <p class="text-gray-500 mt-2 italic">{@selected_team.description}</p>
                           <% end %>
                         </div>
-                        <%= if @current_scope.user.role == "admin" do %>
+                        <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                           <button
                             phx-click="edit_team"
                             phx-value-id={@selected_team.id}
@@ -601,7 +601,7 @@
                               </div>
                               <h3 class="text-2xl font-bold text-gray-800 mb-2">No Departments Yet</h3>
                               <p class="text-gray-600 mb-8 text-lg">Create your first department in this organization.</p>
-                              <%= if @current_scope.user.role == "admin" do %>
+                              <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                                 <button
                                   phx-click="new_department"
                                   class="group inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 hover:scale-105"
@@ -632,7 +632,7 @@
           </div>
           <h3 class="font-bold text-purple-900 text-lg group-hover:text-purple-700 transition-colors">{dept.name}</h3>
         </div>
-        <%= if @current_scope.user.role == "admin" do %>
+        <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
           <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();">
             <button
               phx-click="edit_department"
@@ -695,7 +695,7 @@
                               </div>
                               Teams in {@selected_org.name}
                             </h2>
-                            <%= if @current_scope.user.role == "admin" do %>
+                            <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                               <button
                                 phx-click="show_team_selector_modal"
                                 class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 via-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-600 hover:via-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-2xl font-semibold transform hover:-translate-y-0.5 hover:scale-105"
@@ -731,7 +731,7 @@
                                   <div class="absolute inset-0 bg-gradient-to-br from-blue-100/50 to-cyan-100/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
                                   
                                   <!-- Action Buttons - Top Right -->
-                                  <%= if @current_scope.user.role == "admin" do %>
+                                  <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                                     <div class="absolute top-3 right-3 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation();">
                                       <button
                                         phx-click="edit_team"

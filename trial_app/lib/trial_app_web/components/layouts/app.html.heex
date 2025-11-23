@@ -26,7 +26,7 @@
           </.link>
           
 <!-- Admin Quick Links -->
-          <%= if @current_scope && @current_scope.user && @current_scope.user.role == "admin" do %>
+          <%= if @current_scope && @current_scope.user && TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
             <div class="hidden lg:flex items-center space-x-6 ml-10">
               <.link
                 navigate={~p"/dashboard"}
@@ -114,7 +114,7 @@
           <.link navigate={~p"/users/settings"} class="block text-gray-700 hover:text-indigo-600">
             Settings
           </.link>
-          <%= if @current_scope && @current_scope.user && @current_scope.user.role == "admin" do %>
+          <%= if @current_scope && @current_scope.user && TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
             <.link navigate={~p"/organizations"} class="block text-gray-700 hover:text-indigo-600">
               Organizations
             </.link>

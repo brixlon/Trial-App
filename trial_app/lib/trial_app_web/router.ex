@@ -119,6 +119,7 @@ defmodule TrialAppWeb.Router do
       live "/users/:id/edit", AdminLive.UserManagement, :edit
 
       # ADMIN-ONLY MANAGEMENT PAGES
+      live "/roles", AdminLive.RoleManagement, :index
       live "/positions", AdminLive.PositionManagement, :index
       live "/employees", AdminLive.EmployeeManagement, :index
       live "/employees/new", AdminLive.EmployeeForm, :new

@@ -4,7 +4,7 @@ defmodule TrialApp.Accounts do
   """
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Accounts.{User, UserToken, UserNotifier}
+  alias TrialApp.Accounts.{User, UserToken, UserNotifier, Role, Permission}
   alias TrialApp.Orgs.{Department, Team, Employee}
   alias TrialApp.Eams
 
@@ -61,7 +61,7 @@ defmodule TrialApp.Accounts do
   def get_user_with_assignments!(id) do
     User
     |> where(id: ^id)
-    |> preload(employees: [:organization, :department, :team])
+    |> preload([:role, employees: [:organization, :department, :team]])
     |> Repo.one!()
   end
 
@@ -69,14 +69,16 @@ defmodule TrialApp.Accounts do
   Lists all users.
   """
   def list_users do
-    Repo.all(User)
+    User
+    |> preload(:role)
+    |> Repo.all()
   end
 
   def list_recent_users(limit \\ 5) do
     User
     |> order_by(desc: :inserted_at)
     |> limit(^limit)
-    |> preload(employees: [:organization, :department, :team])
+    |> preload([:role, employees: [:organization, :department, :team]])
     |> Repo.all()
   end
 
@@ -86,7 +88,7 @@ defmodule TrialApp.Accounts do
   def list_users_by_status(status) when is_binary(status) do
     User
     |> where([u], u.status == ^status)
-    |> preload(employees: [:organization, :department, :team])
+    |> preload([:role, employees: [:organization, :department, :team]])
     |> Repo.all()
   end
 
@@ -101,14 +103,15 @@ defmodule TrialApp.Accounts do
 
   def list_users_with_assignments do
     User
-    |> preload(employees: [:team, :department, :organization])
+    |> preload([:role, employees: [:team, :department, :organization]])
     |> Repo.all()
   end
 
-  def list_users_by_role(role) when is_binary(role) do
+  def list_users_by_role(role_name) when is_binary(role_name) do
     User
-    |> where([u], u.role == ^role)
-    |> preload(employees: [:organization, :department, :team])
+    |> join(:inner, [u], r in assoc(u, :role))
+    |> where([u, r], r.name == ^role_name)
+    |> preload([u, r], [:role, employees: [:organization, :department, :team]])
     |> Repo.all()
   end
 
@@ -118,7 +121,7 @@ defmodule TrialApp.Accounts do
   def list_pending_assignment_users do
     User
     |> where([u], u.status == "pending")
-    |> preload(employees: [:organization, :department, :team])
+    |> preload([:role, employees: [:organization, :department, :team]])
     |> Repo.all()
   end
 
@@ -134,9 +137,11 @@ defmodule TrialApp.Accounts do
   @doc """
   Updates a user's role.
   """
-  def update_user_role(user, role) do
+  def update_user_role(user, role_name) do
+    role = get_role_by_name!(role_name)
+
     user
-    |> Ecto.Changeset.change(%{role: role})
+    |> Ecto.Changeset.change(%{role_id: role.id})
     |> Repo.update()
   end
 
@@ -149,6 +154,16 @@ defmodule TrialApp.Accounts do
 
       case Repo.update(user_changeset) do
         {:ok, updated_user} ->
+          # Determine and set the active_role based on the new roles
+          new_roles = Map.get(params, "roles", updated_user.roles || [])
+          active_role = determine_default_role(new_roles)
+
+          # Update active_role
+          {:ok, updated_user} =
+            updated_user
+            |> Ecto.Changeset.change(%{active_role: active_role})
+            |> Repo.update()
+
           if Enum.any?(team_ids) do
             Repo.delete_all(from(e in Employee, where: e.user_id == ^updated_user.id))
 
@@ -243,6 +258,15 @@ defmodule TrialApp.Accounts do
   Registers a user.
   """
   def register_user(attrs) do
+    # Default to "user" role if not specified
+    role_name = Map.get(attrs, :role) || Map.get(attrs, "role") || "user"
+    role = get_role_by_name!(role_name)
+
+    attrs =
+      attrs
+      |> Map.put("role_id", role.id)
+      |> Map.put(:role_id, role.id)
+
     %User{}
     |> User.registration_changeset(attrs)
     |> Repo.insert()
@@ -718,16 +742,20 @@ defmodule TrialApp.Accounts do
     {:ok, user}
   end
 
-  # Helper to determine the best default role based on priority
-  # Attachee gets priority since that's the most specific role
-  defp determine_default_role(roles) do
+  @doc """
+  Helper to determine the best default role based on priority.
+  Attachee gets priority since that's the most specific role.
+  """
+  def determine_default_role([]), do: "user"
+
+  def determine_default_role(roles) when is_list(roles) do
     cond do
       "attachee" in roles -> "attachee"
       "supervisor" in roles -> "supervisor"
-      "manager" in roles -> "manager"
       "admin" in roles -> "admin"
+      "manager" in roles -> "manager"
       "employee" in roles -> "employee"
-      true -> List.first(roles)
+      true -> List.first(roles) || "user"
     end
   end
 
@@ -814,5 +842,180 @@ defmodule TrialApp.Accounts do
         {:ok, {user, tokens_to_expire}}
       end
     end)
+  end
+
+  # ============================================================================
+  # RBAC - ROLE AND PERMISSION MANAGEMENT
+  # ============================================================================
+
+  @doc """
+  Checks if a user has a specific permission.
+  Preloads role and permissions if not already loaded.
+
+  ## Examples
+
+      iex> has_permission?(user, "manage_users")
+      true
+
+      iex> has_permission?(user, "invalid_permission")
+      false
+  """
+  def has_permission?(%User{} = user, permission_slug) when is_binary(permission_slug) do
+    user = user |> Repo.preload(role: :permissions)
+
+    case user.role do
+      nil ->
+        false
+
+      role ->
+        Enum.any?(role.permissions, fn perm -> perm.slug == permission_slug end)
+    end
+  end
+
+  def has_permission?(_, _), do: false
+
+  @doc """
+  Checks if a user has ANY of the given permissions.
+
+  ## Examples
+
+      iex> has_any_permission?(user, ["manage_users", "view_users"])
+      true
+  """
+  def has_any_permission?(%User{} = user, permission_slugs) when is_list(permission_slugs) do
+    Enum.any?(permission_slugs, &has_permission?(user, &1))
+  end
+
+  @doc """
+  Checks if a user has ALL of the given permissions.
+
+  ## Examples
+
+      iex> has_all_permissions?(user, ["manage_users", "view_users"])
+      true
+  """
+  def has_all_permissions?(%User{} = user, permission_slugs) when is_list(permission_slugs) do
+    Enum.all?(permission_slugs, &has_permission?(user, &1))
+  end
+
+  @doc """
+  Gets a user with role and permissions preloaded.
+  """
+  def get_user_with_permissions!(id) do
+    User
+    |> Repo.get!(id)
+    |> Repo.preload(role: :permissions)
+  end
+
+  @doc """
+  Lists all roles with their permissions.
+  """
+  def list_roles do
+    Repo.all(Role) |> Repo.preload([:permissions, :users])
+  end
+
+  @doc """
+  Gets a role by name, raising an error if not found.
+  """
+  def get_role_by_name!(name) when is_binary(name) do
+    Repo.get_by!(Role, name: name) |> Repo.preload(:permissions)
+  end
+
+  @doc """
+  Gets a single role with permissions.
+  """
+  def get_role!(id) do
+    Repo.get!(Role, id) |> Repo.preload(:permissions)
+  end
+
+  @doc """
+  Gets a role by name with permissions.
+  """
+  def get_role_by_name(name) when is_binary(name) do
+    Repo.get_by(Role, name: name) |> Repo.preload(:permissions)
+  end
+
+  @doc """
+  Creates a role.
+  """
+  def create_role(attrs \\ %{}) do
+    %Role{}
+    |> Role.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a role.
+  """
+  def update_role(%Role{} = role, attrs) do
+    role
+    |> Role.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a role.
+  """
+  def delete_role(%Role{} = role) do
+    Repo.delete(role)
+  end
+
+  @doc """
+  Lists all permissions.
+  """
+  def list_permissions do
+    Repo.all(Permission)
+  end
+
+  @doc """
+  Gets a single permission.
+  """
+  def get_permission!(id) do
+    Repo.get!(Permission, id)
+  end
+
+  @doc """
+  Gets a permission by slug.
+  """
+  def get_permission_by_slug(slug) when is_binary(slug) do
+    Repo.get_by(Permission, slug: slug)
+  end
+
+  @doc """
+  Creates a permission.
+  """
+  def create_permission(attrs \\ %{}) do
+    %Permission{}
+    |> Permission.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a permission.
+  """
+  def update_permission(%Permission{} = permission, attrs) do
+    permission
+    |> Permission.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a permission.
+  """
+  def delete_permission(%Permission{} = permission) do
+    Repo.delete(permission)
+  end
+
+  @doc """
+  Assigns permissions to a role.
+  """
+  def assign_permissions_to_role(%Role{} = role, permission_ids) when is_list(permission_ids) do
+    permissions = Repo.all(from p in Permission, where: p.id in ^permission_ids)
+
+    role
+    |> Repo.preload(:permissions)
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.put_assoc(:permissions, permissions)
+    |> Repo.update()
   end
 end

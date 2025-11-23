@@ -173,7 +173,7 @@ defmodule TrialAppWeb.UserAuth do
     socket = mount_current_scope(socket, session)
 
     if socket.assigns.current_scope && socket.assigns.current_scope.user &&
-         socket.assigns.current_scope.user.role == "admin" do
+         Accounts.has_permission?(socket.assigns.current_scope.user, "access_admin_dashboard") do
       {:cont, socket}
     else
       socket =
@@ -272,30 +272,19 @@ defmodule TrialAppWeb.UserAuth do
   # ============================================================================
 
   def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{active_role: active_role}}}
-      })
-      when not is_nil(active_role) do
+        assigns: %{current_scope: %Scope{user: %Accounts.User{} = user}}
+      }) do
+    # Ensure active_role is set - get it from user or determine from roles
+    active_role = user.active_role || Accounts.get_active_role(user)
+
     case active_role do
-      "admin" -> ~p"/admin/dashboard"
+      "admin" -> ~p"/dashboard"
       "supervisor" -> ~p"/supervisor/dashboard"
       "attachee" -> ~p"/attachee"
       "manager" -> ~p"/dashboard"
       _ -> ~p"/dashboard"
     end
   end
-
-  def signed_in_path(%Plug.Conn{
-        assigns: %{current_scope: %Scope{user: %Accounts.User{roles: roles}}}
-      }) do
-    if Enum.any?(["admin", "supervisor"], &(&1 in roles)) do
-      ~p"/admin/dashboard"
-    else
-      ~p"/"
-    end
-  end
-
-  def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}),
-    do: ~p"/dashboard"
 
   def signed_in_path(_), do: ~p"/dashboard"
 
@@ -317,7 +306,7 @@ defmodule TrialAppWeb.UserAuth do
 
   def require_admin_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user &&
-         "admin" in conn.assigns.current_scope.user.roles do
+         Accounts.has_permission?(conn.assigns.current_scope.user, "access_admin_dashboard") do
       conn
     else
       conn

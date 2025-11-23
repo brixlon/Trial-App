@@ -602,7 +602,14 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   def get_role_badge_class(role) do
     base_class = "px-3 py-1.5 text-sm rounded-full font-medium inline-block "
 
-    case String.downcase(role || "") do
+    role_name =
+      cond do
+        is_struct(role) -> role.name
+        is_binary(role) -> role
+        true -> ""
+      end
+
+    case String.downcase(role_name) do
       "admin" -> base_class <> "bg-purple-100 text-purple-700"
       "manager" -> base_class <> "bg-blue-100 text-blue-700"
       "lead" -> base_class <> "bg-indigo-100 text-indigo-700"

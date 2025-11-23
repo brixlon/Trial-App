@@ -218,7 +218,7 @@
                     </td>
                     <td class="px-4 py-3">
                       <span class={get_role_badge_class(emp.role)}>
-                        {emp.role || "Member"}
+                        {if emp.role, do: String.capitalize(emp.role.name), else: "Member"}
                       </span>
                     </td>
                     <td class="px-4 py-3">
@@ -350,7 +350,7 @@
                 </td>
                 <td class="px-4 py-3">
                   <span class={get_role_badge_class(emp.role)}>
-                    {emp.role || "Member"}
+                    {if emp.role, do: String.capitalize(emp.role.name), else: "Member"}
                   </span>
                 </td>
                 <td class="px-4 py-3">
