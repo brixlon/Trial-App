@@ -66,6 +66,7 @@ defmodule TrialApp.Accounts.User do
 
   @doc """
   A user changeset for updating user profile information.
+  Now supports both single role and multiple roles.
   """
   def profile_changeset(user, attrs) do
     user
@@ -147,12 +148,9 @@ defmodule TrialApp.Accounts.User do
           # Leave room for suffix
           |> String.slice(0, 20)
 
-        # Generate a unique username by appending a random number
-        # The unique_constraint will handle conflicts if they occur
         random_suffix = :rand.uniform(9999)
         "#{base_username}#{random_suffix}"
       else
-        # Fallback to email prefix with random suffix
         email_prefix =
           email
           |> String.split("@")
@@ -171,7 +169,6 @@ defmodule TrialApp.Accounts.User do
   end
 
   defp generate_default_password(changeset) do
-    # Generate a random password
     password =
       :crypto.strong_rand_bytes(12)
       |> Base.encode64()
