@@ -20,6 +20,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:departments, departments)
      |> assign(:filter, "all")
      |> assign(:role_filter, "all")
+     |> assign(:search_query, "")
      |> assign(:selected_user, nil)
      |> assign(:show_edit_modal, false)
      |> assign(:show_add_modal, false)
@@ -30,38 +31,25 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:available_teams, [])
      |> assign(:available_departments, [])
      |> assign(:selected_org_id, nil)
-     |> assign(:selected_dept_id, nil)
-     |> assign(:search_query, "")}
+     |> assign(:selected_dept_id, nil)}
   end
 
   def handle_params(params, _url, socket) do
     filter = Map.get(params, "filter", "all")
     role_filter = Map.get(params, "role", "all")
 
-    users =
-      Accounts.list_users_with_assignments()
-      |> apply_status_filter(filter)
+    all_users = Accounts.list_users_with_assignments()
+    filtered_users =
+      all_users
+      |> apply_filter(filter)
       |> apply_role_filter(role_filter)
-      |> apply_search_filter(socket.assigns.search_query)
+      |> apply_search(socket.assigns.search_query)
 
     {:noreply,
      socket
-     |> assign(:users, users)
+     |> assign(:users, filtered_users)
      |> assign(:filter, filter)
      |> assign(:role_filter, role_filter)}
-  end
-
-  def handle_event("search", %{"query" => query}, socket) do
-    users =
-      Accounts.list_users_with_assignments()
-      |> apply_status_filter(socket.assigns.filter)
-      |> apply_role_filter(socket.assigns.role_filter)
-      |> apply_search_filter(query)
-
-    {:noreply,
-     socket
-     |> assign(:users, users)
-     |> assign(:search_query, query)}
   end
 
   def handle_event("open_add_modal", _, socket) do
@@ -106,9 +94,9 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       {:ok, _new_user} ->
         users =
           Accounts.list_users_with_assignments()
-          |> apply_status_filter(socket.assigns.filter)
+          |> apply_filter(socket.assigns.filter)
           |> apply_role_filter(socket.assigns.role_filter)
-          |> apply_search_filter(socket.assigns.search_query)
+          |> apply_search(socket.assigns.search_query)
 
         {:noreply,
          socket
@@ -177,13 +165,16 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
 
   def handle_event("search", %{"query" => query}, socket) do
     all_users = Accounts.list_users_with_assignments()
-    filtered_users = apply_filter(all_users, socket.assigns.filter)
-    searched_users = apply_search(filtered_users, query)
+    filtered_users =
+      all_users
+      |> apply_filter(socket.assigns.filter)
+      |> apply_role_filter(socket.assigns.role_filter)
+      |> apply_search(query)
 
     {:noreply,
      socket
      |> assign(:search_query, query)
-     |> assign(:users, searched_users)}
+     |> assign(:users, filtered_users)}
   end
 
   def handle_event("confirm_delete_user", %{"user-id" => user_id}, socket) do
@@ -335,9 +326,9 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       {:ok, _updated_user} ->
         users =
           Accounts.list_users_with_assignments()
-          |> apply_status_filter(socket.assigns.filter)
+          |> apply_filter(socket.assigns.filter)
           |> apply_role_filter(socket.assigns.role_filter)
-          |> apply_search_filter(socket.assigns.search_query)
+          |> apply_search(socket.assigns.search_query)
 
         {:noreply,
          socket
@@ -357,21 +348,43 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end
   end
 
-  def handle_event("delete_user", %{"user-id" => user_id}, socket) do
+  def handle_event("make_admin", %{"user-id" => user_id}, socket) do
     user = Accounts.get_user!(user_id)
 
-    case Accounts.delete_user(user) do
+    case Accounts.update_user_role(user, "admin") do
       {:ok, _user} ->
         users =
           Accounts.list_users_with_assignments()
-          |> apply_status_filter(socket.assigns.filter)
+          |> apply_filter(socket.assigns.filter)
           |> apply_role_filter(socket.assigns.role_filter)
-          |> apply_search_filter(socket.assigns.search_query)
+          |> apply_search(socket.assigns.search_query)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "User promoted to admin!")
+         |> assign(:users, users)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to promote user to admin")}
+    end
+  end
+
+  def handle_event("delete_user", _, socket) do
+    user = socket.assigns.selected_user
+
+    case Accounts.delete_user(user) do
+      {:ok, _user} ->
+        all_users = Accounts.list_users_with_assignments()
+        filtered_users =
+          all_users
+          |> apply_filter(socket.assigns.filter)
+          |> apply_role_filter(socket.assigns.role_filter)
+          |> apply_search(socket.assigns.search_query)
 
         {:noreply,
          socket
          |> put_flash(:info, "User deleted successfully!")
-         |> assign(:users, searched_users)
+         |> assign(:users, filtered_users)
          |> assign(:show_view_modal, false)
          |> assign(:show_edit_modal, false)
          |> assign(:show_delete_modal, false)
@@ -383,31 +396,23 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   end
 
   # Filter functions
-  defp apply_status_filter(users, "all"), do: users
-  defp apply_status_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
-  defp apply_status_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
+  defp apply_filter(users, "all"), do: users
+  defp apply_filter(users, "pending"), do: Enum.filter(users, &(&1.status == "pending"))
+  defp apply_filter(users, "active"), do: Enum.filter(users, &(&1.status == "active"))
+  defp apply_filter(users, _), do: users
 
   defp apply_role_filter(users, "all"), do: users
   defp apply_role_filter(users, "employee"), do: Enum.filter(users, &has_role?(&1, "employee"))
   defp apply_role_filter(users, "attachee"), do: Enum.filter(users, &has_role?(&1, "attachee"))
   defp apply_role_filter(users, "supervisor"), do: Enum.filter(users, &has_role?(&1, "supervisor"))
   defp apply_role_filter(users, "admin"), do: Enum.filter(users, &has_role?(&1, "admin"))
-
-  defp apply_search_filter(users, ""), do: users
-  defp apply_search_filter(users, query) do
-    query_lower = String.downcase(query)
-    Enum.filter(users, fn user ->
-      String.contains?(String.downcase(user.username || ""), query_lower) ||
-      String.contains?(String.downcase(user.email || ""), query_lower)
-    end)
-  end
+  defp apply_role_filter(users, _), do: users
 
   defp has_role?(user, role) do
     Enum.member?(user.roles || [], role)
   end
 
   defp apply_search(users, ""), do: users
-
   defp apply_search(users, query) do
     query_lower = String.downcase(query)
 
@@ -461,7 +466,8 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end)
   end
 
-  defp count_by_role(users, role) do
-    Enum.count(users, &has_role?(&1, role))
-  end
+  defp role_badge_color("attachee"), do: "bg-blue-100 text-blue-800"
+  defp role_badge_color("supervisor"), do: "bg-green-100 text-green-800"
+  defp role_badge_color("admin"), do: "bg-purple-100 text-purple-800"
+  defp role_badge_color(_), do: "bg-gray-100 text-gray-800"
 end

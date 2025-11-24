@@ -10,8 +10,10 @@ defmodule TrialApp.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
-    field :role, :string, default: "user"  # Keep for backward compatibility
-    field :roles, {:array, :string}, default: ["employee"]
+    # NOTE: 'role' field removed in migration - now using role_id
+    # Kept for backward compatibility during transition
+    field :roles, {:array, :string}, default: []
+    # Kept for backward compatibility during transition
     field :active_role, :string
     field :first_name, :string
     field :last_name, :string
@@ -45,7 +47,7 @@ defmodule TrialApp.Accounts.User do
     |> unique_constraint(:username)
     |> foreign_key_constraint(:role_id)
     |> put_hashed_password(opts)
-    |> change(status: "pending", role: "user", roles: ["employee"])
+    |> change(status: "pending")
   end
 
   defp put_hashed_password(changeset, opts) do
@@ -68,13 +70,12 @@ defmodule TrialApp.Accounts.User do
   """
   def profile_changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :username, :role, :roles, :status])
+    |> cast(attrs, [:email, :username, :role_id, :status])
     |> validate_required([:email, :username])
-    |> validate_roles()
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
-    |> sync_role_fields()
+    |> foreign_key_constraint(:role_id)
   end
 
   @doc """
@@ -82,13 +83,32 @@ defmodule TrialApp.Accounts.User do
   """
   def admin_update_changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :username, :role, :roles, :status])
+    |> cast(attrs, [:email, :username, :role_id, :roles, :status])
     |> validate_required([:email, :username])
-    |> validate_roles()
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> unique_constraint(:username)
-    |> sync_role_fields()
+    |> foreign_key_constraint(:role_id)
+    |> validate_roles()
+  end
+
+  defp validate_roles(changeset) do
+    case get_change(changeset, :roles) do
+      nil ->
+        changeset
+
+      roles when is_list(roles) ->
+        valid_roles = ["attachee", "supervisor", "admin"]
+
+        if Enum.all?(roles, &(&1 in valid_roles)) do
+          changeset
+        else
+          add_error(changeset, :roles, "contains invalid roles")
+        end
+
+      _ ->
+        add_error(changeset, :roles, "must be a list")
+    end
   end
 
   @doc """
@@ -97,24 +117,22 @@ defmodule TrialApp.Accounts.User do
   """
   def admin_create_changeset(user, attrs) do
     status = Map.get(attrs, "status") || Map.get(attrs, :status) || "pending"
-    roles = Map.get(attrs, "roles") || Map.get(attrs, :roles) || ["employee"]
+    role_id = Map.get(attrs, "role_id") || Map.get(attrs, :role_id)
 
     user
-    |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :roles, :status])
+    |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :role_id, :status])
     |> validate_required([:email, :first_name, :last_name, :phone_number])
     |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
       message: "must have the @ sign and no spaces"
     )
     |> validate_length(:email, max: 160)
-    |> validate_roles()
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
     |> unique_constraint(:email)
     |> foreign_key_constraint(:role_id)
     |> generate_username_from_name()
     |> generate_default_password()
     |> put_hashed_password([])
-    |> change(status: status, roles: roles)
-    |> sync_role_fields()
+    |> change(status: status)
   end
 
   defp generate_username_from_name(changeset) do
@@ -127,6 +145,7 @@ defmodule TrialApp.Accounts.User do
         base_username =
           "#{String.downcase(first_name)}.#{String.downcase(last_name)}"
           |> String.replace(~r/[^a-z0-9_]/, "_")
+          # Leave room for suffix
           |> String.slice(0, 20)
 
         random_suffix = :rand.uniform(9999)
@@ -138,6 +157,7 @@ defmodule TrialApp.Accounts.User do
           |> List.first()
           |> String.downcase()
           |> String.replace(~r/[^a-z0-9_]/, "_")
+          # Leave room for suffix
           |> String.slice(0, 20)
 
         random_suffix = :rand.uniform(9999)
@@ -163,53 +183,9 @@ defmodule TrialApp.Accounts.User do
   """
   def assignment_changeset(user, attrs) do
     user
-    |> cast(attrs, [:roles, :status])
-    |> validate_roles()
+    |> cast(attrs, [:role_id, :status])
     |> validate_inclusion(:status, ["pending", "active", "suspended"])
-    |> sync_role_fields()
-  end
-
-  @doc """
-  Validates that roles are from the allowed list.
-  """
-  defp validate_roles(changeset) do
-    allowed_roles = ["employee", "supervisor", "attachee", "admin"]
-
-    case get_change(changeset, :roles) do
-      nil ->
-        changeset
-      roles when is_list(roles) ->
-        invalid_roles = Enum.reject(roles, &(&1 in allowed_roles))
-
-        if Enum.empty?(invalid_roles) do
-          changeset
-        else
-          add_error(changeset, :roles, "contains invalid roles: #{Enum.join(invalid_roles, ", ")}")
-        end
-      _ ->
-        add_error(changeset, :roles, "must be a list")
-    end
-  end
-
-  @doc """
-  Syncs the singular role field with the roles array for backward compatibility.
-  Sets role to the first role in the roles array, or "admin" if admin is present.
-  """
-  defp sync_role_fields(changeset) do
-    case get_change(changeset, :roles) do
-      nil ->
-        changeset
-      roles when is_list(roles) and length(roles) > 0 ->
-        # Prioritize admin, then supervisor, then first role
-        primary_role = cond do
-          "admin" in roles -> "admin"
-          "supervisor" in roles -> "supervisor"
-          true -> List.first(roles)
-        end
-        put_change(changeset, :role, primary_role)
-      _ ->
-        changeset
-    end
+    |> foreign_key_constraint(:role_id)
   end
 
   @doc """
@@ -289,10 +265,16 @@ defmodule TrialApp.Accounts.User do
     changeset
     |> validate_required([:password])
     |> validate_length(:password, min: 8, max: 72)
-    |> validate_format(:password, ~r/[a-z]/, message: "must contain at least one lowercase letter")
-    |> validate_format(:password, ~r/[A-Z]/, message: "must contain at least one uppercase letter")
+    |> validate_format(:password, ~r/[a-z]/,
+      message: "must contain at least one lowercase letter"
+    )
+    |> validate_format(:password, ~r/[A-Z]/,
+      message: "must contain at least one uppercase letter"
+    )
     |> validate_format(:password, ~r/[0-9]/, message: "must contain at least one number")
-    |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/, message: "must contain at least one special character")
+    |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/,
+      message: "must contain at least one special character"
+    )
     |> maybe_hash_password(opts)
   end
 
@@ -304,7 +286,9 @@ defmodule TrialApp.Accounts.User do
       changeset
       |> validate_length(:password, max: 72, count: :bytes)
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
+      # ✅ track password updates
       |> put_change(:password_changed_at, DateTime.utc_now())
+      # ✅ reset flag after password change
       |> change(%{must_change_password: false})
       |> delete_change(:password)
     else

@@ -28,7 +28,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Total Users</p>
-                  <p class="text-3xl font-bold text-purple-600">{Enum.count(@users)}</p>
+                  <p class="text-3xl font-bold text-purple-600"><%= Enum.count(@users) %></p>
                 </div>
                 <div class="bg-purple-100 rounded-full p-3">
                   <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +42,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Active Users</p>
-                  <p class="text-3xl font-bold text-green-600">{Enum.count(@users, &(&1.status == "active"))}</p>
+                  <p class="text-3xl font-bold text-green-600"><%= Enum.count(@users, &(&1.status == "active")) %></p>
                 </div>
                 <div class="bg-green-100 rounded-full p-3">
                   <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,7 +56,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Pending</p>
-                  <p class="text-3xl font-bold text-yellow-600">{Enum.count(@users, &(&1.status == "pending"))}</p>
+                  <p class="text-3xl font-bold text-yellow-600"><%= Enum.count(@users, &(&1.status == "pending")) %></p>
                 </div>
                 <div class="bg-yellow-100 rounded-full p-3">
                   <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm font-medium text-gray-600">Attachees</p>
-                  <p class="text-3xl font-bold text-blue-600">{Enum.count(@users, &has_role?(&1, "attachee"))}</p>
+                  <p class="text-3xl font-bold text-blue-600"><%= Enum.count(@users, &has_role?(&1, "attachee")) %></p>
                 </div>
                 <div class="bg-blue-100 rounded-full p-3">
                   <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,12 +111,12 @@
                 patch={~p"/admin/users?filter=#{@filter == "all" && "active" || "all"}"}
                 class="w-full btn btn-outline"
               >
-                {case @filter do
+                <%= case @filter do
                   "all" -> "All Status"
                   "pending" -> "Pending"
                   "active" -> "Active"
                   _ -> "Filter Status"
-                end}
+                end %>
               </.link>
             </div>
 
@@ -127,14 +127,14 @@
                 patch={~p"/admin/users?role=#{@role_filter == "all" && "employee" || "all"}"}
                 class="w-full btn btn-outline"
               >
-                {case @role_filter do
+                <%= case @role_filter do
                   "all" -> "All Roles"
                   "employee" -> "Employees"
                   "attachee" -> "Attachees"
                   "supervisor" -> "Supervisors"
                   "admin" -> "Admins"
                   _ -> "Filter Role"
-                end}
+                end %>
               </.link>
             </div>
           </div>
@@ -159,7 +159,7 @@
                     @filter == "all" && "bg-white/20 text-white",
                     @filter != "all" && "bg-gray-200 text-gray-700"
                   ]}>
-                    {Enum.count(@users)}
+                    <%= Enum.count(@users) %>
                   </span>
                 </div>
               </.link>
@@ -179,7 +179,7 @@
                     @filter == "pending" && "bg-white/20 text-white",
                     @filter != "pending" && "bg-yellow-100 text-yellow-700"
                   ]}>
-                    {Enum.count(@users, &(&1.status == "pending"))}
+                    <%= Enum.count(@users, &(&1.status == "pending")) %>
                   </span>
                 </div>
               </.link>
@@ -199,7 +199,7 @@
                     @filter == "active" && "bg-white/20 text-white",
                     @filter != "active" && "bg-green-100 text-green-700"
                   ]}>
-                    {Enum.count(@users, &(&1.status == "active"))}
+                    <%= Enum.count(@users, &(&1.status == "active")) %>
                   </span>
                 </div>
               </.link>
@@ -208,120 +208,122 @@
         </div>
 
         <!-- Users Table -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                <tr>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">User</th>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">Email</th>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">Roles</th>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">Team Assignments</th>
-                  <th class="px-6 py-4 text-left text-sm font-semibold">Registered</th>
-                  <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200">
-                <%= for user <- @users do %>
-                  <tr class="hover:bg-purple-50 transition-colors duration-150">
-                    <!-- User -->
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center gap-3">
-                        <div class="bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-semibold shadow-md">
-                          {String.at(user.username, 0) |> String.upcase()}
+        <%= if !Enum.empty?(@users) do %>
+          <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
+                  <tr>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">User</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Email</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Roles</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Team Assignments</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Registered</th>
+                    <th class="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  <%= for user <- @users do %>
+                    <tr class="hover:bg-purple-50 transition-colors duration-150">
+                      <!-- User -->
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                          <div class="bg-gradient-to-br from-purple-500 to-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center font-semibold shadow-md">
+                            <%= String.at(user.username, 0) |> String.upcase() %>
+                          </div>
+                          <div>
+                            <div class="font-semibold text-gray-900"><%= user.username %></div>
+                          </div>
                         </div>
-                        <div>
-                          <div class="font-semibold text-gray-900">{user.username}</div>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <!-- Email -->
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm text-gray-600">{user.email}</div>
-                    </td>
+                      <!-- Email -->
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-600"><%= user.email %></div>
+                      </td>
 
-                    <!-- Status -->
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span class={["badge", user_status_class(user.status)]}>
-                        {user_status_label(user.status)}
-                      </span>
-                    </td>
+                      <!-- Status -->
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class={["badge", user_status_class(user.status)]}>
+                          <%= user_status_label(user.status) %>
+                        </span>
+                      </td>
 
-                    <!-- Roles -->
-                    <td class="px-6 py-4">
-                      <div class="flex flex-wrap gap-1">
-                        <%= for role <- user.roles || [] do %>
-                          <span class={["badge badge-sm", role_badge_class(role)]}>
-                            {role_label(role)}
-                          </span>
-                        <% end %>
-                      </div>
-                    </td>
-
-                    <!-- Team Assignments -->
-                    <td class="px-6 py-4">
-                      <%= if Enum.empty?(user.employees) do %>
-                        <span class="text-xs text-gray-400 italic">No assignments</span>
-                      <% else %>
-                        <div class="space-y-1">
-                          <%= for employee <- Enum.take(user.employees, 2) do %>
-                            <%= if employee.team do %>
-                              <div class="text-xs">
-                                <span class="font-medium text-purple-700">{employee.team.name}</span>
-                                <span class="text-gray-500"> - {employee.department && employee.department.name || "N/A"}</span>
-                              </div>
-                            <% end %>
-                          <% end %>
-                          <%= if length(user.employees) > 2 do %>
-                            <span class="text-xs text-purple-600 font-medium">
-                              +{length(user.employees) - 2} more
+                      <!-- Roles -->
+                      <td class="px-6 py-4">
+                        <div class="flex flex-wrap gap-1">
+                          <%= for role <- user.roles || [] do %>
+                            <span class={["badge badge-sm", role_badge_class(role)]}>
+                              <%= role_label(role) %>
                             </span>
                           <% end %>
                         </div>
-                      <% end %>
-                    </td>
+                      </td>
 
-                    <!-- Registered -->
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm text-gray-600">
-                        {Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}")}
-                      </div>
-                    </td>
+                      <!-- Team Assignments -->
+                      <td class="px-6 py-4">
+                        <%= if Enum.empty?(user.employees) do %>
+                          <span class="text-xs text-gray-400 italic">No assignments</span>
+                        <% else %>
+                          <div class="space-y-1">
+                            <%= for employee <- Enum.take(user.employees, 2) do %>
+                              <%= if employee.team do %>
+                                <div class="text-xs">
+                                  <span class="font-medium text-purple-700"><%= employee.team.name %></span>
+                                  <span class="text-gray-500"> - <%= employee.department && employee.department.name || "N/A" %></span>
+                                </div>
+                              <% end %>
+                            <% end %>
+                            <%= if length(user.employees) > 2 do %>
+                              <span class="text-xs text-purple-600 font-medium">
+                                +<%= length(user.employees) - 2 %> more
+                              </span>
+                            <% end %>
+                          </div>
+                        <% end %>
+                      </td>
 
-                    <!-- Actions -->
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center justify-center gap-2">
-                        <button
-                          phx-click="view_user"
-                          phx-value-user-id={user.id}
-                          class="btn btn-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white border-none hover:from-purple-600 hover:to-purple-700 shadow-sm"
-                          title="View User"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button
-                          phx-click="edit_user"
-                          phx-value-user-id={user.id}
-                          class="btn btn-sm btn-outline btn-primary hover:bg-purple-50"
-                          title="Edit User"
-                        >
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
+                      <!-- Registered -->
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-600">
+                          <%= Timex.format!(user.inserted_at, "{M}/{D}/{YYYY}") %>
+                        </div>
+                      </td>
+
+                      <!-- Actions -->
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center justify-center gap-2">
+                          <button
+                            phx-click="view_user"
+                            phx-value-user-id={user.id}
+                            class="btn btn-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white border-none hover:from-purple-600 hover:to-purple-700 shadow-sm"
+                            title="View User"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          <button
+                            phx-click="edit_user"
+                            phx-value-user-id={user.id}
+                            class="btn btn-sm btn-outline btn-primary hover:bg-purple-50"
+                            title="Edit User"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        <% end %>
 
         <!-- Empty State -->
         <%= if Enum.empty?(@users) do %>
@@ -352,17 +354,17 @@
           </div>
         <% end %>
       </div>
-    </div>
+    </main>
   </div>
-
-  <!-- VIEW USER MODAL -->
+  
+  <!-- ==================== VIEW USER MODAL ==================== -->
   <%= if @show_view_modal && @selected_user do %>
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 class="text-xl font-bold text-gray-900">User Details</h2>
-            <p class="text-sm text-gray-500 mt-1">{@selected_user.username}</p>
+            <p class="text-sm text-gray-500 mt-1"><%= @selected_user.username %></p>
           </div>
           <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600 transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,71 +382,31 @@
           <!-- Avatar + Header -->
           <div class="flex items-center gap-4 pb-6 border-b border-gray-200">
             <div class="w-16 h-16 rounded-full bg-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-              {String.first(@selected_user.username) |> String.upcase()}
+              <%= String.first(@selected_user.username) |> String.upcase() %>
             </div>
             <div>
-              <h3 class="text-2xl font-bold text-gray-900">{@selected_user.username}</h3>
-              <p class="text-gray-600">{@selected_user.email}</p>
+              <h3 class="text-2xl font-bold text-gray-900"><%= @selected_user.username %></h3>
+              <p class="text-gray-600"><%= @selected_user.email %></p>
               <div class="flex gap-2 mt-2">
                 <span class={[
                   "inline-flex px-2 py-1 text-xs font-semibold rounded-full",
                   user_status_class(@selected_user.status)
                 ]}>
-                  {user_status_label(@selected_user.status)}
+                  <%= user_status_label(@selected_user.status) %>
                 </span>
               </div>
-              <div>
-                <h2 class="text-2xl font-bold text-purple-800">{@selected_user.username}</h2>
-                <p class="text-gray-600">{@selected_user.email}</p>
-                <div class="flex gap-2 mt-2">
-                  <span class={["badge", user_status_class(@selected_user.status)]}>
-                    {user_status_label(@selected_user.status)}
-                  </span>
-                  <%= for role <- @selected_user.roles || [] do %>
-                    <span class={["badge", role_badge_class(role)]}>
-                      {role_label(role)}
-                    </span>
-                  <% end %>
-                </div>
-              </div>
             </div>
-
-            <!-- Account Info Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Email Address</label>
-                <p class="text-gray-800">{@selected_user.email}</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Username</label>
-                <p class="text-gray-800">{@selected_user.username}</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Roles</label>
-                <div class="flex flex-wrap gap-2">
-                  <%= for role <- @selected_user.roles || [] do %>
-                    <span class={["badge", role_badge_class(role)]}>
-                      {role_label(role)}
-                    </span>
-                  <% end %>
-                </div>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Status</label>
-                <p class="text-gray-800">{user_status_label(@selected_user.status)}</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Registered On</label>
-                <p class="text-gray-800">{Timex.format!(@selected_user.inserted_at, "{Mfull} {D}, {YYYY}")}</p>
-              </div>
-              <div class="bg-white p-4 rounded-lg border border-purple-100">
-                <label class="block text-sm font-semibold text-purple-700 mb-2">Last Updated</label>
-                <p class="text-gray-800">{Timex.format!(@selected_user.updated_at, "{Mfull} {D}, {YYYY}")}</p>
-              </div>
+          </div>
+          
+          <!-- User Info Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div class="text-xs text-gray-500 font-medium uppercase mb-1">Email</div>
+              <div class="text-sm font-semibold text-gray-900"><%= @selected_user.email %></div>
             </div>
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <div class="text-xs text-gray-500 font-medium uppercase mb-1">Username</div>
-              <div class="text-sm font-semibold text-gray-900">{@selected_user.username}</div>
+              <div class="text-sm font-semibold text-gray-900"><%= @selected_user.username %></div>
             </div>
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <div class="text-xs text-gray-500 font-medium uppercase mb-1">Roles</div>
@@ -455,7 +417,7 @@
                       "inline-flex items-center px-2 py-1 text-xs rounded-full font-medium",
                       role_badge_color(role)
                     ]}>
-                      {String.capitalize(role)}
+                      <%= String.capitalize(role) %>
                     </span>
                   <% end %>
                 </div>
@@ -466,193 +428,37 @@
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <div class="text-xs text-gray-500 font-medium uppercase mb-1">Status</div>
               <div class="text-sm font-semibold text-gray-900">
-                {user_status_label(@selected_user.status)}
+                <%= user_status_label(@selected_user.status) %>
               </div>
             </div>
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <div class="text-xs text-gray-500 font-medium uppercase mb-1">Registered On</div>
               <div class="text-sm font-semibold text-gray-900">
-                {Timex.format!(@selected_user.inserted_at, "{Mfull} {D}, {YYYY}")}
+                <%= Timex.format!(@selected_user.inserted_at, "{Mfull} {D}, {YYYY}") %>
               </div>
             </div>
             <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
               <div class="text-xs text-gray-500 font-medium uppercase mb-1">Last Updated</div>
               <div class="text-sm font-semibold text-gray-900">
-                {Timex.format!(@selected_user.updated_at, "{Mfull} {D}, {YYYY}")}
+                <%= Timex.format!(@selected_user.updated_at, "{Mfull} {D}, {YYYY}") %>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  <% end %>
-
-  <!-- ==================== EDIT USER MODAL ==================== -->
-  <%= if @show_edit_modal && @selected_user do %>
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <div class="flex justify-between items-center pb-4 border-b">
-            <h3 class="text-lg font-medium text-gray-900">
-              Edit User: {@selected_user.username}
-            </h3>
-            <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <form phx-submit="save_user"
-            class="mt-6 bg-gradient-to-b from-white to-purple-50 p-6 rounded-2xl shadow-lg space-y-8 border border-purple-100">
-
-            <!-- Email & Username -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Email</label>
-                <input type="email" name="email" value={@user_form.email} placeholder="user@example.com"
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-              </div>
-              <div>
-                <label class="block text-sm font-semibold text-purple-700">Username</label>
-                <input type="text" name="username" value={@user_form.username} placeholder="username"
-                  class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-800 shadow-sm placeholder-gray-400" />
-              </div>
-            </div>
-
-            <!-- Roles (Multi-select with checkboxes) -->
-            <div>
-              <label class="block text-sm font-semibold text-purple-700 mb-3">Roles</label>
-              <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="role_employee" 
-                      name="roles[]" 
-                      value="employee"
-                      checked={Enum.member?(@user_form.roles || [], "employee")}
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="role_employee" class="ml-2 text-sm text-gray-700 font-medium">
-                      Employee
-                    </label>
-                  </div>
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="role_supervisor" 
-                      name="roles[]" 
-                      value="supervisor"
-                      checked={Enum.member?(@user_form.roles || [], "supervisor")}
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="role_supervisor" class="ml-2 text-sm text-gray-700 font-medium">
-                      Supervisor
-                    </label>
-                  </div>
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="role_attachee" 
-                      name="roles[]" 
-                      value="attachee"
-                      checked={Enum.member?(@user_form.roles || [], "attachee")}
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="role_attachee" class="ml-2 text-sm text-gray-700 font-medium">
-                      Attachee
-                    </label>
-                  </div>
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="role_admin" 
-                      name="roles[]" 
-                      value="admin"
-                      checked={Enum.member?(@user_form.roles || [], "admin")}
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="role_admin" class="ml-2 text-sm text-gray-700 font-medium">
-                      Admin
-                    </label>
-                  </div>
-                </div>
-                <p class="mt-2 text-xs text-gray-500">Select one or more roles for this user</p>
-              </div>
-            </div>
-
-            <!-- Status -->
-            <div>
-              <label class="block text-sm font-semibold text-purple-700">Status</label>
-              <select name="status"
-                class="mt-2 w-full px-4 py-2 rounded-lg border border-purple-200 bg-white text-gray-800 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                <option value="pending" selected={@user_form.status == "pending"}>Pending</option>
-                <option value="active" selected={@user_form.status == "active"}>Active</option>
-                <option value="suspended" selected={@user_form.status == "suspended"}>Suspended</option>
-              </select>
-            </div>
-
-            <!-- Attachee Enrollment -->
-            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-              <label class="block text-sm font-semibold text-purple-700 mb-3">Attachee Enrollment</label>
-              <div class="flex items-center gap-3 mb-4">
-                <input type="checkbox" id="is_attachee" name="is_attachee" value="true" class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                <label for="is_attachee" class="text-sm text-gray-700">Enroll this user as an attachee</label>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">Start date (optional)</label>
-                  <input type="date" name="attachee_starts_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">End date (optional)</label>
-                  <input type="date" name="attachee_ends_on" class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm" />
-                </div>
-              </div>
-              <p class="mt-2 text-xs text-gray-500">If checked, an Attachee record will be created for each selected team/department.</p>
-            </div>
-
-            <!-- Team Assignments -->
-            <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-              <label class="block text-sm font-semibold text-purple-700 mb-3">Team Assignments</label>
-
-              <!-- Filters -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Organization</label>
-                  <select phx-change="select_organization" name="filter_organization_id"
-                    value={@selected_org_id || ""}
-                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="">All Organizations</option>
-                    <%= for org <- @organizations do %>
-                      <option value={org.id} selected={@selected_org_id == org.id}>{org.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-purple-600 mb-1">Filter by Department</label>
-                  <select phx-change="select_department" name="filter_department_id"
-                    value={@selected_dept_id || ""}
-                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:ring-2 focus:ring-purple-400 focus:border-transparent shadow-sm">
-                    <option value="">All Departments</option>
-                    <%= for dept <- @available_departments do %>
-                      <option value={dept.id} selected={@selected_dept_id == dept.id}>{dept.name} - {dept.organization.name}</option>
-                    <% end %>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Teams Grid -->
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto p-3 border border-purple-100 rounded-lg bg-purple-50/50">
-                <%= for team <- @available_teams do %>
-                  <div class="flex items-start">
-                    <input type="checkbox"
-                      id={"team_#{team.id}"}
-                      name={"team_assignment[#{team.id}]"}
-                      value="true"
-                      checked={Map.has_key?(@team_assignments, to_string(team.id))}
-                      phx-click="toggle_team_assignment"
-                      phx-value-team-id={team.id}
-                      class="h-4 w-4 mt-1 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for={"team_#{team.id}"} class="ml-2 text-sm text-gray-700">
-                      <div class="font-semibold">{team.name}</div>
-                      <div class="text-xs text-purple-600">
-                        {team.department.name} - {team.department.organization.name}
-                      </div>
-                    </label>
+          
+          <!-- Team Assignments -->
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div class="text-xs text-gray-500 font-medium uppercase mb-3">Team Assignments</div>
+            <%= if map_size(@team_assignments) > 0 do %>
+              <div class="space-y-3">
+                <%= for {_team_id, assignment} <- @team_assignments do %>
+                  <div class="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 class="font-semibold text-gray-900"><%= assignment.team_name %></h4>
+                    <p class="text-sm text-gray-600 mt-1">
+                      <span class="font-medium">Department:</span> <%= assignment.department_name %>
+                    </p>
+                    <p class="text-sm text-gray-600">
+                      <span class="font-medium">Organization:</span> <%= assignment.organization_name %>
+                    </p>
                   </div>
                 <% end %>
               </div>
@@ -685,14 +491,14 @@
     </div>
   <% end %>
   
-<!-- ==================== EDIT USER MODAL ==================== -->
+  <!-- ==================== EDIT USER MODAL ==================== -->
   <%= if @show_edit_modal && @selected_user do %>
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 class="text-xl font-bold text-gray-900">Edit User</h2>
-            <p class="text-sm text-gray-500 mt-1">{@selected_user.username}</p>
+            <p class="text-sm text-gray-500 mt-1"><%= @selected_user.username %></p>
           </div>
           <button phx-click="close_modal" class="text-gray-400 hover:text-gray-600 transition">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,7 +537,7 @@
             </div>
           </div>
           
-<!-- Roles (Checkboxes) & Status -->
+          <!-- Roles (Checkboxes) & Status -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-3">Roles</label>
@@ -787,7 +593,7 @@
             </div>
           </div>
           
-<!-- Attachee Enrollment -->
+          <!-- Attachee Enrollment -->
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <label class="block text-sm font-semibold text-gray-700 mb-3">
               Attachee Enrollment
@@ -831,11 +637,11 @@
             </p>
           </div>
           
-<!-- Team Assignments -->
+          <!-- Team Assignments -->
           <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
             <label class="block text-sm font-semibold text-gray-700 mb-3">Team Assignments</label>
             
-<!-- Filters -->
+            <!-- Filters -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label class="block text-sm font-medium text-gray-600 mb-1">
@@ -850,7 +656,7 @@
                   <option value="">All Organizations</option>
                   <%= for org <- @organizations do %>
                     <option value={org.id} selected={@selected_org_id == org.id}>
-                      {org.name}
+                      <%= org.name %>
                     </option>
                   <% end %>
                 </select>
@@ -868,14 +674,14 @@
                   <option value="">All Departments</option>
                   <%= for dept <- @available_departments do %>
                     <option value={dept.id} selected={@selected_dept_id == dept.id}>
-                      {dept.name} - {dept.organization.name}
+                      <%= dept.name %> - <%= dept.organization.name %>
                     </option>
                   <% end %>
                 </select>
               </div>
             </div>
             
-<!-- Teams Grid -->
+            <!-- Teams Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto p-3 border border-gray-200 rounded-lg bg-white">
               <%= for team <- @available_teams do %>
                 <div class="flex items-start">
@@ -890,9 +696,9 @@
                     class="h-4 w-4 mt-1 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                   />
                   <label for={"team_#{team.id}"} class="ml-2 text-sm text-gray-700">
-                    <div class="font-semibold">{team.name}</div>
+                    <div class="font-semibold"><%= team.name %></div>
                     <div class="text-xs text-gray-500">
-                      {team.department.name} - {team.department.organization.name}
+                      <%= team.department.name %> - <%= team.department.organization.name %>
                     </div>
                   </label>
                 </div>
@@ -904,13 +710,13 @@
               <% end %>
             </div>
             
-<!-- Hidden inputs for selected teams -->
+            <!-- Hidden inputs for selected teams -->
             <%= for {team_id, _} <- @team_assignments do %>
               <input type="hidden" name="team_ids[]" value={team_id} />
             <% end %>
           </div>
           
-<!-- Form Actions -->
+          <!-- Form Actions -->
           <div class="flex justify-end gap-3 pt-6 border-t border-gray-200">
             <button
               type="button"
@@ -931,7 +737,7 @@
     </div>
   <% end %>
   
-<!-- ==================== ADD USER MODAL ==================== -->
+  <!-- ==================== ADD USER MODAL ==================== -->
   <%= if @show_add_modal do %>
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -970,7 +776,7 @@
             />
           </div>
           
-<!-- First Name & Last Name -->
+          <!-- First Name & Last Name -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
@@ -1004,7 +810,7 @@
             </div>
           </div>
           
-<!-- Phone Number -->
+          <!-- Phone Number -->
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-2">
               Phone Number <span class="text-red-500">*</span>
@@ -1021,7 +827,7 @@
             />
           </div>
           
-<!-- Form Actions -->
+          <!-- Form Actions -->
           <div class="flex justify-end gap-3 pt-6 border-t border-gray-200">
             <button
               type="button"
@@ -1042,7 +848,7 @@
     </div>
   <% end %>
   
-<!-- ==================== DELETE CONFIRMATION MODAL ==================== -->
+  <!-- ==================== DELETE CONFIRMATION MODAL ==================== -->
   <%= if @show_delete_modal && @selected_user do %>
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
@@ -1050,59 +856,30 @@
           <h2 class="text-xl font-bold text-gray-900">Confirm Deletion</h2>
         </div>
 
-            <!-- Roles (Multi-select with checkboxes) -->
-            <div>
-              <label class="block text-sm font-semibold text-purple-700 mb-3">Roles</label>
-              <div class="bg-white/70 p-4 rounded-xl border border-purple-100 shadow-sm">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="add_role_employee" 
-                      name="roles[]" 
-                      value="employee"
-                      checked
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="add_role_employee" class="ml-2 text-sm text-gray-700 font-medium">
-                      Employee
-                    </label>
-                  </div>
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="add_role_supervisor" 
-                      name="roles[]" 
-                      value="supervisor"
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="add_role_supervisor" class="ml-2 text-sm text-gray-700 font-medium">
-                      Supervisor
-                    </label>
-                  </div>
-                  <div class="flex items-center">
-                    <input type="checkbox" 
-                      id="add_role_admin" 
-                      name="roles[]" 
-                      value="admin"
-                      class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
-                    <label for="add_role_admin" class="ml-2 text-sm text-gray-700 font-medium">
-                      Admin
-                    </label>
-                  </div>
-                </div>
-                <p class="mt-2 text-xs text-gray-500">Select one or more roles for this user (Employee is selected by default)</p>
-              </div>
-            </div>
+        <div class="px-6 py-4">
+          <p class="text-gray-700">
+            Are you sure you want to delete user <strong><%= @selected_user.username %></strong>?
+          </p>
+          <p class="text-sm text-red-600 mt-2">
+            This action cannot be undone. The user and all associated data will be permanently removed from the system.
+          </p>
+        </div>
 
-            <!-- Form Actions -->
-            <div class="flex justify-end space-x-3 pt-6 border-t border-purple-100">
-              <button type="button" phx-click="close_modal"
-                class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md shadow-sm hover:bg-purple-50 transition">
-                Cancel
-              </button>
-              <button type="submit"
-                class="px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-purple-700 rounded-md shadow-md hover:from-purple-600 hover:to-purple-800 transition">
-                Add User
-              </button>
-            </div>
-          </form>
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            type="button"
+            phx-click="close_modal"
+            class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition border border-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            phx-click="delete_user"
+            class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition shadow"
+          >
+            Delete User
+          </button>
         </div>
       </div>
     </div>
