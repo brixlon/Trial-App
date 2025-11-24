@@ -1,6 +1,11 @@
 defmodule TrialAppWeb.AdminLive.RoleManagement do
   use TrialAppWeb, :live_view
   alias TrialApp.Accounts
+  alias TrialApp.Accounts.Role
+  import TrialAppWeb.Live.Helpers.RoleSwitcher
+
+  @impl true
+  def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
   @impl true
   def mount(_params, _session, socket) do

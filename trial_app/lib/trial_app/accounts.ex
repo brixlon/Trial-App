@@ -726,8 +726,6 @@ defmodule TrialApp.Accounts do
       # Determine the appropriate default role based on priority
       default_role = determine_default_role(available_roles)
 
-      IO.inspect(default_role, label: "Setting active_role for user #{user.id}")
-
       user
       |> Ecto.Changeset.change(%{active_role: default_role})
       |> Repo.update()

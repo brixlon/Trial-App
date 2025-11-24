@@ -1,6 +1,10 @@
 defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
   use TrialAppWeb, :live_view
   alias TrialApp.{Accounts, Orgs, Repo}
+  import TrialAppWeb.Live.Helpers.RoleSwitcher
+
+  @impl true
+  def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
   def mount(params, _session, socket) do
     organizations = Orgs.list_organizations()
@@ -315,154 +319,174 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
   defp empty_to_nil(""), do: nil
   defp empty_to_nil(val), do: val
 
- # --- Render Form ---
-def render(assigns) do
-  ~H"""
-  <div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 text-gray-900 px-6 py-10">
-    <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-purple-100 p-10">
+  # --- Render Form ---
+  def render(assigns) do
+    ~H"""
+    <div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 text-gray-900 px-6 py-10">
+      <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-purple-100 p-10">
+        <h1 class="text-3xl font-extrabold text-purple-700 mb-8 flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-7 h-7 text-purple-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 11c0-2 2-4 4-4m-8 8a4 4 0 014-4h8"
+            />
+          </svg>
+          Assign & Approve User
+        </h1>
 
-      <h1 class="text-3xl font-extrabold text-purple-700 mb-8 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0-2 2-4 4-4m-8 8a4 4 0 014-4h8" />
-        </svg>
-        Assign & Approve User
-      </h1>
+        <%= if @editing_user do %>
+          <div class="mb-6 p-5 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 shadow-sm">
+            <p class="text-gray-700">
+              <strong class="text-purple-700">User:</strong> {@editing_user.email}
+            </p>
+            <p class="text-gray-700">
+              <strong class="text-purple-700">Username:</strong> {@editing_user.username || "Not set"}
+            </p>
+          </div>
 
-      <%= if @editing_user do %>
-        <div class="mb-6 p-5 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 shadow-sm">
-          <p class="text-gray-700"><strong class="text-purple-700">User:</strong> {@editing_user.email}</p>
-          <p class="text-gray-700"><strong class="text-purple-700">Username:</strong> {@editing_user.username || "Not set"}</p>
-        </div>
+          <form
+            phx-change="form_change"
+            phx-submit="update_assignment"
+            class="space-y-8"
+          >
+            <div class="border border-purple-100 rounded-xl shadow-md p-6 bg-white">
+              <h3 class="text-xl font-semibold text-purple-700 mb-4 border-b border-purple-100 pb-2">
+                Assign to Organization
+              </h3>
 
-        <form
-          phx-change="form_change"
-          phx-submit="update_assignment"
-          class="space-y-8"
-        >
-          <div class="border border-purple-100 rounded-xl shadow-md p-6 bg-white">
-            <h3 class="text-xl font-semibold text-purple-700 mb-4 border-b border-purple-100 pb-2">
-              Assign to Organization
-            </h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-              <!-- Organization -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Organization *</label>
-                <select
-                  name="user[assigned_organization_id]"
-                  phx-change="select_organization"
-                  value={@form_data["assigned_organization_id"] || ""}
-                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
-                  required
-                >
-                  <option value="">Select Organization</option>
-                  <%= for org <- @organizations do %>
-                    <option value={org.id} selected={@selected_org_id == org.id}>{org.name}</option>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                
+    <!-- Organization -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Organization *</label>
+                  <select
+                    name="user[assigned_organization_id]"
+                    phx-change="select_organization"
+                    value={@form_data["assigned_organization_id"] || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                    required
+                  >
+                    <option value="">Select Organization</option>
+                    <%= for org <- @organizations do %>
+                      <option value={org.id} selected={@selected_org_id == org.id}>{org.name}</option>
+                    <% end %>
+                  </select>
+                </div>
+                
+    <!-- Role -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
+                  <select
+                    name="user[assigned_role]"
+                    value={@form_data["assigned_role"] || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                    required
+                  >
+                    <option value="">Select Role</option>
+                    <%= for role <- @roles do %>
+                      <option value={role}>{String.capitalize(role)}</option>
+                    <% end %>
+                  </select>
+                </div>
+                
+    <!-- Department -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                  <select
+                    name="user[assigned_department_id]"
+                    phx-change="select_department"
+                    value={@form_data["assigned_department_id"] || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                    disabled={@departments == []}
+                  >
+                    <option value="">Select Department</option>
+                    <%= for dept <- @departments do %>
+                      <option value={dept.id} selected={@selected_dept_id == dept.id}>
+                        {dept.name}
+                      </option>
+                    <% end %>
+                  </select>
+                </div>
+                
+    <!-- Team -->
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                  <select
+                    name="user[assigned_team_id]"
+                    phx-change="select_team"
+                    value={@form_data["assigned_team_id"] || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                    disabled={@selected_dept_id == nil}
+                  >
+                    <option value="">Select Team</option>
+                    <%= for team <- @teams do %>
+                      <option value={team.id} selected={@selected_team_id == team.id}>
+                        {team.name}
+                      </option>
+                    <% end %>
+                  </select>
+                  <%= if @teams == [] and @selected_dept_id != nil do %>
+                    <p class="text-xs text-gray-500 mt-1 italic">
+                      No teams available in this department
+                    </p>
                   <% end %>
-                </select>
-              </div>
-
-              <!-- Role -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Role *</label>
-                <select
-                  name="user[assigned_role]"
-                  value={@form_data["assigned_role"] || ""}
-                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
-                  required
-                >
-                  <option value="">Select Role</option>
-                  <%= for role <- @roles do %>
-                    <option value={role}>{String.capitalize(role)}</option>
-                  <% end %>
-                </select>
-              </div>
-
-              <!-- Department -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
-                <select
-                  name="user[assigned_department_id]"
-                  phx-change="select_department"
-                  value={@form_data["assigned_department_id"] || ""}
-                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
-                  disabled={@departments == []}
-                >
-                  <option value="">Select Department</option>
-                  <%= for dept <- @departments do %>
-                    <option value={dept.id} selected={@selected_dept_id == dept.id}>{dept.name}</option>
-                  <% end %>
-                </select>
-              </div>
-
-              <!-- Team -->
-              <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                <select
-                  name="user[assigned_team_id]"
-                  phx-change="select_team"
-                  value={@form_data["assigned_team_id"] || ""}
-                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
-                  disabled={@selected_dept_id == nil}
-                >
-                  <option value="">Select Team</option>
-                  <%= for team <- @teams do %>
-                    <option value={team.id} selected={@selected_team_id == team.id}>{team.name}</option>
-                  <% end %>
-                </select>
-                <%= if @teams == [] and @selected_dept_id != nil do %>
-                  <p class="text-xs text-gray-500 mt-1 italic">No teams available in this department</p>
-                <% end %>
-              </div>
-
-              <!-- Position -->
-              <div class="md:col-span-2">
-                <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                <select
-                  name="user[assigned_position]"
-                  value={@form_data["assigned_position"] || ""}
-                  class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
-                >
-                  <option value="">Select Position</option>
-                  <%= for pos <- @positions do %>
-                    <option value={pos.name}>{pos.name}</option>
-                  <% end %>
-                </select>
+                </div>
+                
+    <!-- Position -->
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                  <select
+                    name="user[assigned_position]"
+                    value={@form_data["assigned_position"] || ""}
+                    class="w-full px-3 py-2 rounded-lg border border-purple-200 focus:border-purple-500 focus:ring focus:ring-purple-100 bg-white"
+                  >
+                    <option value="">Select Position</option>
+                    <%= for pos <- @positions do %>
+                      <option value={pos.name}>{pos.name}</option>
+                    <% end %>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="flex gap-3 mt-8">
-            <button
-              type="submit"
-              class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
-            >
-              Save & Approve User
-            </button>
+            <div class="flex gap-3 mt-8">
+              <button
+                type="submit"
+                class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+              >
+                Save & Approve User
+              </button>
 
-            <button
-              type="button"
-              phx-click="cancel_assignment"
-              class="px-6 py-2.5 rounded-xl bg-gray-100 border border-gray-300 text-gray-700 font-semibold hover:bg-gray-200 hover:scale-105 transition-all duration-200"
+              <button
+                type="button"
+                phx-click="cancel_assignment"
+                class="px-6 py-2.5 rounded-xl bg-gray-100 border border-gray-300 text-gray-700 font-semibold hover:bg-gray-200 hover:scale-105 transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        <% else %>
+          <div class="p-6 text-center border border-yellow-200 bg-yellow-50 rounded-xl shadow-sm">
+            <p class="text-yellow-700 font-semibold mb-2">⚠ No user selected for approval.</p>
+            <a
+              href={~p"/admin/users"}
+              class="inline-block mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-medium shadow hover:shadow-lg hover:scale-105 transition duration-200"
             >
-              Cancel
-            </button>
+              Go to User Management
+            </a>
           </div>
-        </form>
-      <% else %>
-        <div class="p-6 text-center border border-yellow-200 bg-yellow-50 rounded-xl shadow-sm">
-          <p class="text-yellow-700 font-semibold mb-2">⚠ No user selected for approval.</p>
-          <a
-            href={~p"/admin/users"}
-            class="inline-block mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-medium shadow hover:shadow-lg hover:scale-105 transition duration-200"
-          >
-            Go to User Management
-          </a>
-        </div>
-      <% end %>
+        <% end %>
+      </div>
     </div>
-  </div>
-  """
-end
+    """
+  end
 end

@@ -165,8 +165,9 @@ defmodule TrialAppWeb.AttacheeTasksLive do
          |> put_flash(:info, "Task submitted successfully! Supervisor can download files!")}
 
       {:error, reason} ->
-        IO.inspect(reason, label: "SUBMISSION FAILED")
-        {:noreply, put_flash(socket, :error, "Failed to submit. Try again.")}
+        {:noreply,
+         socket
+         |> put_flash(:error, "Failed to submit task: #{inspect(reason)}")}
     end
   end
 

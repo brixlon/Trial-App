@@ -2,6 +2,10 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
   use TrialAppWeb, :live_view
 
   alias TrialApp.{Announcements, Accounts}
+  import TrialAppWeb.Live.Helpers.RoleSwitcher
+
+  @impl true
+  def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -9,11 +13,12 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
     user = current_scope.user
     active_role = Accounts.get_active_role(user)
 
-    announcements = if active_role in ["admin", "supervisor"] do
-      Announcements.list_all_announcements()
-    else
-      Announcements.list_announcements_for_user(user.id, active_role)
-    end
+    announcements =
+      if active_role in ["admin", "supervisor"] do
+        Announcements.list_all_announcements()
+      else
+        Announcements.list_announcements_for_user(user.id, active_role)
+      end
 
     {:ok,
      socket
@@ -54,13 +59,15 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
       user = socket.assigns.current_user
       active_role = socket.assigns.active_role
 
-      announcements = if active_role in ["admin", "supervisor"] do
-        Announcements.list_all_announcements()
-      else
-        Announcements.list_announcements_for_user(user.id, active_role)
-      end
+      announcements =
+        if active_role in ["admin", "supervisor"] do
+          Announcements.list_all_announcements()
+        else
+          Announcements.list_announcements_for_user(user.id, active_role)
+        end
 
-      {:noreply, socket |> assign(:announcements, announcements) |> put_flash(:info, "Announcement deleted")}
+      {:noreply,
+       socket |> assign(:announcements, announcements) |> put_flash(:info, "Announcement deleted")}
     else
       {:noreply, put_flash(socket, :error, "You can only delete your own announcements")}
     end
@@ -72,11 +79,12 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
     user = socket.assigns.current_user
     active_role = socket.assigns.active_role
 
-    announcements = if active_role in ["admin", "supervisor"] do
-      Announcements.list_all_announcements()
-    else
-      Announcements.list_announcements_for_user(user.id, active_role)
-    end
+    announcements =
+      if active_role in ["admin", "supervisor"] do
+        Announcements.list_all_announcements()
+      else
+        Announcements.list_announcements_for_user(user.id, active_role)
+      end
 
     {:noreply,
      socket
@@ -90,7 +98,6 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
     ~H"""
     <div class="min-h-screen bg-white text-gray-900">
       <div class="flex">
-
         <main class="ml-45 w-full p-8">
           <div class="max-w-7xl mx-auto space-y-8">
             <!-- Header -->
@@ -106,19 +113,34 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
                   class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition flex items-center gap-2 shadow"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
                   </svg>
                   New Announcement
                 </button>
               <% end %>
             </div>
-
-            <!-- Announcements List -->
+            
+    <!-- Announcements List -->
             <%= if @announcements == [] do %>
               <div class="bg-white rounded-xl shadow overflow-hidden">
                 <div class="p-12 text-center">
-                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                  <svg
+                    class="w-16 h-16 mx-auto text-gray-300 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    />
                   </svg>
                   <h3 class="text-lg font-semibold text-gray-900 mb-2">No Announcements Yet</h3>
                   <p class="text-gray-600">Check back later for updates</p>
@@ -140,11 +162,11 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
                             <% end %>
 
                             <span class={"inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium #{priority_badge_class(announcement.priority)}"}>
-                              <%= String.upcase(announcement.priority) %>
+                              {String.upcase(announcement.priority)}
                             </span>
 
                             <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-                              <%= format_category(announcement.category) %>
+                              {format_category(announcement.category)}
                             </span>
 
                             <%= if not Announcements.is_read?(announcement.id, @current_user.id) do %>
@@ -153,50 +175,74 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
                               </span>
                             <% end %>
                           </div>
-
-                          <!-- Title -->
+                          
+    <!-- Title -->
                           <h3 class="text-xl font-bold text-gray-900 mb-2">
-                            <%= announcement.title %>
+                            {announcement.title}
                           </h3>
-
-                          <!-- Content -->
+                          
+    <!-- Content -->
                           <p class="text-gray-700 whitespace-pre-wrap mb-4">
-                            <%= announcement.content %>
+                            {announcement.content}
                           </p>
-
-                          <!-- Links -->
+                          
+    <!-- Links -->
                           <%= if length(announcement.links) > 0 do %>
                             <div class="mb-4 space-y-2">
-                              <p class="text-sm font-medium text-gray-700">📎 Learning Materials & Links:</p>
+                              <p class="text-sm font-medium text-gray-700">
+                                📎 Learning Materials & Links:
+                              </p>
                               <%= for link <- announcement.links do %>
                                 <a
                                   href={link.url}
                                   target="_blank"
                                   class="block text-sm text-purple-600 hover:text-purple-800 hover:underline flex items-center gap-2"
                                 >
-                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                  <svg
+                                    class="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                                    />
                                   </svg>
-                                  <%= link.title || link.url %>
+                                  {link.title || link.url}
                                 </a>
                               <% end %>
                             </div>
                           <% end %>
-
-                          <!-- Meta Info -->
+                          
+    <!-- Meta Info -->
                           <div class="flex items-center gap-4 text-sm text-gray-500">
                             <span class="flex items-center gap-1">
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                              <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                />
                               </svg>
-                              <%= announcement.creator.username || announcement.creator.email %>
+                              {announcement.creator.username || announcement.creator.email}
                             </span>
                             <span>•</span>
-                            <span><%= Calendar.strftime(announcement.publish_date, "%B %d, %Y at %I:%M %p") %></span>
+                            <span>
+                              {Calendar.strftime(announcement.publish_date, "%B %d, %Y at %I:%M %p")}
+                            </span>
                           </div>
                         </div>
-
-                        <!-- Actions -->
+                        
+    <!-- Actions -->
                         <div class="flex flex-col gap-2">
                           <%= if @active_role in ["admin", "supervisor"] and announcement.creator_id == @current_user.id do %>
                             <button
@@ -232,8 +278,8 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
           </div>
         </main>
       </div>
-
-      <!-- Create Modal -->
+      
+    <!-- Create Modal -->
       <%= if @show_create_modal do %>
         <.live_component
           module={TrialAppWeb.AnnouncementLive.FormComponent}

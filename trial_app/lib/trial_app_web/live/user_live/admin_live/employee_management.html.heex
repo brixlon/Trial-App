@@ -218,7 +218,15 @@
                     </td>
                     <td class="px-4 py-3">
                       <span class={get_role_badge_class(emp.role)}>
-                        {if emp.role, do: String.capitalize(emp.role.name), else: "Member"}
+                        <%= if emp.role do %>
+                          <%= if is_struct(emp.role) do %>
+                            {String.capitalize(emp.role.name)}
+                          <% else %>
+                            {String.capitalize(emp.role)}
+                          <% end %>
+                        <% else %>
+                          Member
+                        <% end %>
                       </span>
                     </td>
                     <td class="px-4 py-3">
@@ -350,7 +358,15 @@
                 </td>
                 <td class="px-4 py-3">
                   <span class={get_role_badge_class(emp.role)}>
-                    {if emp.role, do: String.capitalize(emp.role.name), else: "Member"}
+                    <%= if emp.role do %>
+                      <%= if is_struct(emp.role) do %>
+                        {String.capitalize(emp.role.name)}
+                      <% else %>
+                        {String.capitalize(emp.role)}
+                      <% end %>
+                    <% else %>
+                      Member
+                    <% end %>
                   </span>
                 </td>
                 <td class="px-4 py-3">

@@ -4,6 +4,10 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   alias TrialApp.Accounts
   alias TrialApp.Orgs
   alias TrialApp.Repo
+  import TrialAppWeb.Live.Helpers.RoleSwitcher
+
+  @impl true
+  def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
   def mount(_params, _session, socket) do
     # Fetch ALL users, not just employees
