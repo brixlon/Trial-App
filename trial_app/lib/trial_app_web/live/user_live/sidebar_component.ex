@@ -95,17 +95,17 @@ defmodule TrialAppWeb.SidebarComponent do
     exact = Keyword.get(opts, :exact, false)
 
     if active_link?(current_path, link_path, exact: exact) do
-      "block py-2.5 px-2 rounded-xl bg-purple-600 text-white font-bold shadow-md"
+      "block py-2 px-2 rounded-xl bg-purple-600 text-white font-semibold shadow-md text-sm"
     else
-      "block py-2.5 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-medium text-gray-700"
+      "block py-2 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 text-sm text-gray-700"
     end
   end
 
   defp dropdown_link_class(current_path, link_path) do
     if current_path == link_path do
-      "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-bold text-sm"
+      "block py-1.5 px-3 rounded-lg bg-purple-100 text-purple-700 font-semibold text-xs"
     else
-      "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-sm text-gray-700"
+      "block py-1.5 px-3 rounded-lg hover:bg-purple-100 hover:text-purple-700 transition-colors text-xs text-gray-700"
     end
   end
 
@@ -127,15 +127,27 @@ defmodule TrialAppWeb.SidebarComponent do
     ~H"""
     <div>
       <aside
-        class="w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 h-screen fixed top-0 left-0 shadow-xl border-r border-purple-200 z-40 transition-transform duration-300 flex flex-col"
+        class="w-64 bg-gradient-to-b from-purple-100 via-white to-purple-50 text-gray-800 fixed top-16 bottom-0 left-0 shadow-xl border-r border-purple-200 z-40 transition-transform duration-300 overflow-y-auto"
         x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
       >
-        <div class="p-6 space-y-6 flex-shrink-0">
-          <div class="text-center">
-            <h1 class="text-3xl font-extrabold text-purple-700 tracking-tight">
-              EAMS<span class="text-gray-900"></span>
-            </h1>
-            <div class="h-1 w-12 mx-auto bg-purple-300 rounded-full mt-2"></div>
+        <div class="p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <!-- Toggle Button - Smaller -->
+            <button
+              @click="sidebarOpen = !sidebarOpen"
+              type="button"
+              class="text-purple-600 hover:text-purple-700 hover:bg-purple-50 p-1.5 rounded-lg transition-all"
+              title="Toggle Sidebar"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                />
+              </svg>
+            </button>
           </div>
 
           <%= if length(@available_roles) > 1 do %>
@@ -180,22 +192,24 @@ defmodule TrialAppWeb.SidebarComponent do
                       phx-value-role={role}
                       phx-target={@myself}
                       type="button"
-                      class={"w-full text-left py-2 px-4 hover:bg-purple-50 transition-colors #{if role == @active_role, do: "bg-purple-100 text-purple-700 font-semibold", else: "text-gray-700"}"}
+                      class={"w-full text-left px-4 py-3 text-sm hover:bg-purple-50 transition-colors flex items-center justify-between #{if role == @current_scope.active_role, do: "bg-purple-50 text-purple-700 font-semibold", else: "text-gray-600"}"}
                     >
-                      <div class="flex items-center gap-2">
-                        <%= if role == @active_role do %>
-                          <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fill-rule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clip-rule="evenodd"
-                            />
-                          </svg>
-                        <% else %>
-                          <div class="w-4 h-4"></div>
-                        <% end %>
-                        {role_display_name(role)}
-                      </div>
+                      <span>{String.capitalize(role)}</span>
+                      <%= if role == @current_scope.active_role do %>
+                        <svg
+                          class="w-4 h-4 text-purple-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      <% end %>
                     </button>
                   <% end %>
                 </div>
@@ -349,397 +363,342 @@ defmodule TrialAppWeb.SidebarComponent do
           <% end %>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-6">
-          <nav>
-            <ul class="space-y-3">
-              <%= case @active_role do %>
-                <% "attachee" -> %>
-                  <li>
-                    <.link
-                      navigate={~p"/attachee"}
-                      class={link_class(@current_path, "/attachee", exact: true)}
-                    >
-                      Dashboard
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/attachee/tasks"}
-                      class={link_class(@current_path, "/attachee/tasks", exact: true)}
-                    >
-                      My Tasks
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/announcements"}
-                      class={link_class(@current_path, "/announcements", exact: true)}
-                    >
-                      Announcements
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/attachee/profile"}
-                      class={link_class(@current_path, "/attachee/profile", exact: true)}
-                    >
-                      My Profile
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/users/settings"}
-                      class={link_class(@current_path, "/users/settings", exact: true)}
-                    >
-                      Settings
-                    </.link>
-                  </li>
-                <% "supervisor" -> %>
-                  <li>
-                    <.link
-                      navigate={~p"/supervisor/dashboard"}
-                      class={link_class(@current_path, "/supervisor/dashboard", exact: true)}
-                    >
-                      Dashboard
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/supervisor/attachees"}
-                      class={link_class(@current_path, "/supervisor/attachees", exact: true)}
-                    >
-                      Manage Attachees
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/supervisor/tasks"}
-                      class={link_class(@current_path, "/supervisor/tasks", exact: true)}
-                    >
-                      Task Review
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/announcements"}
-                      class={link_class(@current_path, "/announcements", exact: true)}
-                    >
-                      Announcements
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/users/settings"}
-                      class={link_class(@current_path, "/users/settings", exact: true)}
-                    >
-                      Settings
-                    </.link>
-                  </li>
-                <% "admin" -> %>
-                  <li>
-                    <.link
-                      navigate={~p"/admin/dashboard"}
-                      class={link_class(@current_path, "/admin/dashboard", exact: true)}
-                    >
-                      Admin Dashboard
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/admin/pending-approvals"}
-                      class={link_class(@current_path, "/admin/pending-approvals", exact: true)}
-                    >
-                      Pending Approvals
-                    </.link>
-                  </li>
-
-                  <li>
-                    <button
-                      phx-click="toggle_admin"
-                      phx-target={@myself}
-                      class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-purple-400 shadow-sm"
-                    >
-                      <span class="flex items-center gap-2">
-                        <svg
-                          class="w-4 h-4 text-purple-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                          />
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                        Admin
-                      </span>
-                      <svg
-                        class={"w-4 h-4 transition-transform #{if @admin_open, do: "rotate-180", else: ""}"}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    <%= if @admin_open do %>
-                      <ul class="ml-4 mt-2 space-y-2">
-                        <li>
-                          <.link
-                            navigate={~p"/admin/users"}
-                            class={dropdown_link_class(@current_path, "/admin/users")}
-                          >
-                            User Management
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/roles"}
-                            class={dropdown_link_class(@current_path, "/admin/roles")}
-                          >
-                            Roles & Permissions
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/employees"}
-                            class={dropdown_link_class(@current_path, "/admin/employees")}
-                          >
-                            Employees
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/positions"}
-                            class={dropdown_link_class(@current_path, "/admin/positions")}
-                          >
-                            Positions
-                          </.link>
-                        </li>
-                      </ul>
-                    <% end %>
-                  </li>
-
-                  <li>
-                    <button
-                      phx-click="toggle_eams"
-                      phx-target={@myself}
-                      class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-blue-400 shadow-sm"
-                    >
-                      <span class="flex items-center gap-2">
-                        <svg
-                          class="w-4 h-4 text-blue-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
-                          />
-                        </svg>
-                        EAMS
-                      </span>
-                      <svg
-                        class={"w-4 h-4 transition-transform #{if @eams_open, do: "rotate-180", else: ""}"}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    <%= if @eams_open do %>
-                      <ul class="ml-4 mt-2 space-y-2">
-                        <li>
-                          <.link
-                            navigate={~p"/admin/eams/programs"}
-                            class={dropdown_link_class(@current_path, "/admin/eams/programs")}
-                          >
-                            Programs
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/eams/projects"}
-                            class={dropdown_link_class(@current_path, "/admin/eams/projects")}
-                          >
-                            Projects
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/eams/attachees/manage"}
-                            class={dropdown_link_class(@current_path, "/admin/eams/attachees/manage")}
-                          >
-                            Attachees
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/admin/eams/tasks"}
-                            class={dropdown_link_class(@current_path, "/admin/eams/tasks")}
-                          >
-                            Tasks
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/announcements"}
-                            class={dropdown_link_class(@current_path, "/announcements")}
-                          >
-                            Announcements
-                          </.link>
-                        </li>
-                      </ul>
-                    <% end %>
-                  </li>
-
-                  <li>
-                    <button
-                      phx-click="toggle_supervision"
-                      phx-target={@myself}
-                      class="w-full text-left py-2.5 px-4 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 font-semibold flex justify-between items-center bg-white/40 border-l-4 border-indigo-400 shadow-sm"
-                    >
-                      <span class="flex items-center gap-2">
-                        <svg
-                          class="w-4 h-4 text-indigo-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                          />
-                        </svg>
-                        Evaluation
-                      </span>
-                      <svg
-                        class={"w-4 h-4 transition-transform #{if @supervision_open, do: "rotate-180", else: ""}"}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-                    <%= if @supervision_open do %>
-                      <ul class="ml-4 mt-2 space-y-2">
-                        <li>
-                          <.link
-                            navigate={~p"/supervisor/attachees"}
-                            class={dropdown_link_class(@current_path, "/supervisor/attachees")}
-                          >
-                            Attachee Evaluation
-                          </.link>
-                        </li>
-                        <li>
-                          <.link
-                            navigate={~p"/supervisor/tasks"}
-                            class={dropdown_link_class(@current_path, "/supervisor/tasks")}
-                          >
-                            Task Review
-                          </.link>
-                        </li>
-                      </ul>
-                    <% end %>
-                  </li>
-
-                  <li>
-                    <.link
-                      navigate={~p"/users/settings"}
-                      class={link_class(@current_path, "/users/settings", exact: true)}
-                    >
-                      Settings
-                    </.link>
-                  </li>
-                <% _ -> %>
-                  <li>
-                    <.link
-                      navigate={~p"/dashboard"}
-                      class={link_class(@current_path, "/dashboard", exact: true)}
-                    >
-                      Dashboard
-                    </.link>
-                  </li>
-
-                  <li>
-                    <.link
-                      navigate={~p"/admin/employees"}
-                      class={link_class(@current_path, "/admin/employees", exact: true)}
-                    >
-                      Employees
-                    </.link>
-                  </li>
-                  <li>
-                    <.link
-                      navigate={~p"/users/settings"}
-                      class={link_class(@current_path, "/users/settings", exact: true)}
-                    >
-                      Settings
-                    </.link>
-                  </li>
-              <% end %>
-
-              <%= if TrialApp.Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
+        <nav class="px-4 pb-6 space-y-1">
+          <ul class="space-y-1">
+            <%= case @current_scope.active_role do %>
+              <% "attachee" -> %>
                 <li>
                   <.link
-                    navigate={~p"/organizations"}
-                    class={link_class(@current_path, "/organizations", exact: true)}
+                    navigate={~p"/attachee"}
+                    class={link_class(@current_path, "/attachee", exact: true)}
                   >
-                    Organizations
+                    Dashboard
                   </.link>
                 </li>
-              <% end %>
+                <li>
+                  <.link
+                    navigate={~p"/attachee/tasks"}
+                    class={link_class(@current_path, "/attachee/tasks", exact: true)}
+                  >
+                    My Tasks
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/announcements"}
+                    class={link_class(@current_path, "/announcements", exact: true)}
+                  >
+                    Announcements
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/attachee/profile"}
+                    class={link_class(@current_path, "/attachee/profile", exact: true)}
+                  >
+                    My Profile
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/users/settings"}
+                    class={link_class(@current_path, "/users/settings", exact: true)}
+                  >
+                    Settings
+                  </.link>
+                </li>
+              <% "supervisor" -> %>
+                <li>
+                  <.link
+                    navigate={~p"/supervisor/dashboard"}
+                    class={link_class(@current_path, "/supervisor/dashboard", exact: true)}
+                  >
+                    Dashboard
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/supervisor/attachees"}
+                    class={link_class(@current_path, "/supervisor/attachees", exact: true)}
+                  >
+                    Manage Attachees
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/supervisor/tasks"}
+                    class={link_class(@current_path, "/supervisor/tasks", exact: true)}
+                  >
+                    Task Review
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/announcements"}
+                    class={link_class(@current_path, "/announcements", exact: true)}
+                  >
+                    Announcements
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/users/settings"}
+                    class={link_class(@current_path, "/users/settings", exact: true)}
+                  >
+                    Settings
+                  </.link>
+                </li>
+              <% "admin" -> %>
+                <li>
+                  <button
+                    phx-click="toggle_admin"
+                    phx-target={@myself}
+                    class={"w-full text-left py-2 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 text-sm text-gray-700 flex justify-between items-center #{if @admin_open, do: "bg-purple-100 text-purple-700", else: ""}"}
+                  >
+                    <span>Admin</span>
+                    <svg
+                      class={"w-4 h-4 transition-transform #{if @admin_open, do: "rotate-180", else: ""}"}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  <%= if @admin_open do %>
+                    <ul class="ml-4 mt-2 space-y-2">
+                      <li>
+                        <.link
+                          navigate={~p"/admin/dashboard"}
+                          class={dropdown_link_class(@current_path, "/admin/dashboard")}
+                        >
+                          Admin Dashboard
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/pending-approvals"}
+                          class={dropdown_link_class(@current_path, "/admin/pending-approvals")}
+                        >
+                          Pending Approvals
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/users"}
+                          class={dropdown_link_class(@current_path, "/admin/users")}
+                        >
+                          User Management
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/roles"}
+                          class={dropdown_link_class(@current_path, "/admin/roles")}
+                        >
+                          Roles & Permissions
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/employees"}
+                          class={dropdown_link_class(@current_path, "/admin/employees")}
+                        >
+                          Employees
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/positions"}
+                          class={dropdown_link_class(@current_path, "/admin/positions")}
+                        >
+                          Positions
+                        </.link>
+                      </li>
+                      <%= if Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
+                        <li>
+                          <.link
+                            navigate={~p"/organizations"}
+                            class={dropdown_link_class(@current_path, "/organizations")}
+                          >
+                            Organizations
+                          </.link>
+                        </li>
+                      <% end %>
+                    </ul>
+                  <% end %>
+                </li>
 
-              <li class="mt-6 pt-6 border-t border-purple-200">
-                <.link
-                  href={~p"/users/logout"}
-                  method="delete"
-                  class="block py-2.5 px-4 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium text-red-600 flex items-center gap-2"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                  Logout
-                </.link>
-              </li>
-            </ul>
-          </nav>
-        </div>
+                <li>
+                  <button
+                    phx-click="toggle_eams"
+                    phx-target={@myself}
+                    class={"w-full text-left py-2 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 text-sm text-gray-700 flex justify-between items-center #{if @eams_open, do: "bg-purple-100 text-purple-700", else: ""}"}
+                  >
+                    <span>EAMS</span>
+                    <svg
+                      class={"w-4 h-4 transition-transform #{if @eams_open, do: "rotate-180", else: ""}"}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  <%= if @eams_open do %>
+                    <ul class="ml-4 mt-2 space-y-2">
+                      <li>
+                        <.link
+                          navigate={~p"/admin/eams/programs"}
+                          class={dropdown_link_class(@current_path, "/admin/eams/programs")}
+                        >
+                          Programs
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/eams/projects"}
+                          class={dropdown_link_class(@current_path, "/admin/eams/projects")}
+                        >
+                          Projects
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/eams/attachees/manage"}
+                          class={dropdown_link_class(@current_path, "/admin/eams/attachees/manage")}
+                        >
+                          Attachees
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/admin/eams/tasks"}
+                          class={dropdown_link_class(@current_path, "/admin/eams/tasks")}
+                        >
+                          Tasks
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/announcements"}
+                          class={dropdown_link_class(@current_path, "/announcements")}
+                        >
+                          Announcements
+                        </.link>
+                      </li>
+                    </ul>
+                  <% end %>
+                </li>
+
+                <li>
+                  <button
+                    phx-click="toggle_supervision"
+                    phx-target={@myself}
+                    class={"w-full text-left py-2 px-2 rounded-xl hover:bg-purple-100 hover:text-purple-700 transition-all duration-200 text-sm text-gray-700 flex justify-between items-center #{if @supervision_open, do: "bg-purple-100 text-purple-700", else: ""}"}
+                  >
+                    <span>Evaluation</span>
+                    <svg
+                      class={"w-4 h-4 transition-transform #{if @supervision_open, do: "rotate-180", else: ""}"}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  <%= if @supervision_open do %>
+                    <ul class="ml-4 mt-2 space-y-2">
+                      <li>
+                        <.link
+                          navigate={~p"/supervisor/attachees"}
+                          class={dropdown_link_class(@current_path, "/supervisor/attachees")}
+                        >
+                          Attachee Evaluation
+                        </.link>
+                      </li>
+                      <li>
+                        <.link
+                          navigate={~p"/supervisor/tasks"}
+                          class={dropdown_link_class(@current_path, "/supervisor/tasks")}
+                        >
+                          Task Review
+                        </.link>
+                      </li>
+                    </ul>
+                  <% end %>
+                </li>
+
+                <li>
+                  <.link
+                    navigate={~p"/users/settings"}
+                    class={link_class(@current_path, "/users/settings", exact: true)}
+                  >
+                    Settings
+                  </.link>
+                </li>
+              <% _ -> %>
+                <li>
+                  <.link
+                    navigate={~p"/dashboard"}
+                    class={link_class(@current_path, "/dashboard", exact: true)}
+                  >
+                    Dashboard
+                  </.link>
+                </li>
+
+                <li>
+                  <.link
+                    navigate={~p"/admin/employees"}
+                    class={link_class(@current_path, "/admin/employees", exact: true)}
+                  >
+                    Employees
+                  </.link>
+                </li>
+                <li>
+                  <.link
+                    navigate={~p"/users/settings"}
+                    class={link_class(@current_path, "/users/settings", exact: true)}
+                  >
+                    Settings
+                  </.link>
+                </li>
+            <% end %>
+
+            <li class="mt-6 pt-6 border-t border-purple-200">
+              <.link
+                href={~p"/users/logout"}
+                method="delete"
+                class="block py-2.5 px-4 rounded-xl hover:bg-red-100 hover:text-red-700 transition-all duration-200 font-medium text-red-600 flex items-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </.link>
+            </li>
+          </ul>
+        </nav>
 
         <div class="p-6 flex-shrink-0">
           <div class="p-4 bg-white/80 rounded-xl border border-purple-200 shadow-md backdrop-blur-sm">
@@ -754,38 +713,39 @@ defmodule TrialAppWeb.SidebarComponent do
                 <p class="text-sm font-semibold text-gray-800 truncate">
                   {@current_scope.user.username || @current_scope.user.email}
                 </p>
-                <p class="text-xs text-purple-600 truncate">
-                  {role_display_name(@active_role)}
-                </p>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
+                    {String.first(@current_scope.active_role) |> String.upcase()}
+                  </div>
+                  <div class="text-left">
+                    <div class="text-xs text-gray-500 font-medium">Current Role</div>
+                    <div class="text-sm font-bold text-gray-800">
+                      {String.capitalize(@current_scope.active_role)}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </aside>
-
+      
+    <!-- External Toggle - Only shows when sidebar is CLOSED - Very Small -->
       <button
-        @click="sidebarOpen = !sidebarOpen"
+        @click="sidebarOpen = true"
         type="button"
-        class="fixed top-1/2 -translate-y-1/2 z-50 bg-purple-600 text-white p-1.5 rounded-r-md shadow-md transition-all duration-300 hover:bg-purple-700"
-        x-bind:class="sidebarOpen ? 'left-64' : 'left-0'"
+        class="fixed top-20 left-2 z-50 bg-purple-600 text-white p-1.5 rounded-md shadow-lg hover:bg-purple-700 transition-all hover:scale-110"
+        x-show="!sidebarOpen"
+        x-transition
+        title="Open Sidebar"
       >
-        <svg
-          x-show="sidebarOpen"
-          class="w-3 h-3"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
-        </svg>
-        <svg
-          x-show="!sidebarOpen"
-          class="w-3 h-3"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 5l7 7-7 7M5 5l7 7-7 7"
+          />
         </svg>
       </button>
     </div>

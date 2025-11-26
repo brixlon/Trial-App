@@ -17,7 +17,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:orgs, Orgs.list_all_organizations())
      |> assign(:departments, [])
      |> assign(:programs, [])
-     |> assign(:supervisors, Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager"))
+     |> assign(
+       :supervisors,
+       Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager")
+     )
      |> assign(:form_data, empty_form())
      |> assign(:errors, %{})
      # Detail view state
@@ -25,10 +28,17 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:selected_project, nil)
      |> assign(:project_attachees, [])
      |> assign(:project_tasks, [])
-     |> assign(:active_tab, "attachees") # "attachees" | "tasks"
+     # "attachees" | "tasks"
+     |> assign(:active_tab, "attachees")
      # Task creation modal
      |> assign(:show_task_modal, false)
-     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})
+     |> assign(:task_form, %{
+       "title" => "",
+       "description" => "",
+       "assignee_id" => "",
+       "due_on" => "",
+       "status" => "pending"
+     })
      |> assign(:task_errors, %{})
      # Attachee modal
      |> assign(:show_attachee_modal, false)
@@ -42,7 +52,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:attachee_eval_form, %{"score" => "", "comments" => ""})
      |> assign(:attachee_eval_errors, %{})
      |> assign(:viewing_evaluation, nil)
-    }
+     # Add attachee to project modal
+     |> assign(:show_add_attachee_to_project_modal, false)
+     |> assign(:available_attachees, [])
+     |> assign(:attachee_search_query, "")}
   end
 
   # Form Events
@@ -54,8 +67,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:form_data, empty_form())
      |> assign(:departments, [])
      |> assign(:programs, [])
-     |> assign(:errors, %{})
-    }
+     |> assign(:errors, %{})}
   end
 
   def handle_event("close", _params, socket) do
@@ -75,7 +87,13 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:errors, %{})
      |> assign(:task_errors, %{})
      |> assign(:attachee_eval_errors, %{})
-     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})}
+     |> assign(:task_form, %{
+       "title" => "",
+       "description" => "",
+       "assignee_id" => "",
+       "due_on" => "",
+       "status" => "pending"
+     })}
   end
 
   def handle_event("search", %{"query" => query}, socket) do
@@ -85,11 +103,20 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   # Detail View Navigation
   def handle_event("view_project_detail", %{"id" => id}, socket) do
     project_id = parse_int(id)
-    project = Eams.get_project!(project_id)
-              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor, tasks: [assignee: [:user]]])
 
-    attachees = Eams.list_attachees_by_project(project_id)
-                |> TrialApp.Repo.preload(:user)
+    project =
+      Eams.get_project!(project_id)
+      |> TrialApp.Repo.preload([
+        :organization,
+        :department,
+        :program,
+        :supervisor,
+        tasks: [assignee: [:user]]
+      ])
+
+    attachees =
+      Eams.list_attachees_by_project(project_id)
+      |> TrialApp.Repo.preload(:user)
 
     project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project_id))
 
@@ -117,7 +144,13 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     {:noreply,
      socket
      |> assign(:show_task_modal, true)
-     |> assign(:task_form, %{"title" => "", "description" => "", "assignee_id" => "", "due_on" => "", "status" => "pending"})
+     |> assign(:task_form, %{
+       "title" => "",
+       "description" => "",
+       "assignee_id" => "",
+       "due_on" => "",
+       "status" => "pending"
+     })
      |> assign(:task_errors, %{})}
   end
 
@@ -139,11 +172,13 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
     case Eams.create_task(attrs) do
       {:ok, _task} ->
-        refreshed_project = Eams.get_project!(project.id)
-                            |> TrialApp.Repo.preload([:tasks, assignee: [:user]], force: true)
+        refreshed_project =
+          Eams.get_project!(project.id)
+          |> TrialApp.Repo.preload([:tasks, assignee: [:user]], force: true)
 
-        refreshed_attachees = Eams.list_attachees_by_project(project.id)
-                              |> TrialApp.Repo.preload(:user)
+        refreshed_attachees =
+          Eams.list_attachees_by_project(project.id)
+          |> TrialApp.Repo.preload(:user)
 
         {:noreply,
          socket
@@ -251,8 +286,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   end
 
   def handle_event("view_evaluation", %{"id" => id}, socket) do
-    evaluation = Eams.get_evaluation!(parse_int(id))
-                  |> TrialApp.Repo.preload([:evaluator])
+    evaluation =
+      Eams.get_evaluation!(parse_int(id))
+      |> TrialApp.Repo.preload([:evaluator])
+
     {:noreply, assign(socket, :viewing_evaluation, evaluation)}
   end
 
@@ -260,13 +297,80 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     {:noreply, assign(socket, :viewing_evaluation, nil)}
   end
 
+  # Add/Remove Attachees from Project
+  def handle_event("open_add_attachee_to_project", _params, socket) do
+    all_attachees = Eams.list_attachees(%{preloads: [:user, :department, :organization]})
+
+    {:noreply,
+     socket
+     |> assign(:show_add_attachee_to_project_modal, true)
+     |> assign(:available_attachees, all_attachees)
+     |> assign(:attachee_search_query, "")}
+  end
+
+  def handle_event("close_add_attachee_to_project", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_add_attachee_to_project_modal, false)
+     |> assign(:available_attachees, [])
+     |> assign(:attachee_search_query, "")}
+  end
+
+  def handle_event("search_available_attachees", %{"value" => query}, socket) do
+    {:noreply, assign(socket, :attachee_search_query, query)}
+  end
+
+  def handle_event("add_attachee_to_project", %{"attachee-id" => attachee_id}, socket) do
+    project_id = socket.assigns.selected_project.id
+
+    case Eams.add_attachee_to_project(project_id, String.to_integer(attachee_id)) do
+      {:ok, _} ->
+        attachees = Eams.list_attachees_by_project(project_id) |> TrialApp.Repo.preload(:user)
+
+        {:noreply,
+         socket
+         |> assign(:project_attachees, attachees)
+         |> assign(:show_add_attachee_to_project_modal, false)
+         |> put_flash(:info, "Attachee added to project successfully")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to add attachee")}
+    end
+  end
+
+  def handle_event("remove_attachee_from_project", %{"attachee-id" => attachee_id}, socket) do
+    project_id = socket.assigns.selected_project.id
+
+    case Eams.remove_attachee_from_project(project_id, String.to_integer(attachee_id)) do
+      {:ok, _} ->
+        attachees = Eams.list_attachees_by_project(project_id) |> TrialApp.Repo.preload(:user)
+
+        {:noreply,
+         socket
+         |> assign(:project_attachees, attachees)
+         |> put_flash(:info, "Attachee removed from project")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to remove attachee")}
+    end
+  end
+
   def handle_event("view_project", %{"id" => id}, socket) do
     project_id = parse_int(id)
-    project = Eams.get_project!(project_id)
-              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor, tasks: [assignee: [:user]]])
 
-    attachees = Eams.list_attachees_by_project(project_id)
-                |> TrialApp.Repo.preload(:user)
+    project =
+      Eams.get_project!(project_id)
+      |> TrialApp.Repo.preload([
+        :organization,
+        :department,
+        :program,
+        :supervisor,
+        tasks: [assignee: [:user]]
+      ])
+
+    attachees =
+      Eams.list_attachees_by_project(project_id)
+      |> TrialApp.Repo.preload(:user)
 
     project_with_stats = Map.put(project, :stats, Eams.get_project_stats(project_id))
 
@@ -298,10 +402,11 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     departments = if is_integer(org_int), do: Orgs.list_departments_by_org(org_int), else: []
     programs = if is_integer(dept_int), do: Eams.list_programs_by_department(dept_int), else: []
 
-    errors = socket.assigns.errors
-    |> Map.delete(:starts_on)
-    |> Map.delete(:ends_on)
-    |> Map.delete(:date_range)
+    errors =
+      socket.assigns.errors
+      |> Map.delete(:starts_on)
+      |> Map.delete(:ends_on)
+      |> Map.delete(:date_range)
 
     {:noreply,
      socket
@@ -329,11 +434,12 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
           is_active: true
         }
 
-        result = if socket.assigns.editing_project do
-          Eams.update_project(socket.assigns.editing_project, attrs)
-        else
-          Eams.create_project(attrs)
-        end
+        result =
+          if socket.assigns.editing_project do
+            Eams.update_project(socket.assigns.editing_project, attrs)
+          else
+            Eams.create_project(attrs)
+          end
 
         case result do
           {:ok, _project} ->
@@ -346,7 +452,10 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
              |> assign(:programs, [])
              |> assign(:projects, load_projects_with_stats())
              |> assign(:errors, %{})
-             |> put_flash(:info, "Project #{if socket.assigns.editing_project, do: "updated", else: "created"} successfully")}
+             |> put_flash(
+               :info,
+               "Project #{if socket.assigns.editing_project, do: "updated", else: "created"} successfully"
+             )}
 
           {:error, %Ecto.Changeset{} = changeset} ->
             errors = changeset.errors |> Enum.into(%{})
@@ -359,8 +468,9 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   end
 
   def handle_event("edit_project", %{"id" => id}, socket) do
-    project = Eams.get_project!(parse_int(id))
-              |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
+    project =
+      Eams.get_project!(parse_int(id))
+      |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
 
     org_id = project.organization_id
     dept_id = project.department_id
@@ -436,12 +546,14 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   end
 
   defp filtered_projects(projects, ""), do: projects
+
   defp filtered_projects(projects, query) do
     query = String.downcase(query)
+
     Enum.filter(projects, fn project ->
       String.contains?(String.downcase(project.name || ""), query) ||
-      (project.code && String.contains?(String.downcase(project.code), query)) ||
-      (project.description && String.contains?(String.downcase(project.description), query))
+        (project.code && String.contains?(String.downcase(project.code), query)) ||
+        (project.description && String.contains?(String.downcase(project.description), query))
     end)
   end
 
@@ -491,12 +603,32 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   defp score_label(score) when score >= 41, do: "Satisfactory"
   defp score_label(_), do: "Needs Improvement"
 
+  # Filter available attachees by search and exclude already assigned
+  defp filter_available_attachees(all_attachees, project_attachees, "") do
+    project_ids = Enum.map(project_attachees, & &1.id)
+    Enum.reject(all_attachees, fn a -> a.id in project_ids end)
+  end
+
+  defp filter_available_attachees(all_attachees, project_attachees, query) do
+    project_ids = Enum.map(project_attachees, & &1.id)
+    q = String.downcase(query)
+
+    all_attachees
+    |> Enum.reject(fn a -> a.id in project_ids end)
+    |> Enum.filter(fn attachee ->
+      name = attachee.user.username || attachee.user.email
+      String.contains?(String.downcase(name), q)
+    end)
+  end
+
   defp trend_icon("improving") do
     ~s(<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>)
   end
+
   defp trend_icon("declining") do
     ~s(<svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>)
   end
+
   defp trend_icon(_) do
     ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
   end
@@ -508,10 +640,13 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     cond do
       is_nil(starts_on) and is_nil(ends_on) ->
         {:ok, nil}
+
       is_nil(starts_on) and not is_nil(ends_on) ->
         {:error, "Start date is required when end date is provided"}
+
       not is_nil(starts_on) and not is_nil(ends_on) and Date.compare(ends_on, starts_on) == :lt ->
         {:error, "End date must be after start date"}
+
       true ->
         {:ok, nil}
     end
@@ -525,6 +660,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   defp safe_int(nil), do: nil
   defp safe_int(""), do: nil
   defp safe_int(val) when is_integer(val), do: val
+
   defp safe_int(val) when is_binary(val) do
     case Integer.parse(val) do
       {i, _} -> i
@@ -534,16 +670,19 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   defp parse_date(nil), do: nil
   defp parse_date(""), do: nil
+
   defp parse_date(date_string) when is_binary(date_string) do
     date_string = String.trim(date_string)
 
     cond do
       String.match?(date_string, ~r/^\d{4}-\d{2}-\d{2}$/) ->
         parse_iso_date(date_string)
+
       true ->
         nil
     end
   end
+
   defp parse_date(_), do: nil
 
   defp parse_iso_date(<<y::binary-size(4), "-", m::binary-size(2), "-", d::binary-size(2)>>) do
@@ -556,5 +695,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
       _ -> nil
     end
   end
+
   defp parse_iso_date(_), do: nil
 end

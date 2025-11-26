@@ -120,16 +120,6 @@ defmodule TrialAppWeb.Layouts do
     <div id={@id} class="fixed top-4 right-4 z-50 space-y-2" aria-live="polite">
       <.flash kind={:info} title="Success!" flash={@flash} />
       <.flash kind={:error} title="Error!" flash={@flash} />
-      <.flash
-        id="disconnected"
-        kind={:error}
-        title="Offline"
-        phx-disconnected={show("#disconnected")}
-        phx-connected={hide("#disconnected")}
-        hidden
-      >
-        Attempting to reconnect <.icon name="hero-arrow-path" class="ml-1 inline animate-spin" />
-      </.flash>
     </div>
     """
   end

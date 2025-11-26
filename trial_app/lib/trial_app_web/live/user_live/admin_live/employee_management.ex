@@ -328,17 +328,6 @@ defmodule TrialAppWeb.AdminLive.EmployeeManagement do
   end
 
   @impl true
-  def handle_event("open_assign_modal", %{"user-id" => user_id}, socket) do
-    user = TrialApp.Accounts.get_user!(String.to_integer(user_id))
-
-    {:noreply,
-     socket
-     |> assign(:show_assign_modal, true)
-     |> assign(:user_to_assign, user)
-     |> assign(:selected_teams, [])}
-  end
-
-  @impl true
   def handle_event("toggle_team_selection", %{"team-id" => team_id}, socket) do
     team_id_int = String.to_integer(team_id)
     selected_teams = socket.assigns.selected_teams

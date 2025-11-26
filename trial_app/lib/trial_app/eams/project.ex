@@ -52,6 +52,10 @@ defmodule TrialApp.Eams.Project do
     |> assoc_constraint(:program)
     |> assoc_constraint(:supervisor)
     |> unique_constraint(:name, name: :projects_name_program_id_index)
+    |> unique_constraint(:code,
+      name: :projects_code_organization_id_index,
+      message: "has already been taken for this organization"
+    )
   end
 
   def create_changeset(project, attrs) do

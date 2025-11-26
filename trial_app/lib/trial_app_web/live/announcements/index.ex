@@ -8,6 +8,26 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
   def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
   @impl true
+  def handle_info({:announcement_created, _announcement}, socket) do
+    # Reload announcements
+    user = socket.assigns.current_user
+    active_role = socket.assigns.active_role
+
+    announcements =
+      if active_role in ["admin", "supervisor"] do
+        Announcements.list_all_announcements()
+      else
+        Announcements.list_announcements_for_user(user.id, active_role)
+      end
+
+    {:noreply,
+     socket
+     |> assign(:announcements, announcements)
+     |> assign(:show_create_modal, false)
+     |> put_flash(:info, "Announcement created successfully!")}
+  end
+
+  @impl true
   def mount(_params, _session, socket) do
     current_scope = socket.assigns.current_scope
     user = current_scope.user
@@ -71,26 +91,6 @@ defmodule TrialAppWeb.AnnouncementLive.Index do
     else
       {:noreply, put_flash(socket, :error, "You can only delete your own announcements")}
     end
-  end
-
-  @impl true
-  def handle_info({:announcement_created, _announcement}, socket) do
-    # Reload announcements
-    user = socket.assigns.current_user
-    active_role = socket.assigns.active_role
-
-    announcements =
-      if active_role in ["admin", "supervisor"] do
-        Announcements.list_all_announcements()
-      else
-        Announcements.list_announcements_for_user(user.id, active_role)
-      end
-
-    {:noreply,
-     socket
-     |> assign(:announcements, announcements)
-     |> assign(:show_create_modal, false)
-     |> put_flash(:info, "Announcement created successfully!")}
   end
 
   @impl true

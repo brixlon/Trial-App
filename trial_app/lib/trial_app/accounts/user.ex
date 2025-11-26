@@ -10,11 +10,11 @@ defmodule TrialApp.Accounts.User do
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
     field :status, :string, default: "pending"
-    # NOTE: 'role' field removed in migration - now using role_id
-    # Kept for backward compatibility during transition
+
+    # Support both RBAC and simple role arrays for flexibility
     field :roles, {:array, :string}, default: []
-    # Kept for backward compatibility during transition
     field :active_role, :string
+
     field :first_name, :string
     field :last_name, :string
     field :phone_number, :string
@@ -22,7 +22,7 @@ defmodule TrialApp.Accounts.User do
     field :must_change_password, :boolean, default: false
     field :password_changed_at, :utc_datetime
 
-    # RBAC: User belongs to a Role
+    # RBAC: User belongs to a Role (for full RBAC system with permissions)
     belongs_to :role, TrialApp.Accounts.Role
 
     has_many :employees, TrialApp.Orgs.Employee
@@ -117,7 +117,7 @@ defmodule TrialApp.Accounts.User do
   """
   def admin_create_changeset(user, attrs) do
     status = Map.get(attrs, "status") || Map.get(attrs, :status) || "pending"
-    role_id = Map.get(attrs, "role_id") || Map.get(attrs, :role_id)
+    _role_id = Map.get(attrs, "role_id") || Map.get(attrs, :role_id)
 
     user
     |> cast(attrs, [:email, :first_name, :last_name, :phone_number, :role_id, :status])

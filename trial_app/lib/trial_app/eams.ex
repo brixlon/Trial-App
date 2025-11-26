@@ -585,7 +585,19 @@ defmodule TrialApp.Eams do
 
   # TASKS
   def list_tasks(opts \\ %{}) do
-    Task
+    query = Task
+
+    # Apply filters if provided
+    query =
+      case Map.get(opts, :filters) do
+        %{project_id: project_id} when not is_nil(project_id) ->
+          from t in query, where: t.project_id == ^project_id
+
+        _ ->
+          query
+      end
+
+    query
     |> preload(^Map.get(opts, :preloads, [:project, :assignee]))
     |> Repo.all()
   end

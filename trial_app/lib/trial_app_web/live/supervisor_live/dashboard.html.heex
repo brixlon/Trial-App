@@ -28,26 +28,6 @@
               <span class="text-sm font-medium">Supervisor Dashboard</span>
             </div>
           </div>
-
-          <button
-            phx-click="toggle_project_form"
-            class="group px-6 py-3.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl"
-          >
-            <svg
-              class="w-5 h-5 group-hover:rotate-90 transition-transform duration-200"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2.5"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            New Project
-          </button>
         </div>
       </div>
       <!-- Stats Grid -->
@@ -286,37 +266,94 @@
                   phx-click="view_project_tasks"
                   phx-value-id={project.id}
                   class={"group relative p-3 rounded-xl border transition-all duration-150 cursor-pointer hover:shadow-md #{if is_overdue?(project), do: "border-red-200 bg-red-50/60 hover:border-red-300", else: "border-gray-200 bg-white hover:border-purple-200"}"}
+                  <div
+                  class="bg-white rounded-xl border border-gray-200 hover:border-purple-300 shadow-sm hover:shadow-md transition-all duration-200 group relative overflow-hidden"
                 >
-                  <div class="flex flex-col h-full space-y-4">
-                    <!-- Header -->
-                    <div class="flex items-start justify-between gap-3">
-                      <h6 class="text-lg font-semibold text- italic purple-900 group-hover:text-purple-900 transition-colors line-clamp-2 flex-1">
-                        {project.name}
-                      </h6>
-                      <span class="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold flex-shrink-0">
-                        {project.code}
-                      </span>
+                  <div class="p-6 flex flex-col h-full relative">
+                    <!-- Status Badges -->
+                    <div class="flex flex-wrap items-center gap-2 mb-4">
+                      <%= cond do %>
+                        <% project.status == "pending" -> %>
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-semibold">
+                            <svg
+                              class="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            Pending Approval
+                          </span>
+                        <% project.status == "rejected" -> %>
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
+                            <svg
+                              class="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                            Rejected
+                          </span>
+                        <% project.status == "active" -> %>
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">
+                            <svg
+                              class="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            Active
+                          </span>
+                        <% true -> %>
+                          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">
+                            {String.capitalize(project.status)}
+                          </span>
+                      <% end %>
+
+                      <%= if is_overdue?(project) do %>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
+                          <svg
+                            class="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                          Overdue
+                        </span>
+                      <% end %>
                     </div>
                     
-<!-- Status Badge -->
-                    <%= if is_overdue?(project) do %>
-                      <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold w-fit">
-                        <svg
-                          class="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                          />
-                        </svg>
-                        Overdue
-                      </span>
-                    <% end %>
+<!-- Project Title -->
+                    <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                      {project.name}
+                    </h3>
                     
 <!-- Description -->
                     <p class="text-sm text-gray-600 line-clamp-2 flex-1 leading-relaxed">
@@ -343,35 +380,73 @@
                         <span>{format_date(project.starts_on)}</span>
                       </div>
                       <div class={"flex items-center gap-2 text-sm #{if is_overdue?(project), do: "text-red-600 font-semibold", else: "text-gray-600"}"}>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          class={"w-4 h-4 #{if is_overdue?(project), do: "text-red-500", else: "text-gray-400"}"}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
                             stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                           />
                         </svg>
                         <span class="font-medium">Due:</span>
-                        <span>{format_due_date(project.ends_on)}</span>
+                        <span>{format_date(project.ends_on)}</span>
                       </div>
                     </div>
-                  </div>
-                  
-<!-- Hover Arrow -->
-                  <div class="absolute top-5 right-5 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <svg
-                      class="w-2 h-2 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    
+<!-- Manage Button for Active Projects -->
+                    <%= if project.status == "active" do %>
+                      <div class="mt-4 pt-4 border-t border-gray-100">
+                        <.link
+                          navigate={~p"/supervisor/projects/#{project.id}"}
+                          class="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                            />
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                          </svg>
+                          Manage Project
+                        </.link>
+                      </div>
+                    <% else %>
+                      <div class="mt-4 pt-4 border-t border-gray-100">
+                        <div class="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg font-medium text-sm cursor-not-allowed">
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                            />
+                          </svg>
+                          Pending Approval
+                        </div>
+                      </div>
+                    <% end %>
                   </div>
                 </div>
               <% end %>
@@ -466,23 +541,8 @@
       animation: slide-vertical linear infinite;
     }
   </style>
-  
-<!-- Modals -->
+  <!-- Modals -->
   <%= if @selected_project do %>
     <!-- Project modal unchanged -->
   <% end %>
-
-  <.live_component
-    :if={@show_project_form}
-    module={ProjectForm}
-    id="project-form"
-    current_user={@current_user}
-    department={@department}
-  />
-  <.live_component
-    :if={@show_task_form}
-    module={TaskForm}
-    id="task-form"
-    project={@selected_project}
-  />
 </div>

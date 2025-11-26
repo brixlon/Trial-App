@@ -6,6 +6,7 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
   @impl true
   def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
+  @impl true
   def mount(params, _session, socket) do
     organizations = Orgs.list_organizations()
     positions = Orgs.list_positions()
@@ -156,6 +157,11 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
         {:noreply,
          put_flash(socket, :error, "Failed to assign user: #{inspect(changeset.errors)}")}
     end
+  end
+
+  @impl true
+  def handle_event("approve", %{"id" => _id}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/admin/users")}
   end
 
   def handle_event("cancel_assignment", _, socket) do
@@ -320,6 +326,7 @@ defmodule TrialAppWeb.AdminLive.PendingApprovalLive do
   defp empty_to_nil(val), do: val
 
   # --- Render Form ---
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 text-gray-900 px-6 py-10">

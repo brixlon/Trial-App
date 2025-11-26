@@ -99,6 +99,7 @@ defmodule TrialAppWeb.Router do
       live "/supervisor/attachees", SupervisorLive.Attachees, :index
       live "/supervisor/tasks", SupervisorLive.Tasks, :index
       live "/supervisor/projects", SupervisorLive.Projects, :index
+      live "/supervisor/projects/:id", SupervisorLive.ProjectShow, :show
     end
   end
 
@@ -145,6 +146,7 @@ defmodule TrialAppWeb.Router do
 
       # Standalone routes for direct access
       live "/eams/projects", AdminLive.ProjectManagement, :index
+      live "/eams/projects/:id", AdminLive.ProjectShow, :show
       live "/eams/tasks", AdminLive.TaskManagement, :index
 
       # ADMIN: View attachees in hierarchy (same as supervisor)

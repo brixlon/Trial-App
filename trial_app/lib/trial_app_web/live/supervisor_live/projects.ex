@@ -6,7 +6,7 @@ defmodule TrialAppWeb.SupervisorLive.Projects do
 
   @impl true
   def mount(_params, _session, socket) do
-    current_user = socket.assigns.current_user
+    current_user = socket.assigns.current_scope.user
 
     # Get supervisor's department to filter programs/attachees
     department = Orgs.get_department_for_user(current_user.id)
@@ -81,7 +81,7 @@ defmodule TrialAppWeb.SupervisorLive.Projects do
 
   @impl true
   def handle_event("save_project", %{"project" => project_params}, socket) do
-    current_user = socket.assigns.current_user
+    current_user = socket.assigns.current_scope.user
     department = socket.assigns.department
 
     if !department do
@@ -123,7 +123,7 @@ defmodule TrialAppWeb.SupervisorLive.Projects do
   end
 
   defp load_projects(socket) do
-    current_user = socket.assigns.current_user
+    current_user = socket.assigns.current_scope.user
     projects = Eams.list_projects_for_supervisor(current_user.id)
     assign(socket, :projects, projects)
   end
@@ -207,8 +207,8 @@ defmodule TrialAppWeb.SupervisorLive.Projects do
                   {if project.program, do: project.program.name, else: "No Program"}
                 </div>
                 <%= if project.status == "active" do %>
-                  <a
-                    href="#"
+                  <.link
+                    navigate={~p"/supervisor/projects/#{project.id}"}
                     class="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
                   >
                     Manage
@@ -220,7 +220,7 @@ defmodule TrialAppWeb.SupervisorLive.Projects do
                         d="M9 5l7 7-7 7"
                       />
                     </svg>
-                  </a>
+                  </.link>
                 <% else %>
                   <span class="text-gray-400 text-sm cursor-not-allowed">Pending Approval</span>
                 <% end %>

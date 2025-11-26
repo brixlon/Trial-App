@@ -9,6 +9,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   @impl true
   def handle_info({:switch_role, new_role}, socket), do: handle_role_switch(socket, new_role)
 
+  @impl true
   def mount(_params, _session, socket) do
     # Fetch ALL users, not just employees
     users = Accounts.list_users_with_assignments()
@@ -38,11 +39,13 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
      |> assign(:selected_dept_id, nil)}
   end
 
+  @impl true
   def handle_params(params, _url, socket) do
     filter = Map.get(params, "filter", "all")
     role_filter = Map.get(params, "role", "all")
 
     all_users = Accounts.list_users_with_assignments()
+
     filtered_users =
       all_users
       |> apply_filter(filter)
@@ -132,7 +135,6 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
       id: user.id,
       email: user.email,
       username: user.username,
-      role: user.role,
       roles: user_roles,
       status: user.status,
       # Track which roles are selected
@@ -169,6 +171,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
 
   def handle_event("search", %{"query" => query}, socket) do
     all_users = Accounts.list_users_with_assignments()
+
     filtered_users =
       all_users
       |> apply_filter(socket.assigns.filter)
@@ -373,12 +376,14 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
     end
   end
 
+  @impl true
   def handle_event("delete_user", _, socket) do
     user = socket.assigns.selected_user
 
     case Accounts.delete_user(user) do
       {:ok, _user} ->
         all_users = Accounts.list_users_with_assignments()
+
         filtered_users =
           all_users
           |> apply_filter(socket.assigns.filter)
@@ -408,7 +413,10 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   defp apply_role_filter(users, "all"), do: users
   defp apply_role_filter(users, "employee"), do: Enum.filter(users, &has_role?(&1, "employee"))
   defp apply_role_filter(users, "attachee"), do: Enum.filter(users, &has_role?(&1, "attachee"))
-  defp apply_role_filter(users, "supervisor"), do: Enum.filter(users, &has_role?(&1, "supervisor"))
+
+  defp apply_role_filter(users, "supervisor"),
+    do: Enum.filter(users, &has_role?(&1, "supervisor"))
+
   defp apply_role_filter(users, "admin"), do: Enum.filter(users, &has_role?(&1, "admin"))
   defp apply_role_filter(users, _), do: users
 
@@ -417,6 +425,7 @@ defmodule TrialAppWeb.AdminLive.UserManagement do
   end
 
   defp apply_search(users, ""), do: users
+
   defp apply_search(users, query) do
     query_lower = String.downcase(query)
 

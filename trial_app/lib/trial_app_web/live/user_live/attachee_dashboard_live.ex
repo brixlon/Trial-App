@@ -948,16 +948,6 @@ defmodule TrialAppWeb.AttacheeDashboardLive do
     end
   end
 
-  defp _score_bar_color(score) when score >= 81,
-    do: "bg-gradient-to-r from-green-400 to-green-600"
-
-  defp _score_bar_color(score) when score >= 61, do: "bg-gradient-to-r from-blue-400 to-blue-600"
-
-  defp _score_bar_color(score) when score >= 41,
-    do: "bg-gradient-to-r from-yellow-400 to-yellow-600"
-
-  defp _score_bar_color(_), do: "bg-gradient-to-r from-red-400 to-red-600"
-
   defp overall_score_color(score) when score >= 81, do: "text-green-600"
   defp overall_score_color(score) when score >= 61, do: "text-blue-600"
   defp overall_score_color(score) when score >= 41, do: "text-yellow-600"

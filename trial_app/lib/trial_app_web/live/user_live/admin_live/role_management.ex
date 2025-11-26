@@ -1,7 +1,7 @@
 defmodule TrialAppWeb.AdminLive.RoleManagement do
   use TrialAppWeb, :live_view
   alias TrialApp.Accounts
-  alias TrialApp.Accounts.Role
+
   import TrialAppWeb.Live.Helpers.RoleSwitcher
 
   @impl true

@@ -645,15 +645,18 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Gets all roles available to a user.
-  Returns the roles array if populated, otherwise returns single role as list.
+  Returns the roles array if populated, otherwise returns active_role as list.
   """
-  def get_user_roles(%User{roles: roles, role: single_role}) do
+  def get_user_roles(%User{roles: roles, active_role: active_role}) do
     array_roles = if is_list(roles), do: roles || [], else: []
 
-    single_role_list =
-      if is_binary(single_role) and single_role != "", do: [single_role], else: []
+    active_role_list =
+      if is_binary(active_role) and active_role != "", do: [active_role], else: []
 
-    (array_roles ++ single_role_list) |> Enum.uniq() |> Enum.reject(&is_nil/1)
+    # Combine and deduplicate
+    (array_roles ++ active_role_list)
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 == nil || &1 == ""))
   end
 
   @doc """
@@ -848,18 +851,21 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Checks if a user has a specific permission.
-  Preloads role and permissions if not already loaded.
 
-
+  Uses the full RBAC system with roles and permissions tables.
+  Falls back to simple role checking if role is not loaded.
   """
   def has_permission?(%User{} = user, permission_slug) when is_binary(permission_slug) do
+    # Preload role and permissions if not already loaded
     user = user |> Repo.preload(role: :permissions)
 
     case user.role do
       nil ->
-        false
+        # Fallback: check if user has admin in roles array
+        "admin" in (user.roles || []) || user.active_role == "admin"
 
       role ->
+        # Proper RBAC: check if role has the permission
         Enum.any?(role.permissions, fn perm -> perm.slug == permission_slug end)
     end
   end

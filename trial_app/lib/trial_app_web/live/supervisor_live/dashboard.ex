@@ -1,7 +1,6 @@
 defmodule TrialAppWeb.SupervisorLive.Dashboard do
   use TrialAppWeb, :live_view
   alias TrialApp.{Accounts, Eams, Orgs}
-  alias TrialAppWeb.SupervisorLive.{ProjectForm, TaskForm}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,7 +23,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
      |> assign(:active_role, active_role)
      |> assign(:selected_project, nil)
      |> assign(:project_tasks, [])
-     |> assign(:show_project_form, false)
      |> assign(:show_task_form, false)
      |> load_data(current_user, active_role)}
   end
@@ -103,7 +101,7 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   defp load_recent_activities(all_tasks) do
     all_tasks
     |> Enum.filter(&(&1.status in ["submitted", "completed"]))
-    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
+    |> Enum.sort_by(& &1.updated_at, {:desc, NaiveDateTime})
     |> Enum.take(10)
     |> Enum.map(&format_activity/1)
   end
@@ -119,22 +117,12 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   end
 
   @impl true
-  def handle_event("view_project_tasks", %{"id" => id}, socket) do
-    project = Eams.get_project!(id, preloads: [:program, :department, :organization])
-    tasks = Eams.list_tasks_for_project(id)
-
-    {:noreply,
-     socket
-     |> assign(:selected_project, project)
-     |> assign(:project_tasks, tasks)}
+  def handle_event("view_project_tasks", %{"id" => _id}, socket) do
+    {:noreply, assign(socket, :selected_project, nil) |> assign(:project_tasks, [])}
   end
 
   def handle_event("close_project_view", _, socket) do
     {:noreply, assign(socket, :selected_project, nil) |> assign(:project_tasks, [])}
-  end
-
-  def handle_event("toggle_project_form", _, socket) do
-    {:noreply, assign(socket, :show_project_form, !socket.assigns.show_project_form)}
   end
 
   def handle_event("toggle_task_form", _, socket) do
@@ -258,20 +246,6 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
   # ─── HELPERS ───
   defp is_overdue?(project),
     do: project.ends_on && Date.compare(project.ends_on, Date.utc_today()) == :lt
-
-  defp format_due_date(nil), do: "No deadline"
-
-  defp format_due_date(date) do
-    days = Date.diff(date, Date.utc_today())
-
-    cond do
-      days < 0 -> "#{abs(days)} days overdue"
-      days == 0 -> "Due today"
-      days == 1 -> "Due tomorrow"
-      days <= 7 -> "Due in #{days} days"
-      true -> Calendar.strftime(date, "%b %d, %Y")
-    end
-  end
 
   defp status_color("pending"), do: "bg-yellow-100 text-yellow-800"
   defp status_color("in_progress"), do: "bg-blue-100 text-blue-800"

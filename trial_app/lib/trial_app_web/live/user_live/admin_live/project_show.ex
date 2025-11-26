@@ -2,6 +2,7 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
   use TrialAppWeb, :live_view
 
   alias TrialApp.Eams
+  alias TrialApp.Eams.Task
   alias TrialAppWeb.BreadcrumbComponent
 
   def mount(%{"program_id" => program_id, "id" => id}, _session, socket) do
@@ -9,12 +10,15 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
     program = Eams.get_program!(String.to_integer(program_id))
     attachees = Eams.list_attachees_by_project(project.id)
     stats = Eams.get_project_stats(project.id)
+    tasks = Eams.list_tasks(%{filters: %{project_id: project.id}, preloads: [assignee: :user]})
 
     # Get available attachees for adding to project
     all_attachees = Eams.list_attachees()
-    available_attachees = Enum.reject(all_attachees, fn a ->
-      Enum.any?(attachees, &(&1.id == a.id))
-    end)
+
+    available_attachees =
+      Enum.reject(all_attachees, fn a ->
+        Enum.any?(attachees, &(&1.id == a.id))
+      end)
 
     breadcrumbs = [
       %{label: "Programs", link: ~p"/admin/eams/programs"},
@@ -27,15 +31,23 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
      |> assign(:project, project)
      |> assign(:program, program)
      |> assign(:attachees, attachees)
+     |> assign(:tasks, tasks)
      |> assign(:stats, stats)
      |> assign(:breadcrumbs, breadcrumbs)
      |> assign(:page_title, project.name)
      |> assign(:search_query, "")
+     |> assign(:active_tab, "attachees")
      |> assign(:show_add_modal, false)
+     |> assign(:show_create_task_modal, false)
      |> assign(:available_attachees, available_attachees)
      |> assign(:selected_attachee_id, nil)
      |> assign(:add_role, "Intern")
+     |> assign(:task_changeset, Task.changeset(%Task{}, %{}))
      |> assign(:current_scope, socket.assigns[:current_scope] || %{})}
+  end
+
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :active_tab, tab)}
   end
 
   def handle_event("search", %{"query" => query}, socket) do
@@ -69,16 +81,19 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
 
       attachee_id ->
         case Eams.add_attachee_to_project(socket.assigns.project.id, attachee_id, %{
-          role: socket.assigns.add_role,
-          joined_at: Date.utc_today()
-        }) do
+               role: socket.assigns.add_role,
+               joined_at: Date.utc_today()
+             }) do
           {:ok, _} ->
             # Refresh data
             attachees = Eams.list_attachees_by_project(socket.assigns.project.id)
             all_attachees = Eams.list_attachees()
-            available_attachees = Enum.reject(all_attachees, fn a ->
-              Enum.any?(attachees, &(&1.id == a.id))
-            end)
+
+            available_attachees =
+              Enum.reject(all_attachees, fn a ->
+                Enum.any?(attachees, &(&1.id == a.id))
+              end)
+
             stats = Eams.get_project_stats(socket.assigns.project.id)
 
             {:noreply,
@@ -103,9 +118,12 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
       {:ok, _} ->
         attachees = Eams.list_attachees_by_project(socket.assigns.project.id)
         all_attachees = Eams.list_attachees()
-        available_attachees = Enum.reject(all_attachees, fn a ->
-          Enum.any?(attachees, &(&1.id == a.id))
-        end)
+
+        available_attachees =
+          Enum.reject(all_attachees, fn a ->
+            Enum.any?(attachees, &(&1.id == a.id))
+          end)
+
         stats = Eams.get_project_stats(socket.assigns.project.id)
 
         {:noreply,
@@ -120,17 +138,76 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
     end
   end
 
+  def handle_event("open_create_task_modal", _params, socket) do
+    {:noreply, assign(socket, :show_create_task_modal, true)}
+  end
+
+  def handle_event("close_create_task_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_create_task_modal, false)
+     |> assign(:task_changeset, Task.changeset(%Task{}, %{}))}
+  end
+
+  def handle_event("create_task", %{"task" => task_params}, socket) do
+    params = Map.put(task_params, "project_id", socket.assigns.project.id)
+
+    case Eams.create_task(params) do
+      {:ok, _task} ->
+        tasks =
+          Eams.list_tasks(%{
+            filters: %{project_id: socket.assigns.project.id},
+            preloads: [assignee: :user]
+          })
+
+        {:noreply,
+         socket
+         |> assign(:tasks, tasks)
+         |> assign(:show_create_task_modal, false)
+         |> assign(:task_changeset, Task.changeset(%Task{}, %{}))
+         |> put_flash(:info, "Task created successfully")}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :task_changeset, changeset)}
+    end
+  end
+
+  def handle_event("delete_task", %{"task-id" => task_id}, socket) do
+    task = Eams.get_task!(task_id)
+
+    case Eams.delete_task(task) do
+      {:ok, _} ->
+        tasks =
+          Eams.list_tasks(%{
+            filters: %{project_id: socket.assigns.project.id},
+            preloads: [assignee: :user]
+          })
+
+        {:noreply,
+         socket
+         |> assign(:tasks, tasks)
+         |> put_flash(:info, "Task deleted successfully")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete task")}
+    end
+  end
+
   defp filtered_attachees(attachees, ""), do: attachees
+
   defp filtered_attachees(attachees, query) do
     query = String.downcase(query)
+
     Enum.filter(attachees, fn attachee ->
-      user_name = if Ecto.assoc_loaded?(attachee.user) && attachee.user do
-        attachee.user.username || attachee.user.email || ""
-      else
-        ""
-      end
+      user_name =
+        if Ecto.assoc_loaded?(attachee.user) && attachee.user do
+          attachee.user.username || attachee.user.email || ""
+        else
+          ""
+        end
+
       String.contains?(String.downcase(user_name), query) ||
-      String.contains?(String.downcase(attachee.position || ""), query)
+        String.contains?(String.downcase(attachee.position || ""), query)
     end)
   end
 
@@ -143,6 +220,13 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
     end
   end
 
+  defp task_status_color("pending"), do: "bg-gray-100 text-gray-700"
+  defp task_status_color("in_progress"), do: "bg-blue-100 text-blue-700"
+  defp task_status_color("submitted"), do: "bg-yellow-100 text-yellow-700"
+  defp task_status_color("rejected"), do: "bg-red-100 text-red-700"
+  defp task_status_color("completed"), do: "bg-green-100 text-green-700"
+  defp task_status_color(_), do: "bg-gray-100 text-gray-700"
+
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-white">
@@ -152,35 +236,42 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
           <div class="max-w-7xl mx-auto space-y-6">
             <!-- Breadcrumb -->
             <BreadcrumbComponent.breadcrumb items={@breadcrumbs} />
-
-            <!-- Project Header (UNCHANGED - Keeping original gradient card) -->
+            
+    <!-- Project Header (UNCHANGED - Keeping original gradient card) -->
             <div class="bg-gradient-to-r from-purple-500 to-purple-500 rounded-2xl shadow-xl p-8 text-white">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex-1">
                   <div class="flex items-center gap-3 mb-2">
-                    <h1 class="text-3xl font-bold"><%= @project.name %></h1>
+                    <h1 class="text-3xl font-bold">{@project.name}</h1>
                     <%= if @project.code do %>
                       <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm text-sm font-medium rounded-full">
-                        <%= @project.code %>
+                        {@project.code}
                       </span>
                     <% end %>
                   </div>
                   <%= if @project.description do %>
-                    <p class="text-purple-100 text-lg mt-2"><%= @project.description %></p>
+                    <p class="text-purple-100 text-lg mt-2">{@project.description}</p>
                   <% end %>
                 </div>
               </div>
-
-              <!-- Project Info Grid -->
+              
+    <!-- Project Info Grid -->
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <%= if Ecto.assoc_loaded?(@project.supervisor) && @project.supervisor do %>
                   <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
                     </svg>
                     <div>
                       <div class="text-xs text-purple-200">Supervisor</div>
-                      <div class="font-medium"><%= @project.supervisor.username || @project.supervisor.email %></div>
+                      <div class="font-medium">
+                        {@project.supervisor.username || @project.supervisor.email}
+                      </div>
                     </div>
                   </div>
                 <% end %>
@@ -188,11 +279,18 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                 <%= if @project.starts_on do %>
                   <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
                     <div>
                       <div class="text-xs text-purple-200">Start Date</div>
-                      <div class="font-medium"><%= Calendar.strftime(@project.starts_on, "%b %d, %Y") %></div>
+                      <div class="font-medium">
+                        {Calendar.strftime(@project.starts_on, "%b %d, %Y")}
+                      </div>
                     </div>
                   </div>
                 <% end %>
@@ -200,191 +298,484 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                 <%= if @project.ends_on do %>
                   <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg p-4">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                      />
                     </svg>
                     <div>
                       <div class="text-xs text-purple-200">End Date</div>
-                      <div class="font-medium"><%= Calendar.strftime(@project.ends_on, "%b %d, %Y") %></div>
+                      <div class="font-medium">
+                        {Calendar.strftime(@project.ends_on, "%b %d, %Y")}
+                      </div>
                     </div>
                   </div>
                 <% end %>
               </div>
             </div>
-
-            <!-- Stats Overview -->
+            
+    <!-- Stats Overview -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
                 <div class="text-xs text-purple-600 font-medium uppercase">Total Attachees</div>
-                <div class="text-2xl font-bold text-purple-700 mt-1"><%= @stats.total_attachees %></div>
+                <div class="text-2xl font-bold text-purple-700 mt-1">{@stats.total_attachees}</div>
               </div>
               <div class="bg-green-50 p-4 rounded-lg border border-green-200">
                 <div class="text-xs text-green-600 font-medium uppercase">Active Attachees</div>
-                <div class="text-2xl font-bold text-green-700 mt-1"><%= @stats.active_attachees %></div>
+                <div class="text-2xl font-bold text-green-700 mt-1">{@stats.active_attachees}</div>
               </div>
               <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <div class="text-xs text-blue-600 font-medium uppercase">Total Tasks</div>
-                <div class="text-2xl font-bold text-blue-700 mt-1"><%= @stats.total_tasks %></div>
+                <div class="text-2xl font-bold text-blue-700 mt-1">{@stats.total_tasks}</div>
               </div>
               <div class="bg-amber-50 p-4 rounded-lg border border-amber-200">
                 <div class="text-xs text-amber-600 font-medium uppercase">Completion Rate</div>
-                <div class="text-2xl font-bold text-amber-700 mt-1"><%= @stats.completion_rate %>%</div>
+                <div class="text-2xl font-bold text-amber-700 mt-1">{@stats.completion_rate}%</div>
               </div>
             </div>
-
-            <!-- Actions & Search Bar -->
-            <div class="flex items-center gap-4">
-              <div class="flex-1">
-                <form phx-change="search" class="relative">
-                  <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                  </svg>
-                  <input
-                    type="text"
-                    name="query"
-                    value={@search_query}
-                    placeholder="Search attachees..."
-                    class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </form>
-              </div>
+            
+    <!-- Tab Navigation -->
+            <nav class="flex border-b border-gray-200 bg-white rounded-t-xl">
               <button
-                phx-click="open_add_modal"
-                class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow"
+                phx-click="switch_tab"
+                phx-value-tab="attachees"
+                class={"px-6 py-4 text-sm font-medium transition-colors #{if @active_tab == "attachees", do: "text-purple-600 border-b-2 border-purple-600 bg-purple-50", else: "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}"}
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Add Attachee
+                👥 Attachees ({@stats.total_attachees})
               </button>
-            </div>
+              <button
+                phx-click="switch_tab"
+                phx-value-tab="tasks"
+                class={"px-6 py-4 text-sm font-medium transition-colors #{if @active_tab == "tasks", do: "text-purple-600 border-b-2 border-purple-600 bg-purple-50", else: "text-gray-600 hover:text-gray-900 hover:bg-gray-50"}"}
+              >
+                ✓ Tasks ({@stats.total_tasks})
+              </button>
+            </nav>
 
-            <!-- Attachees List -->
-            <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
-              <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-900">Project Attachees</h2>
-                <p class="text-sm text-gray-500 mt-1">Click on an attachee to view their details, tasks, and evaluations</p>
-              </div>
-
-              <%= if filtered_attachees(@attachees, @search_query) == [] do %>
-                <div class="p-12 text-center">
-                  <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                  </svg>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No attachees found</h3>
-                  <p class="text-gray-500 mb-4">Add attachees to this project to get started</p>
-                  <button
-                    phx-click="open_add_modal"
-                    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
-                  >
-                    Add Your First Attachee
-                  </button>
+            <%= if @active_tab == "attachees" do %>
+              <!-- Attachees Tab -->
+              <!-- Actions & Search Bar -->
+              <div class="flex items-center gap-4 bg-white px-6 pt-6">
+                <div class="flex-1">
+                  <form phx-change="search" class="relative">
+                    <svg
+                      class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                    <input
+                      type="text"
+                      name="query"
+                      value={@search_query}
+                      placeholder="Search attachees..."
+                      class="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    />
+                  </form>
                 </div>
-              <% else %>
-                <div class="divide-y divide-gray-200">
-                  <%= for attachee <- filtered_attachees(@attachees, @search_query) do %>
-                    <div class="p-4 hover:bg-gray-50 transition-colors">
-                      <div class="flex items-start justify-between">
-                        <.link
-                          navigate={~p"/admin/eams/programs/#{@program.id}/projects/#{@project.id}/attachees/#{attachee.id}"}
-                          class="flex-1 group"
-                        >
-                          <div class="flex items-start gap-3">
-                            <!-- Avatar -->
-                            <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                              <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user && attachee.user.username do %>
-                                <%= String.first(attachee.user.username) |> String.upcase() %>
-                              <% else %>
-                                A
-                              <% end %>
-                            </div>
+                <button
+                  phx-click="open_add_modal"
+                  class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add Attachee
+                </button>
+              </div>
+              
+    <!-- Attachees List -->
+              <div class="bg-white rounded-b-xl shadow overflow-hidden border border-gray-200 border-t-0">
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <h2 class="text-lg font-semibold text-gray-900">Project Attachees</h2>
+                  <p class="text-sm text-gray-500 mt-1">
+                    Click on an attachee to view their details, tasks, and evaluations
+                  </p>
+                </div>
 
-                            <div class="flex-1">
-                              <div class="flex items-center gap-2 mb-1">
-                                <h3 class="text-base font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
-                                  <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user do %>
-                                    <%= attachee.user.username || attachee.user.email %>
-                                  <% else %>
-                                    Attachee #<%= attachee.id %>
-                                  <% end %>
-                                </h3>
-
-                                <%!-- Status Badge --%>
-                                <%= case attachee_status(attachee) do %>
-                                  <% :active -> %>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                      Active
-                                    </span>
-                                  <% :suspended -> %>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                      Suspended
-                                    </span>
-                                  <% :completed -> %>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      Completed
-                                    </span>
-                                <% end %>
-                              </div>
-
-                              <p class="text-sm text-gray-600 mb-2"><%= attachee.position %></p>
-
-                              <div class="flex items-center gap-4 text-sm text-gray-500">
-                                <%= if attachee.starts_on do %>
-                                  <div class="flex items-center gap-1.5">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span>Started: <%= Calendar.strftime(attachee.starts_on, "%b %d, %Y") %></span>
-                                  </div>
-                                <% end %>
-
-                                <%= if Ecto.assoc_loaded?(attachee.department) && attachee.department do %>
-                                  <div class="flex items-center gap-1.5">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                    </svg>
-                                    <span><%= attachee.department.name %></span>
-                                  </div>
-                                <% end %>
-                              </div>
-                            </div>
-                          </div>
-                        </.link>
-
-                        <!-- Actions -->
-                        <div class="flex items-center gap-2 ml-4">
+                <%= if filtered_attachees(@attachees, @search_query) == [] do %>
+                  <div class="p-12 text-center">
+                    <svg
+                      class="w-16 h-16 mx-auto text-gray-300 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No attachees found</h3>
+                    <p class="text-gray-500 mb-4">Add attachees to this project to get started</p>
+                    <button
+                      phx-click="open_add_modal"
+                      class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    >
+                      Add Your First Attachee
+                    </button>
+                  </div>
+                <% else %>
+                  <div class="divide-y divide-gray-200">
+                    <%= for attachee <- filtered_attachees(@attachees, @search_query) do %>
+                      <div class="p-4 hover:bg-gray-50 transition-colors">
+                        <div class="flex items-start justify-between">
                           <.link
-                            navigate={~p"/admin/eams/programs/#{@program.id}/projects/#{@project.id}/attachees/#{attachee.id}"}
-                            class="p-2 hover:bg-purple-50 rounded-lg text-purple-600 transition"
-                            title="View Details"
+                            navigate={
+                              ~p"/admin/eams/programs/#{@program.id}/projects/#{@project.id}/attachees/#{attachee.id}"
+                            }
+                            class="flex-1 group"
                           >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                          </.link>
+                            <div class="flex items-start gap-3">
+                              <!-- Avatar -->
+                              <div class="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user && attachee.user.username do %>
+                                  {String.first(attachee.user.username) |> String.upcase()}
+                                <% else %>
+                                  A
+                                <% end %>
+                              </div>
 
-                          <button
-                            phx-click="remove_attachee"
-                            phx-value-id={attachee.id}
-                            data-confirm="Remove this attachee from the project?"
-                            class="p-2 hover:bg-red-50 rounded-lg text-red-600 transition"
-                            title="Remove from Project"
-                          >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                          </button>
+                              <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                  <h3 class="text-base font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                                    <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user do %>
+                                      {attachee.user.username || attachee.user.email}
+                                    <% else %>
+                                      Attachee #{attachee.id}
+                                    <% end %>
+                                  </h3>
+
+                                  <%!-- Status Badge --%>
+                                  <%= case attachee_status(attachee) do %>
+                                    <% :active -> %>
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                      </span>
+                                    <% :suspended -> %>
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                        Suspended
+                                      </span>
+                                    <% :completed -> %>
+                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Completed
+                                      </span>
+                                  <% end %>
+                                </div>
+
+                                <p class="text-sm text-gray-600 mb-2">{attachee.position}</p>
+
+                                <div class="flex items-center gap-4 text-sm text-gray-500">
+                                  <%= if attachee.starts_on do %>
+                                    <div class="flex items-center gap-1.5">
+                                      <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                          stroke-width="2"
+                                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                      <span>
+                                        Started: {Calendar.strftime(attachee.starts_on, "%b %d, %Y")}
+                                      </span>
+                                    </div>
+                                  <% end %>
+
+                                  <%= if Ecto.assoc_loaded?(attachee.department) && attachee.department do %>
+                                    <div class="flex items-center gap-1.5">
+                                      <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                          stroke-width="2"
+                                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                        />
+                                      </svg>
+                                      <span>{attachee.department.name}</span>
+                                    </div>
+                                  <% end %>
+                                </div>
+                              </div>
+                            </div>
+                          </.link>
+                          
+    <!-- Actions -->
+                          <div class="flex items-center gap-2 ml-4">
+                            <.link
+                              navigate={
+                                ~p"/admin/eams/programs/#{@program.id}/projects/#{@project.id}/attachees/#{attachee.id}"
+                              }
+                              class="p-2 hover:bg-purple-50 rounded-lg text-purple-600 transition"
+                              title="View Details"
+                            >
+                              <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            </.link>
+
+                            <button
+                              phx-click="remove_attachee"
+                              phx-value-id={attachee.id}
+                              data-confirm="Remove this attachee from the project?"
+                              class="p-2 hover:bg-red-50 rounded-lg text-red-600 transition"
+                              title="Remove from Project"
+                            >
+                              <svg
+                                class="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  <% end %>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <!-- Tasks Tab -->
+              <div class="bg-white rounded-b-xl shadow border border-gray-200 border-t-0">
+                <div class="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+                  <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Project Tasks</h2>
+                    <p class="text-sm text-gray-500 mt-1">Manage tasks for this project</p>
+                  </div>
+                  <button
+                    phx-click="open_create_task_modal"
+                    class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition shadow"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Create Task
+                  </button>
                 </div>
-              <% end %>
-            </div>
+
+                <%= if Enum.empty?(@tasks) do %>
+                  <div class="p-12 text-center">
+                    <svg
+                      class="w-16 h-16 mx-auto text-gray-300 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                      />
+                    </svg>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
+                    <p class="text-gray-500 mb-4">Create your first task for this project</p>
+                    <button
+                      phx-click="open_create_task_modal"
+                      class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                    >
+                      Create First Task
+                    </button>
+                  </div>
+                <% else %>
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Title
+                          </th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assigned To
+                          </th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Due Date
+                          </th>
+                          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <%= for task <- @tasks do %>
+                          <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                              <div class="text-sm font-medium text-gray-900">{task.title}</div>
+                              <%= if task.description do %>
+                                <div class="text-sm text-gray-500 line-clamp-1">
+                                  {task.description}
+                                </div>
+                              <% end %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                              <%= if task.assignee do %>
+                                <span class="text-sm text-gray-900">
+                                  {task.assignee.user.username || task.assignee.user.email}
+                                </span>
+                              <% else %>
+                                <span class="text-sm text-gray-400">Unassigned</span>
+                              <% end %>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                              <span class={"px-2 py-1 text-xs font-medium rounded-full #{task_status_color(task.status)}"}>
+                                {String.capitalize(task.status)}
+                              </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {if task.due_on,
+                                do: Calendar.strftime(task.due_on, "%b %d, %Y"),
+                                else: "-"}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                              <button
+                                phx-click="delete_task"
+                                phx-value-task-id={task.id}
+                                data-confirm="Delete this task?"
+                                class="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
           </div>
         </main>
       </div>
     </div>
+
+    <%!-- Create Task Modal --%>
+    <%= if @show_create_task_modal do %>
+      <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl w-full max-w-2xl shadow-xl">
+          <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-xl font-bold text-gray-900">Create New Task</h2>
+            <button
+              phx-click="close_create_task_modal"
+              class="text-gray-400 hover:text-gray-600 transition"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <.form for={@task_changeset} phx-submit="create_task" class="p-6 space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
+              <.input field={@task_changeset[:title]} type="text" required class="w-full" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+              <.input field={@task_changeset[:description]} type="textarea" rows="3" class="w-full" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Assign To</label>
+              <.input
+                field={@task_changeset[:assignee_id]}
+                type="select"
+                options={
+                  [{"Unassigned", ""}] ++
+                    Enum.map(@attachees, &{&1.user.username || &1.user.email, &1.id})
+                }
+                class="w-full"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">Due Date</label>
+              <.input field={@task_changeset[:due_on]} type="date" class="w-full" />
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4 border-t">
+              <button
+                type="button"
+                phx-click="close_create_task_modal"
+                class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Create Task
+              </button>
+            </div>
+          </.form>
+        </div>
+      </div>
+    <% end %>
 
     <%!-- Add Attachee Modal --%>
     <%= if @show_add_modal do %>
@@ -398,17 +789,32 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
             </div>
             <button phx-click="close_add_modal" class="text-gray-400 hover:text-gray-600 transition">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
-
-          <!-- Modal Body -->
+          
+    <!-- Modal Body -->
           <div class="px-6 py-6">
             <%= if @available_attachees == [] do %>
               <div class="text-center py-8">
-                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                <svg
+                  class="w-16 h-16 mx-auto text-gray-300 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
                 </svg>
                 <p class="text-gray-500">All available attachees are already in this project</p>
               </div>
@@ -426,8 +832,8 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                     class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-
-                <!-- Attachee Selection -->
+                
+    <!-- Attachee Selection -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">Select Attachee</label>
                   <div class="max-h-64 overflow-y-auto border border-gray-300 rounded-lg divide-y divide-gray-200">
@@ -445,12 +851,12 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
                         <div class="flex-1">
                           <div class="font-medium text-gray-900">
                             <%= if Ecto.assoc_loaded?(attachee.user) && attachee.user do %>
-                              <%= attachee.user.username || attachee.user.email %>
+                              {attachee.user.username || attachee.user.email}
                             <% else %>
-                              Attachee #<%= attachee.id %>
+                              Attachee #{attachee.id}
                             <% end %>
                           </div>
-                          <div class="text-sm text-gray-500"><%= attachee.position %></div>
+                          <div class="text-sm text-gray-500">{attachee.position}</div>
                         </div>
                       </label>
                     <% end %>
@@ -459,8 +865,8 @@ defmodule TrialAppWeb.AdminLive.ProjectShow do
               </div>
             <% end %>
           </div>
-
-          <!-- Modal Footer -->
+          
+    <!-- Modal Footer -->
           <%= if @available_attachees != [] do %>
             <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
               <button
