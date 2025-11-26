@@ -850,13 +850,7 @@ defmodule TrialApp.Accounts do
   Checks if a user has a specific permission.
   Preloads role and permissions if not already loaded.
 
-  ## Examples
 
-      iex> has_permission?(user, "manage_users")
-      true
-
-      iex> has_permission?(user, "invalid_permission")
-      false
   """
   def has_permission?(%User{} = user, permission_slug) when is_binary(permission_slug) do
     user = user |> Repo.preload(role: :permissions)
@@ -875,10 +869,7 @@ defmodule TrialApp.Accounts do
   @doc """
   Checks if a user has ANY of the given permissions.
 
-  ## Examples
 
-      iex> has_any_permission?(user, ["manage_users", "view_users"])
-      true
   """
   def has_any_permission?(%User{} = user, permission_slugs) when is_list(permission_slugs) do
     Enum.any?(permission_slugs, &has_permission?(user, &1))

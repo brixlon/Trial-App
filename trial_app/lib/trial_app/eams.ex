@@ -628,6 +628,13 @@ defmodule TrialApp.Eams do
           end
         end
 
+        # Broadcast task creation for real-time dashboard updates
+        Phoenix.PubSub.broadcast(
+          TrialApp.PubSub,
+          "tasks",
+          {:task_updated, task}
+        )
+
         {:ok, task}
 
       error ->
@@ -636,9 +643,25 @@ defmodule TrialApp.Eams do
   end
 
   def update_task(%Task{} = task, attrs) do
-    task
-    |> Task.update_changeset(attrs)
-    |> Repo.update()
+    result =
+      task
+      |> Task.update_changeset(attrs)
+      |> Repo.update()
+
+    # Broadcast task update for real-time dashboard updates
+    case result do
+      {:ok, updated_task} ->
+        Phoenix.PubSub.broadcast(
+          TrialApp.PubSub,
+          "tasks",
+          {:task_updated, updated_task}
+        )
+
+        {:ok, updated_task}
+
+      error ->
+        error
+    end
   end
 
   def delete_task(%Task{} = task), do: Repo.delete(task)

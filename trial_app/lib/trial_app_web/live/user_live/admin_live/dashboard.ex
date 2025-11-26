@@ -4,10 +4,33 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Subscribe to activity updates for real-time notifications
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(TrialApp.PubSub, "activity_logs")
+      # Schedule periodic refresh every 30 seconds as fallback
+      schedule_activity_refresh()
+    end
+
     {:ok, assign_dashboard_data(socket)}
   end
 
   @impl true
+  def handle_info(:refresh_activity, socket) do
+    # Refresh activity data
+    recent_activity = TrialApp.ActivityLogs.list_recent_activity(10)
+
+    # Schedule next refresh
+    schedule_activity_refresh()
+
+    {:noreply, assign(socket, :recent_activity, recent_activity)}
+  end
+
+  def handle_info({:activity_created, _activity}, socket) do
+    # Reload activity when new activity is broadcast
+    recent_activity = TrialApp.ActivityLogs.list_recent_activity(10)
+    {:noreply, assign(socket, :recent_activity, recent_activity)}
+  end
+
   def handle_info({:switch_role, new_role}, socket) do
     user = socket.assigns.current_scope.user
 
@@ -43,6 +66,11 @@ defmodule TrialAppWeb.AdminLive.Dashboard do
          socket
          |> put_flash(:error, "Failed to switch role")}
     end
+  end
+
+  # Schedule activity refresh every 30 seconds
+  defp schedule_activity_refresh do
+    Process.send_after(self(), :refresh_activity, 30_000)
   end
 
   # Helper function to assign stats

@@ -9,6 +9,13 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
     current_scope = socket.assigns.current_scope
     active_role = Accounts.get_active_role(current_user)
 
+    # Subscribe to task updates for real-time activity feed
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(TrialApp.PubSub, "tasks")
+      # Schedule periodic refresh every 30 seconds as fallback
+      schedule_activity_refresh()
+    end
+
     {:ok,
      socket
      |> assign(:page_title, "Supervisor Dashboard")
@@ -193,6 +200,59 @@ defmodule TrialAppWeb.SupervisorLive.Dashboard do
      |> load_data(user, role)
      |> put_flash(:info, "Task created!")
      |> assign(:show_task_form, false)}
+  end
+
+  def handle_info(:refresh_activity, socket) do
+    # Refresh activity data
+    user = socket.assigns.current_user
+    role = socket.assigns.active_role
+
+    # Reload only the activities
+    all_tasks =
+      if role == "admin" do
+        Eams.list_tasks(%{preloads: [:project, assignee: :user]})
+      else
+        Eams.list_tasks_for_supervisor(user.id)
+      end
+
+    recent_activities =
+      if role == "admin" do
+        load_recent_activities_for_admin(all_tasks)
+      else
+        load_recent_activities(all_tasks)
+      end
+
+    # Schedule next refresh
+    schedule_activity_refresh()
+
+    {:noreply, assign(socket, :recent_activities, recent_activities)}
+  end
+
+  def handle_info({:task_updated, _task}, socket) do
+    # Reload activities when a task is updated
+    user = socket.assigns.current_user
+    role = socket.assigns.active_role
+
+    all_tasks =
+      if role == "admin" do
+        Eams.list_tasks(%{preloads: [:project, assignee: :user]})
+      else
+        Eams.list_tasks_for_supervisor(user.id)
+      end
+
+    recent_activities =
+      if role == "admin" do
+        load_recent_activities_for_admin(all_tasks)
+      else
+        load_recent_activities(all_tasks)
+      end
+
+    {:noreply, assign(socket, :recent_activities, recent_activities)}
+  end
+
+  # Schedule activity refresh every 30 seconds
+  defp schedule_activity_refresh do
+    Process.send_after(self(), :refresh_activity, 30_000)
   end
 
   # ─── HELPERS ───

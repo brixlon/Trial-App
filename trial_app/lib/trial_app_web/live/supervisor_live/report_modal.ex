@@ -210,6 +210,7 @@ defmodule TrialAppWeb.SupervisorLive.ReportModal do
 
   # New function to handle multiple actions
   defp handle_multiple_actions(socket, report) do
+    # Reset generating state FIRST to ensure buttons work
     socket = assign(socket, :generating, false)
 
     # Handle send to profile
