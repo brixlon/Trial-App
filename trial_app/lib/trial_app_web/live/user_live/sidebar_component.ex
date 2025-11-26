@@ -131,20 +131,20 @@ defmodule TrialAppWeb.SidebarComponent do
         x-bind:class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
       >
         <div class="p-4 space-y-4">
-          <div class="flex items-center justify-between">
-            <!-- Toggle Button - Smaller -->
+          <!-- Close Button - INSIDE sidebar, visible when OPEN -->
+          <div class="flex items-center justify-end">
             <button
-              @click="sidebarOpen = !sidebarOpen"
+              @click="sidebarOpen = false"
               type="button"
               class="text-purple-600 hover:text-purple-700 hover:bg-purple-50 p-1.5 rounded-lg transition-all"
-              title="Toggle Sidebar"
+              title="Close Sidebar"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                  d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
             </button>
@@ -700,8 +700,8 @@ defmodule TrialAppWeb.SidebarComponent do
           </ul>
         </nav>
 
-        <div class="p-6 flex-shrink-0">
-          <div class="p-4 bg-white/80 rounded-xl border border-purple-200 shadow-md backdrop-blur-sm">
+        <div class="p-4 flex-shrink-0">
+          <div class="p-3 bg-white/80 rounded-xl border border-purple-200 shadow-md backdrop-blur-sm">
             <div class="flex items-center space-x-3">
               <div class="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center">
                 <span class="text-purple-700 font-bold text-sm">
@@ -713,17 +713,9 @@ defmodule TrialAppWeb.SidebarComponent do
                 <p class="text-sm font-semibold text-gray-800 truncate">
                   {@current_scope.user.username || @current_scope.user.email}
                 </p>
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm group-hover:scale-105 transition-transform">
-                    {String.first(@current_scope.active_role) |> String.upcase()}
-                  </div>
-                  <div class="text-left">
-                    <div class="text-xs text-gray-500 font-medium">Current Role</div>
-                    <div class="text-sm font-bold text-gray-800">
-                      {String.capitalize(@current_scope.active_role)}
-                    </div>
-                  </div>
-                </div>
+                <p class="text-xs text-gray-500 truncate">
+                  {@current_scope.user.email}
+                </p>
               </div>
             </div>
           </div>
@@ -736,6 +728,7 @@ defmodule TrialAppWeb.SidebarComponent do
         type="button"
         class="fixed top-20 left-2 z-50 bg-purple-600 text-white p-1.5 rounded-md shadow-lg hover:bg-purple-700 transition-all hover:scale-110"
         x-show="!sidebarOpen"
+        x-cloak
         x-transition
         title="Open Sidebar"
       >
