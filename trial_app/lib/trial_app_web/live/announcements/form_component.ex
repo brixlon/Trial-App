@@ -103,7 +103,7 @@ defmodule TrialAppWeb.AnnouncementLive.FormComponent do
       category: category,
       priority: priority,
       pinned: pinned == "true",
-      publish_date: DateTime.utc_now(),
+      publish_date: DateTime.utc_now() |> DateTime.truncate(:second),
       creator_id: socket.assigns.current_user.id,
       creator_role: socket.assigns.active_role
     }

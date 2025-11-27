@@ -701,7 +701,7 @@ defmodule TrialApp.Eams do
     # Prepare update attributes
     update_attrs = %{
       status: "submitted",
-      submitted_at: DateTime.utc_now(),
+      submitted_at: DateTime.utc_now() |> DateTime.truncate(:second),
       reject_reason: nil,
       submission_comment: comment,
       submission_links: links,
@@ -737,6 +737,17 @@ defmodule TrialApp.Eams do
     |> Task.changeset(%{
       status: "completed"
     })
+    |> Repo.update()
+  end
+
+  @doc """
+  Rate a task with a score and comment.
+  """
+  def rate_attachee_task(task_id, attrs, rater) do
+    task = get_task!(task_id, %{preloads: [:project, :assignee]})
+
+    task
+    |> Task.rate_task(attrs, rater)
     |> Repo.update()
   end
 

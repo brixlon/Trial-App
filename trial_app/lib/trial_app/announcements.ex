@@ -7,7 +7,14 @@ defmodule TrialApp.Announcements do
 
   import Ecto.Query, warn: false
   alias TrialApp.Repo
-  alias TrialApp.Announcements.{Announcement, AnnouncementTarget, AnnouncementRead, AnnouncementLink}
+
+  alias TrialApp.Announcements.{
+    Announcement,
+    AnnouncementTarget,
+    AnnouncementRead,
+    AnnouncementLink
+  }
+
   alias TrialApp.Eams
   alias TrialApp.Accounts.User
 
@@ -24,78 +31,83 @@ defmodule TrialApp.Announcements do
       |> join(:inner, [a], t in assoc(a, :targets))
 
     # Build role-specific conditions
-    final_query = case user_role do
-      "attachee" ->
-        case Eams.get_attachee_by_user(user_id) do
-          nil ->
-            # No attachee profile - only "everyone" announcements
-            base_query
-            |> where([a, t], t.target_type == "everyone")
-
-          attachee ->
-            # Has attachee profile - get their projects
-            projects = Eams.list_projects_for_attachee(attachee.id)
-            project_ids = Enum.map(projects, & to_string(&1.id))
-            attachee_id_str = to_string(attachee.id)
-
-            # Build conditions for attachees
-            if project_ids == [] do
-              # No projects assigned
+    final_query =
+      case user_role do
+        "attachee" ->
+          case Eams.get_attachee_by_user(user_id) do
+            nil ->
+              # No attachee profile - only "everyone" announcements
               base_query
-              |> where([a, t],
-                t.target_type == "everyone" or
-                t.target_type == "all_attachees" or
-                (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str)
-              )
-            else
-              # Has projects assigned
-              base_query
-              |> where([a, t],
-                t.target_type == "everyone" or
-                t.target_type == "all_attachees" or
-                (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str) or
-                (t.target_type == "project" and t.target_id in ^project_ids)
-              )
-            end
-        end
+              |> where([a, t], t.target_type == "everyone")
 
-      "supervisor" ->
-        user_id_str = to_string(user_id)
+            attachee ->
+              # Has attachee profile - get their projects
+              projects = Eams.list_projects_for_attachee(attachee.id)
+              project_ids = Enum.map(projects, &to_string(&1.id))
+              attachee_id_str = to_string(attachee.id)
 
-        base_query
-        |> where([a, t],
-          t.target_type == "everyone" or
-          t.target_type == "all_supervisors" or
-          (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
-        )
+              # Build conditions for attachees
+              if project_ids == [] do
+                # No projects assigned
+                base_query
+                |> where(
+                  [a, t],
+                  t.target_type == "everyone" or
+                    t.target_type == "all_attachees" or
+                    (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str)
+                )
+              else
+                # Has projects assigned
+                base_query
+                |> where(
+                  [a, t],
+                  t.target_type == "everyone" or
+                    t.target_type == "all_attachees" or
+                    (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str) or
+                    (t.target_type == "project" and t.target_id in ^project_ids)
+                )
+              end
+          end
 
-      "admin" ->
-        user_id_str = to_string(user_id)
+        "supervisor" ->
+          user_id_str = to_string(user_id)
 
-        base_query
-        |> where([a, t],
-          t.target_type == "everyone" or
-          t.target_type == "all_supervisors" or
-          t.target_type == "all_attachees" or
-          (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
-        )
+          base_query
+          |> where(
+            [a, t],
+            t.target_type == "everyone" or
+              t.target_type == "all_supervisors" or
+              (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
+          )
 
-      _ ->
-        # Other roles - only "everyone" announcements
-        base_query
-        |> where([a, t], t.target_type == "everyone")
-    end
+        "admin" ->
+          user_id_str = to_string(user_id)
+
+          base_query
+          |> where(
+            [a, t],
+            t.target_type == "everyone" or
+              t.target_type == "all_supervisors" or
+              t.target_type == "all_attachees" or
+              (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
+          )
+
+        _ ->
+          # Other roles - only "everyone" announcements
+          base_query
+          |> where([a, t], t.target_type == "everyone")
+      end
 
     final_query
     |> distinct(true)
-    |> order_by([a], [desc: a.pinned, desc: a.priority, desc: a.publish_date])
+    |> order_by([a], desc: a.pinned, desc: a.priority, desc: a.publish_date)
     |> preload([:creator, :targets, :links])
     |> Repo.all()
   end
 
   def list_all_announcements do
     Announcement
-    |> order_by([a], [desc: a.publish_date])
+    |> order_by([a], desc: a.publish_date)
     |> preload([:creator, :targets, :links])
     |> Repo.all()
   end
@@ -106,8 +118,8 @@ defmodule TrialApp.Announcements do
     # Subquery for read announcements
     read_subquery =
       from ar in AnnouncementRead,
-      where: ar.user_id == ^user_id,
-      select: ar.announcement_id
+        where: ar.user_id == ^user_id,
+        select: ar.announcement_id
 
     # Base query
     base_query =
@@ -118,67 +130,72 @@ defmodule TrialApp.Announcements do
       |> join(:inner, [a], t in assoc(a, :targets))
 
     # Build role-specific conditions
-    final_query = case user_role do
-      "attachee" ->
-        case Eams.get_attachee_by_user(user_id) do
-          nil ->
-            # No attachee profile - only "everyone" announcements
-            base_query
-            |> where([a, t], t.target_type == "everyone")
-
-          attachee ->
-            # Has attachee profile - get their projects
-            projects = Eams.list_projects_for_attachee(attachee.id)
-            project_ids = Enum.map(projects, & to_string(&1.id))
-            attachee_id_str = to_string(attachee.id)
-
-            # Build conditions for attachees
-            if project_ids == [] do
-              # No projects assigned
+    final_query =
+      case user_role do
+        "attachee" ->
+          case Eams.get_attachee_by_user(user_id) do
+            nil ->
+              # No attachee profile - only "everyone" announcements
               base_query
-              |> where([a, t],
-                t.target_type == "everyone" or
-                t.target_type == "all_attachees" or
-                (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str)
-              )
-            else
-              # Has projects assigned
-              base_query
-              |> where([a, t],
-                t.target_type == "everyone" or
-                t.target_type == "all_attachees" or
-                (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str) or
-                (t.target_type == "project" and t.target_id in ^project_ids)
-              )
-            end
-        end
+              |> where([a, t], t.target_type == "everyone")
 
-      "supervisor" ->
-        user_id_str = to_string(user_id)
+            attachee ->
+              # Has attachee profile - get their projects
+              projects = Eams.list_projects_for_attachee(attachee.id)
+              project_ids = Enum.map(projects, &to_string(&1.id))
+              attachee_id_str = to_string(attachee.id)
 
-        base_query
-        |> where([a, t],
-          t.target_type == "everyone" or
-          t.target_type == "all_supervisors" or
-          (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
-        )
+              # Build conditions for attachees
+              if project_ids == [] do
+                # No projects assigned
+                base_query
+                |> where(
+                  [a, t],
+                  t.target_type == "everyone" or
+                    t.target_type == "all_attachees" or
+                    (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str)
+                )
+              else
+                # Has projects assigned
+                base_query
+                |> where(
+                  [a, t],
+                  t.target_type == "everyone" or
+                    t.target_type == "all_attachees" or
+                    (t.target_type == "specific_attachee" and t.target_id == ^attachee_id_str) or
+                    (t.target_type == "project" and t.target_id in ^project_ids)
+                )
+              end
+          end
 
-      "admin" ->
-        user_id_str = to_string(user_id)
+        "supervisor" ->
+          user_id_str = to_string(user_id)
 
-        base_query
-        |> where([a, t],
-          t.target_type == "everyone" or
-          t.target_type == "all_supervisors" or
-          t.target_type == "all_attachees" or
-          (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
-        )
+          base_query
+          |> where(
+            [a, t],
+            t.target_type == "everyone" or
+              t.target_type == "all_supervisors" or
+              (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
+          )
 
-      _ ->
-        # Other roles - only "everyone" announcements
-        base_query
-        |> where([a, t], t.target_type == "everyone")
-    end
+        "admin" ->
+          user_id_str = to_string(user_id)
+
+          base_query
+          |> where(
+            [a, t],
+            t.target_type == "everyone" or
+              t.target_type == "all_supervisors" or
+              t.target_type == "all_attachees" or
+              (t.target_type == "specific_supervisor" and t.target_id == ^user_id_str)
+          )
+
+        _ ->
+          # Other roles - only "everyone" announcements
+          base_query
+          |> where([a, t], t.target_type == "everyone")
+      end
 
     final_query
     |> distinct(true)
@@ -212,7 +229,6 @@ defmodule TrialApp.Announcements do
              announcement
              |> Announcement.changeset(attrs)
              |> Repo.update() do
-
         # Update targets if provided
         if targets do
           delete_announcement_targets(announcement.id)
@@ -251,7 +267,9 @@ defmodule TrialApp.Announcements do
       end)
 
     case targets_to_insert do
-      [] -> {:ok, []}
+      [] ->
+        {:ok, []}
+
       _ ->
         Repo.insert_all(AnnouncementTarget, targets_to_insert)
         {:ok, targets_to_insert}
@@ -278,7 +296,9 @@ defmodule TrialApp.Announcements do
       end)
 
     case links_to_insert do
-      [] -> {:ok, []}
+      [] ->
+        {:ok, []}
+
       _ ->
         Repo.insert_all(AnnouncementLink, links_to_insert)
         {:ok, links_to_insert}
@@ -297,7 +317,7 @@ defmodule TrialApp.Announcements do
     |> AnnouncementRead.changeset(%{
       announcement_id: announcement_id,
       user_id: user_id,
-      read_at: DateTime.utc_now()
+      read_at: DateTime.utc_now() |> DateTime.truncate(:second)
     })
     |> Repo.insert(on_conflict: :nothing)
   end
@@ -318,36 +338,43 @@ defmodule TrialApp.Announcements do
     # Broadcast options
     broadcast_options = [
       %{value: "everyone", label: "🌐 Everyone", description: "All supervisors and attachees"},
-      %{value: "all_supervisors", label: "📋 All Supervisors", description: "Send to all supervisors"},
+      %{
+        value: "all_supervisors",
+        label: "📋 All Supervisors",
+        description: "Send to all supervisors"
+      },
       %{value: "all_attachees", label: "👥 All Attachees", description: "Send to all attachees"}
     ]
 
     # Project-based options
-    project_options = Enum.map(projects, fn project ->
-      %{
-        value: "project_#{project.id}",
-        label: "📁 Project: #{project.name}",
-        description: "All attachees in this project"
-      }
-    end)
+    project_options =
+      Enum.map(projects, fn project ->
+        %{
+          value: "project_#{project.id}",
+          label: "📁 Project: #{project.name}",
+          description: "All attachees in this project"
+        }
+      end)
 
     # Individual supervisors
-    supervisor_options = Enum.map(supervisors, fn user ->
-      %{
-        value: "supervisor_#{user.id}",
-        label: "👤 #{user.username || user.email}",
-        description: "Supervisor"
-      }
-    end)
+    supervisor_options =
+      Enum.map(supervisors, fn user ->
+        %{
+          value: "supervisor_#{user.id}",
+          label: "👤 #{user.username || user.email}",
+          description: "Supervisor"
+        }
+      end)
 
     # Individual attachees
-    attachee_options = Enum.map(attachees, fn attachee ->
-      %{
-        value: "attachee_#{attachee.id}",
-        label: "👤 #{attachee.user.username || attachee.user.email}",
-        description: "Attachee - #{attachee.position}"
-      }
-    end)
+    attachee_options =
+      Enum.map(attachees, fn attachee ->
+        %{
+          value: "attachee_#{attachee.id}",
+          label: "👤 #{attachee.user.username || attachee.user.email}",
+          description: "Attachee - #{attachee.position}"
+        }
+      end)
 
     broadcast_options ++ project_options ++ supervisor_options ++ attachee_options
   end
@@ -362,22 +389,24 @@ defmodule TrialApp.Announcements do
     ]
 
     # Project-based options
-    project_options = Enum.map(projects, fn project ->
-      %{
-        value: "project_#{project.id}",
-        label: "📁 Project: #{project.name}",
-        description: "All attachees in this project"
-      }
-    end)
+    project_options =
+      Enum.map(projects, fn project ->
+        %{
+          value: "project_#{project.id}",
+          label: "📁 Project: #{project.name}",
+          description: "All attachees in this project"
+        }
+      end)
 
     # Individual attachees
-    attachee_options = Enum.map(attachees, fn attachee ->
-      %{
-        value: "attachee_#{attachee.id}",
-        label: "👤 #{attachee.user.username || attachee.user.email}",
-        description: "Attachee - #{attachee.position}"
-      }
-    end)
+    attachee_options =
+      Enum.map(attachees, fn attachee ->
+        %{
+          value: "attachee_#{attachee.id}",
+          label: "👤 #{attachee.user.username || attachee.user.email}",
+          description: "Attachee - #{attachee.position}"
+        }
+      end)
 
     broadcast_options ++ project_options ++ attachee_options
   end

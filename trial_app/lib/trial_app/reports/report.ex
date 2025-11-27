@@ -61,12 +61,12 @@ defmodule TrialApp.Reports.Report do
   @doc "Mark report as sent"
   def send_changeset(report) do
     report
-    |> change(%{status: "sent", sent_at: DateTime.utc_now()})
+    |> change(%{status: "sent", sent_at: DateTime.utc_now() |> DateTime.truncate(:second)})
   end
 
   @doc "Mark report as viewed"
   def view_changeset(report) do
     report
-    |> change(%{status: "viewed", viewed_at: DateTime.utc_now()})
+    |> change(%{status: "viewed", viewed_at: DateTime.utc_now() |> DateTime.truncate(:second)})
   end
 end

@@ -1,7 +1,6 @@
 defmodule TrialApp.Reports.ReportHTMLTest do
   use ExUnit.Case, async: true
   alias TrialApp.Reports.ReportHTML
-  import Phoenix.LiveViewTest
 
   test "renders report structure" do
     assigns = %{
@@ -28,8 +27,24 @@ defmodule TrialApp.Reports.ReportHTMLTest do
       include_tasks: true,
       tasks: [%{id: 1, title: "Task 1", status: "completed"}],
       task_scores: %{1 => %{score: 90}},
+      monthly_tasks: [
+        {1,
+         [
+           %{
+             id: 1,
+             title: "Task 1",
+             status: "completed",
+             rating: "meets_expectations",
+             rating_comment: "Good work"
+           }
+         ]}
+      ],
+      month_1_score: 85,
+      month_2_score: 0,
+      month_3_score: 0,
+      total_score: 85,
       include_evaluations: true,
-      evaluations: [
+      filtered_evals: [
         %{
           evaluator: %{username: "Supervisor"},
           inserted_at: ~N[2023-01-15 10:00:00],
@@ -37,7 +52,8 @@ defmodule TrialApp.Reports.ReportHTMLTest do
           comments: "Good job"
         }
       ],
-      custom_comments: "Keep it up"
+      custom_comments: "Keep it up",
+      comments: "Keep it up"
     }
 
     html = Phoenix.Template.render_to_string(ReportHTML, "report", "html", assigns)
@@ -48,6 +64,6 @@ defmodule TrialApp.Reports.ReportHTMLTest do
     assert html =~ "85.5"
     assert html =~ "Project A"
     assert html =~ "Task 1"
-    assert html =~ "Good job"
+    assert html =~ "Keep it up"
   end
 end

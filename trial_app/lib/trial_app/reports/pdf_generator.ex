@@ -87,6 +87,26 @@ defmodule TrialApp.Reports.PdfGenerator do
 
     filtered_tasks = filter_by_period(data.tasks, data.period_start, data.period_end)
 
+    # Calculate monthly breakdowns
+    monthly_tasks = categorize_tasks_by_month(filtered_tasks, data.attachee.starts_on)
+
+    # Get evaluation scores if available (assuming passed in data.stats or similar)
+    # For now using placeholders or data from evaluation object if available
+    {month_1_score, month_2_score, month_3_score, total_score} =
+      if data.evaluations && length(data.evaluations) > 0 do
+        # Assuming sorted desc
+        latest_eval = List.first(data.evaluations)
+
+        {
+          latest_eval.month_1_score,
+          latest_eval.month_2_score,
+          latest_eval.month_3_score,
+          latest_eval.score
+        }
+      else
+        {0, 0, 0, 0}
+      end
+
     filtered_evals =
       filter_evaluations_by_period(data.evaluations, data.period_start, data.period_end)
 
@@ -125,13 +145,47 @@ defmodule TrialApp.Reports.PdfGenerator do
       projects: data.projects,
       include_tasks: data.include_tasks,
       filtered_tasks: filtered_tasks,
+      # NEW
+      monthly_tasks: monthly_tasks,
+      # NEW
+      month_1_score: month_1_score,
+      # NEW
+      month_2_score: month_2_score,
+      # NEW
+      month_3_score: month_3_score,
+      # NEW
+      total_score: total_score,
       task_scores: data.task_scores,
       include_evaluations: data.include_evaluations,
       filtered_evals: filtered_evals,
-      custom_comments: data.custom_comments
+      custom_comments: data.custom_comments,
+      # Alias for compatibility
+      comments: data.custom_comments
     }
 
     Phoenix.Template.render_to_string(ReportHTML, "report", "html", assigns)
+  end
+
+  defp categorize_tasks_by_month(tasks, start_date) do
+    tasks
+    |> Enum.group_by(fn task ->
+      task_date = extract_date(task.inserted_at)
+
+      if start_date && task_date do
+        diff_days = Date.diff(task_date, start_date)
+
+        cond do
+          diff_days <= 30 -> 1
+          diff_days <= 60 -> 2
+          diff_days <= 90 -> 3
+          # Fallback for extended periods
+          true -> 3
+        end
+      else
+        # Fallback
+        1
+      end
+    end)
   end
 
   defp footer_html do

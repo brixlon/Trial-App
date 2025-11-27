@@ -112,7 +112,7 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     avg_score = calculate_avg_from_evaluations(general_evaluations)
     eval_count = length(general_evaluations)
     stats = calculate_attachee_stats_from_tasks(task_list)
-    task_scores = build_task_scores(task_evaluations)
+    task_scores = build_task_scores(task_evaluations, task_list)
 
     {:noreply,
      socket
@@ -321,17 +321,43 @@ defmodule TrialAppWeb.SupervisorLive.Attachees do
     }
   end
 
-  # Build task score map from evaluations (expects evaluations to have :task_id)
-  defp build_task_scores(evaluations) do
-    evaluations
-    |> Enum.filter(fn eval ->
-      Map.has_key?(eval, :task_id) && eval.task_id
-    end)
-    |> Enum.group_by(& &1.task_id)
-    |> Enum.into(%{}, fn {task_id, evals} ->
-      latest = Enum.max_by(evals, & &1.inserted_at)
-      {task_id, %{score: latest.score, label: score_label(latest.score)}}
-    end)
+  # Build task score map from evaluations and task ratings
+  defp build_task_scores(evaluations, tasks) do
+    # First, get scores from evaluations
+    eval_scores =
+      evaluations
+      |> Enum.filter(fn eval ->
+        Map.has_key?(eval, :task_id) && eval.task_id
+      end)
+      |> Enum.group_by(& &1.task_id)
+      |> Enum.into(%{}, fn {task_id, evals} ->
+        latest = Enum.max_by(evals, & &1.inserted_at)
+        {task_id, %{score: latest.score, label: score_label(latest.score)}}
+      end)
+
+    # Then, get scores from task ratings (these take precedence)
+    rating_scores =
+      tasks
+      |> Enum.filter(fn task -> task.rating != nil end)
+      |> Enum.into(%{}, fn task ->
+        score = rating_to_score(task.rating)
+        {task.id, %{score: score, label: score_label(score)}}
+      end)
+
+    # Merge with rating scores taking precedence
+    Map.merge(eval_scores, rating_scores)
+  end
+
+  # Helper to convert rating to score
+  defp rating_to_score(rating) do
+    case rating do
+      "exceeds_expectations" -> 100
+      "meets_expectations" -> 80
+      "average" -> 60
+      "below_average" -> 40
+      "poor" -> 20
+      _ -> 50
+    end
   end
 
   # --------------------- STYLING ---------------------

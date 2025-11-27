@@ -39,11 +39,18 @@ defmodule TrialApp.Reports.ReportHTML do
           <% end %>
 
           <%= if @include_tasks do %>
-            <.tasks_component tasks={@filtered_tasks} task_scores={@task_scores} />
+            <.tasks_component monthly_tasks={@monthly_tasks} attachee={@attachee} />
           <% end %>
 
           <%= if @include_evaluations do %>
-            <.evaluations_component evaluations={@filtered_evals} />
+            <.evaluations_component
+              evaluations={@filtered_evals}
+              month_1_score={@month_1_score}
+              month_2_score={@month_2_score}
+              month_3_score={@month_3_score}
+              total_score={@total_score}
+              comments={@comments}
+            />
           <% end %>
 
           <.comments_component comments={@custom_comments} />
@@ -153,37 +160,59 @@ defmodule TrialApp.Reports.ReportHTML do
   def tasks_component(assigns) do
     ~H"""
     <div class="section-container">
-      <h3 class="section-title">Task Performance</h3>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th class="th-task">Task Description</th>
-            <th class="th-status">Status</th>
-            <th class="th-score">Score</th>
-            <th class="th-rating">Rating</th>
-          </tr>
-        </thead>
-        <tbody>
-          <%= if Enum.empty?(@tasks) do %>
-            <tr>
-              <td colspan="4" class="empty-msg">No tasks assigned during this period.</td>
-            </tr>
-          <% else %>
-            <%= for task <- @tasks do %>
-              <% score_info = Map.get(@task_scores, task.id)
-              score = if score_info, do: score_info.score, else: nil %>
+      <h3 class="section-title">Monthly Task Performance</h3>
+
+      <%= for month_num <- [1, 2, 3] do %>
+        <% tasks = Map.get(assigns.monthly_tasks, month_num, []) %>
+        <% month_name = get_month_name(assigns.attachee.starts_on, month_num) %>
+        <div class="mb-6 page-break-avoid">
+          <h4 class="text-sm font-bold text-gray-700 mb-3 uppercase border-b pb-1">
+            Month {month_num} ({month_name}) Performance
+          </h4>
+
+          <table class="data-table">
+            <thead>
               <tr>
-                <td class="col-task">{task.title}</td>
-                <td class="col-status">
-                  <span class={"badge status-#{task.status}"}>{format_status(task.status)}</span>
-                </td>
-                <td class="col-score">{if score, do: score, else: "—"}</td>
-                <td class="col-rating">{if score, do: score_to_label(score), else: "—"}</td>
+                <th class="th-task">Task & Supervisor Comment</th>
+                <th class="th-status">Status</th>
+                <th class="th-rating">Rating</th>
               </tr>
-            <% end %>
-          <% end %>
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              <%= if Enum.empty?(tasks) do %>
+                <tr>
+                  <td colspan="3" class="empty-msg">No tasks completed in {month_name}.</td>
+                </tr>
+              <% else %>
+                <%= for task <- tasks do %>
+                  <tr>
+                    <td class="col-task">
+                      <div class="font-bold">{task.title}</div>
+                      <%= if task.rating_comment do %>
+                        <div class="text-xs text-gray-500 mt-1 italic">
+                          " {task.rating_comment} "
+                        </div>
+                      <% end %>
+                    </td>
+                    <td class="col-status">
+                      <span class={"badge status-#{task.status}"}>{format_status(task.status)}</span>
+                    </td>
+                    <td class="col-rating">
+                      <%= if task.rating do %>
+                        <span class={"font-bold " <> rating_class(task.rating)}>
+                          {TrialApp.Eams.Task.rating_label(task.rating)}
+                        </span>
+                      <% else %>
+                        <span class="text-gray-400">—</span>
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -191,32 +220,33 @@ defmodule TrialApp.Reports.ReportHTML do
   def evaluations_component(assigns) do
     ~H"""
     <div class="section-container page-break-avoid">
-      <h3 class="section-title">Evaluation History</h3>
-      <div class="eval-list">
-        <%= if Enum.empty?(@evaluations) do %>
-          <p class="empty-msg">No evaluations recorded.</p>
+      <h3 class="section-title">3-Month Performance Summary</h3>
+
+      <div class="stats-row mb-6">
+        <div class="stat-item">
+          <span class="stat-val">{@month_1_score || 0}</span>
+          <span class="stat-lbl">Month 1 Score</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">{@month_2_score || 0}</span>
+          <span class="stat-lbl">Month 2 Score</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">{@month_3_score || 0}</span>
+          <span class="stat-lbl">Month 3 Score</span>
+        </div>
+        <div class="stat-item highlight">
+          <span class="stat-val">{@total_score || 0}</span>
+          <span class="stat-lbl">Total Score</span>
+        </div>
+      </div>
+
+      <div class="remarks-box">
+        <h4 class="font-bold text-sm mb-2 text-yellow-900">Final Remarks</h4>
+        <%= if @comments && @comments != "" do %>
+          {raw(String.replace(@comments, "\n", "<br>"))}
         <% else %>
-          <%= for eval <- @evaluations do %>
-            <div class="eval-item">
-              <div class="eval-meta">
-                <span class="eval-author">
-                  {if eval.evaluator, do: eval.evaluator.username || "Supervisor", else: "System"}
-                </span>
-                <span class="eval-date">{format_datetime(eval.inserted_at)}</span>
-              </div>
-              <div class="eval-content">
-                <div class={"score-circle level-#{score_to_level(eval.score)}"}>
-                  {eval.score}
-                </div>
-                <div class="eval-text">
-                  <span class="eval-label">{score_to_label(eval.score)}</span>
-                  <%= if eval.comments && eval.comments != "" do %>
-                    <div class="eval-comment">"{eval.comments}"</div>
-                  <% end %>
-                </div>
-              </div>
-            </div>
-          <% end %>
+          No final remarks recorded.
         <% end %>
       </div>
     </div>
@@ -225,16 +255,7 @@ defmodule TrialApp.Reports.ReportHTML do
 
   def comments_component(assigns) do
     ~H"""
-    <div class="section-container page-break-avoid">
-      <h3 class="section-title">Supervisor Remarks</h3>
-      <div class="remarks-box">
-        <%= if @comments && @comments != "" do %>
-          {raw(String.replace(@comments, "\n", "<br>"))}
-        <% else %>
-          No additional comments.
-        <% end %>
-      </div>
-    </div>
+    <!-- Deprecated: Comments are now integrated into evaluations_component -->
     """
   end
 
@@ -343,20 +364,29 @@ defmodule TrialApp.Reports.ReportHTML do
   defp format_date(nil), do: "N/A"
   defp format_date(date), do: Calendar.strftime(date, "%d %b, %Y")
 
-  defp format_datetime(dt), do: Calendar.strftime(dt, "%d %b %Y, %H:%M")
-
   defp format_status(status),
     do: status |> to_string() |> String.replace("_", " ") |> String.capitalize()
 
-  defp score_to_level(score) when score >= 81, do: "excellent"
-  defp score_to_level(score) when score >= 61, do: "good"
-  defp score_to_level(score) when score >= 41, do: "satisfactory"
-  defp score_to_level(_), do: "poor"
+  defp rating_class(rating) do
+    case rating do
+      "poor" -> "text-red-600"
+      "below_average" -> "text-orange-600"
+      "average" -> "text-yellow-600"
+      "meets_expectations" -> "text-blue-600"
+      "exceeds_expectations" -> "text-green-600"
+      _ -> "text-gray-600"
+    end
+  end
 
-  defp score_to_label(score) when score >= 81, do: "Excellent"
-  defp score_to_label(score) when score >= 61, do: "Good"
-  defp score_to_label(score) when score >= 41, do: "Satisfactory"
-  defp score_to_label(_), do: "Needs Improvement"
+  defp get_month_name(start_date, month_num) when is_integer(month_num) do
+    if start_date do
+      # Calculate the month based on start date + (month_num - 1) months
+      target_date = Date.add(start_date, (month_num - 1) * 30)
+      Calendar.strftime(target_date, "%B %Y")
+    else
+      "Month #{month_num}"
+    end
+  end
 
   defp logo_data_url do
     path = Application.app_dir(:trial_app, "priv/static/images/value8-logo.png")

@@ -21,8 +21,12 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
   def update(assigns, socket) do
     tasks = Eams.list_tasks_for_attachee(assigns.attachee.id)
 
-    # Initialize task scores
-    task_scores = Map.new(tasks, fn task -> {task.id, 50} end)
+    # Initialize task scores - use actual rating if task has been rated, otherwise default to 50
+    task_scores =
+      Map.new(tasks, fn task ->
+        score = if task.rating, do: rating_to_score(task.rating), else: 50
+        {task.id, score}
+      end)
 
     # Initialize criteria scores
     criteria_scores = Map.new(@evaluation_criteria, fn criteria -> {criteria.key, 50} end)
@@ -116,13 +120,29 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
       # Round score to integer since database expects integer type
       rounded_score = socket.assigns.calculated_score |> Float.round() |> trunc()
 
+      # Calculate monthly scores
+      start_date = socket.assigns.attachee.starts_on
+
+      monthly_data =
+        calculate_monthly_data(socket.assigns.tasks, socket.assigns.task_scores, start_date)
+
       # Create main/overall evaluation (without task_id)
       main_params = %{
         "attachee_id" => socket.assigns.attachee.id,
         "evaluator_id" => socket.assigns.current_user.id,
         "score" => rounded_score,
         "comments" => params["comments"],
-        "evaluation_details" => Jason.encode!(evaluation_details)
+        "evaluation_details" => Jason.encode!(evaluation_details),
+        # New fields
+        "evaluation_period_start" => start_date,
+        "evaluation_period_end" => socket.assigns.attachee.ends_on,
+        "is_final" => true,
+        "month_1_score" => monthly_data.month_1.score,
+        "month_2_score" => monthly_data.month_2.score,
+        "month_3_score" => monthly_data.month_3.score,
+        "month_1_tasks_count" => monthly_data.month_1.count,
+        "month_2_tasks_count" => monthly_data.month_2.count,
+        "month_3_tasks_count" => monthly_data.month_3.count
       }
 
       case Eams.create_evaluation(main_params, socket.assigns.current_user) do
@@ -183,6 +203,57 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
 
     Float.round(total, 1)
   end
+
+  defp calculate_monthly_data(tasks, task_scores, start_date) do
+    # Initialize monthly data
+    initial_data = %{
+      month_1: %{score: 0, count: 0, total: 0},
+      month_2: %{score: 0, count: 0, total: 0},
+      month_3: %{score: 0, count: 0, total: 0}
+    }
+
+    tasks
+    |> Enum.reduce(initial_data, fn task, acc ->
+      task_date = extract_date(task.inserted_at)
+      score = Map.get(task_scores, task.id, 50)
+
+      month_key =
+        if start_date && task_date do
+          diff_days = Date.diff(task_date, start_date)
+
+          cond do
+            diff_days <= 30 -> :month_1
+            diff_days <= 60 -> :month_2
+            diff_days <= 90 -> :month_3
+            # Fallback
+            true -> :month_3
+          end
+        else
+          # Fallback
+          :month_1
+        end
+
+      current_month = Map.get(acc, month_key)
+
+      updated_month = %{
+        # Will calculate average later
+        score: 0,
+        count: current_month.count + 1,
+        total: current_month.total + score
+      }
+
+      Map.put(acc, month_key, updated_month)
+    end)
+    |> Map.new(fn {k, v} ->
+      avg_score = if v.count > 0, do: div(v.total, v.count), else: 0
+      {k, %{v | score: avg_score}}
+    end)
+  end
+
+  defp extract_date(%NaiveDateTime{} = dt), do: NaiveDateTime.to_date(dt)
+  defp extract_date(%DateTime{} = dt), do: DateTime.to_date(dt)
+  defp extract_date(%Date{} = d), do: d
+  defp extract_date(_), do: nil
 
   defp score_color(score) when score >= 80, do: "text-green-600"
   defp score_color(score) when score >= 60, do: "text-blue-600"
@@ -275,36 +346,80 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
             <% else %>
               <div class="space-y-3">
                 <%= for task <- @tasks do %>
-                  <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                  <div class={"border rounded-lg p-4 transition " <> if(task.rating, do: "border-green-200 bg-green-50", else: "border-gray-200 hover:bg-gray-50")}>
                     <div class="flex items-start justify-between gap-4 mb-3">
                       <div class="flex-1">
-                        <h4 class="font-semibold text-gray-900 text-sm">{task.title}</h4>
+                        <div class="flex items-center gap-2">
+                          <h4 class="font-semibold text-gray-900 text-sm">{task.title}</h4>
+                          <%= if task.rating do %>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fill-rule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                  clip-rule="evenodd"
+                                />
+                              </svg>
+                              Rated
+                            </span>
+                          <% end %>
+                        </div>
                         <%= if task.description do %>
                           <p class="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
                         <% end %>
+                        <%= if task.rating do %>
+                          <div class="mt-2 text-xs">
+                            <span class="text-gray-600">Rating:</span>
+                            <span class="font-semibold text-green-700 ml-1">
+                              {TrialApp.Eams.Task.rating_label(task.rating)}
+                            </span>
+                          </div>
+                        <% end %>
                       </div>
-                      <span class="text-2xl font-bold text-purple-600 min-w-[60px] text-right">
+                      <span class={"text-2xl font-bold min-w-[60px] text-right " <> if(task.rating, do: "text-green-600", else: "text-purple-600")}>
                         {Map.get(@task_scores, task.id, 50)}
                       </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={Map.get(@task_scores, task.id, 50)}
-                        phx-change="update_task_score"
-                        phx-target={@myself}
-                        name={"task_score[#{task.id}]"}
-                        class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                      <div class="flex gap-1 text-xs text-gray-500">
-                        <span>0</span>
-                        <span class="mx-1">-</span>
-                        <span>100</span>
+                    <%= if task.rating do %>
+                      <!-- Read-only display for rated tasks -->
+                      <div class="flex items-center gap-3 opacity-60">
+                        <div class="flex-1 h-2 bg-green-200 rounded-lg relative overflow-hidden">
+                          <div
+                            class="absolute inset-y-0 left-0 bg-green-500 rounded-lg"
+                            style={"width: #{Map.get(@task_scores, task.id, 50)}%"}
+                          >
+                          </div>
+                        </div>
+                        <div class="flex gap-1 text-xs text-gray-500">
+                          <span>0</span>
+                          <span class="mx-1">-</span>
+                          <span>100</span>
+                        </div>
                       </div>
-                    </div>
+                      <p class="text-xs text-green-700 mt-2 italic">
+                        ✓ This task has been rated and cannot be changed
+                      </p>
+                    <% else %>
+                      <!-- Editable slider for unrated tasks -->
+                      <div class="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={Map.get(@task_scores, task.id, 50)}
+                          phx-change="update_task_score"
+                          phx-target={@myself}
+                          name={"task_score[#{task.id}]"}
+                          class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                        />
+                        <div class="flex gap-1 text-xs text-gray-500">
+                          <span>0</span>
+                          <span class="mx-1">-</span>
+                          <span>100</span>
+                        </div>
+                      </div>
+                    <% end %>
                   </div>
                 <% end %>
               </div>
@@ -382,7 +497,7 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
     <!-- Scoring Breakdown Summary -->
           <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
             <h4 class="font-semibold text-gray-900 text-sm mb-3">Score Breakdown</h4>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-2 gap-4 text-sm mb-4">
               <div>
                 <span class="text-gray-600">Task Performance (50%):</span>
                 <span class="font-bold text-purple-600 ml-2">
@@ -406,6 +521,31 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
                     1
                   )}
                 </span>
+              </div>
+            </div>
+            
+    <!-- Monthly Breakdown Preview -->
+            <% monthly_data = calculate_monthly_data(@tasks, @task_scores, @attachee.starts_on) %>
+            <div class="border-t border-gray-200 pt-3">
+              <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">
+                Monthly Performance Preview
+              </h5>
+              <div class="grid grid-cols-3 gap-2">
+                <div class="bg-white p-2 rounded border text-center">
+                  <div class="text-xs text-gray-500">Month 1</div>
+                  <div class="font-bold text-purple-600">{monthly_data.month_1.score}</div>
+                  <div class="text-[10px] text-gray-400">{monthly_data.month_1.count} tasks</div>
+                </div>
+                <div class="bg-white p-2 rounded border text-center">
+                  <div class="text-xs text-gray-500">Month 2</div>
+                  <div class="font-bold text-purple-600">{monthly_data.month_2.score}</div>
+                  <div class="text-[10px] text-gray-400">{monthly_data.month_2.count} tasks</div>
+                </div>
+                <div class="bg-white p-2 rounded border text-center">
+                  <div class="text-xs text-gray-500">Month 3</div>
+                  <div class="font-bold text-purple-600">{monthly_data.month_3.score}</div>
+                  <div class="text-[10px] text-gray-400">{monthly_data.month_3.count} tasks</div>
+                </div>
               </div>
             </div>
           </div>
@@ -432,5 +572,17 @@ defmodule TrialAppWeb.SupervisorLive.EvaluationForm do
       </div>
     </div>
     """
+  end
+
+  # Helper function to convert rating to score
+  defp rating_to_score(rating) do
+    case rating do
+      "exceeds_expectations" -> 100
+      "meets_expectations" -> 80
+      "average" -> 60
+      "below_average" -> 40
+      "poor" -> 20
+      _ -> 50
+    end
   end
 end

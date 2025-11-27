@@ -287,7 +287,7 @@ defmodule TrialApp.Accounts.User do
       |> validate_length(:password, max: 72, count: :bytes)
       |> put_change(:hashed_password, Bcrypt.hash_pwd_salt(password))
       # ✅ track password updates
-      |> put_change(:password_changed_at, DateTime.utc_now())
+      |> put_change(:password_changed_at, DateTime.utc_now() |> DateTime.truncate(:second))
       # ✅ reset flag after password change
       |> change(%{must_change_password: false})
       |> delete_change(:password)
