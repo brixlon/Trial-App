@@ -154,7 +154,7 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
   end
 
   # --------------------------------------------------------------------- #
-  # FORM UPDATE (org → dept)
+  # FORM UPDATE (org → dept + date validation)
   # --------------------------------------------------------------------- #
   @impl true
   def handle_event("update_form", %{"program" => params}, socket) do
@@ -162,10 +162,14 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     org_int = safe_int(org_id)
     departments = if org_int, do: load_departments_safe(org_int), else: []
 
+    # Validate dates
+    errors = validate_dates(params, socket.assigns.errors)
+
     {:noreply,
      socket
      |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
-     |> assign(:departments, departments)}
+     |> assign(:departments, departments)
+     |> assign(:errors, errors)}
   end
 
   # --------------------------------------------------------------------- #
@@ -333,4 +337,34 @@ defmodule TrialAppWeb.AdminLive.ProgramManagement do
     end
   end
   defp parse_date(_), do: nil
+
+  defp validate_dates(params, current_errors) do
+    starts_on = params["starts_on"] || ""
+    ends_on = params["ends_on"] || ""
+
+    # Remove previous date errors
+    errors = Map.drop(current_errors, [:starts_on, :ends_on])
+
+    cond do
+      # Both dates empty - no error
+      starts_on == "" or ends_on == "" ->
+        errors
+
+      # Both dates present - validate
+      true ->
+        start_date = parse_date(starts_on)
+        end_date = parse_date(ends_on)
+
+        cond do
+          is_nil(start_date) or is_nil(end_date) ->
+            errors
+
+          Date.compare(end_date, start_date) == :lt ->
+            Map.put(errors, :ends_on, "End date must be on or after start date")
+
+          true ->
+            errors
+        end
+    end
+  end
 end

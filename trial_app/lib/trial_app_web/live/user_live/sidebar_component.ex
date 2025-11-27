@@ -512,14 +512,6 @@ defmodule TrialAppWeb.SidebarComponent do
                           Employees
                         </.link>
                       </li>
-                      <li>
-                        <.link
-                          navigate={~p"/admin/positions"}
-                          class={dropdown_link_class(@current_path, "/admin/positions")}
-                        >
-                          Positions
-                        </.link>
-                      </li>
                       <%= if Accounts.has_permission?(@current_scope.user, "manage_organizations") do %>
                         <li>
                           <.link
@@ -721,7 +713,7 @@ defmodule TrialAppWeb.SidebarComponent do
           </div>
         </div>
       </aside>
-      
+
     <!-- External Toggle - Only shows when sidebar is CLOSED - Very Small -->
       <button
         @click="sidebarOpen = true"

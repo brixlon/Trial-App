@@ -14,9 +14,7 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:show_form, false)
      |> assign(:editing_project, nil)
      |> assign(:search_query, "")
-     |> assign(:orgs, Orgs.list_all_organizations())
-     |> assign(:departments, [])
-     |> assign(:programs, [])
+     |> assign(:programs, Eams.list_programs())
      |> assign(
        :supervisors,
        Accounts.list_users_by_role("admin") ++ Accounts.list_users_by_role("manager")
@@ -65,8 +63,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:show_form, true)
      |> assign(:editing_project, nil)
      |> assign(:form_data, empty_form())
-     |> assign(:departments, [])
-     |> assign(:programs, [])
      |> assign(:errors, %{})}
   end
 
@@ -82,8 +78,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:selected_project, nil)
      |> assign(:selected_attachee, nil)
      |> assign(:form_data, empty_form())
-     |> assign(:departments, [])
-     |> assign(:programs, [])
      |> assign(:errors, %{})
      |> assign(:task_errors, %{})
      |> assign(:attachee_eval_errors, %{})
@@ -393,31 +387,25 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
   end
 
   def handle_event("update", %{"project" => params}, socket) do
-    org_id = Map.get(params, "organization_id")
-    dept_id = Map.get(params, "department_id")
-
-    org_int = safe_int(org_id)
-    dept_int = safe_int(dept_id)
-
-    departments = if is_integer(org_int), do: Orgs.list_departments_by_org(org_int), else: []
-    programs = if is_integer(dept_int), do: Eams.list_programs_by_department(dept_int), else: []
-
-    errors =
-      socket.assigns.errors
-      |> Map.delete(:starts_on)
-      |> Map.delete(:ends_on)
-      |> Map.delete(:date_range)
+    # Validate dates in real-time
+    errors = validate_dates_for_form(params, socket.assigns.errors)
 
     {:noreply,
      socket
      |> assign(:form_data, Map.merge(socket.assigns.form_data, params))
-     |> assign(:departments, departments)
-     |> assign(:programs, programs)
      |> assign(:errors, errors)}
   end
 
   def handle_event("save", %{"project" => params}, socket) do
     Logger.info("Attempting to save project with params: #{inspect(params)}")
+
+    # Get program to extract organization_id and department_id
+    program = if params["program_id"] && params["program_id"] != "" do
+      Eams.get_program!(parse_int(params["program_id"]))
+      |> TrialApp.Repo.preload([:organization, :department])
+    else
+      nil
+    end
 
     case validate_dates(params) do
       {:ok, _} ->
@@ -427,8 +415,8 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
           code: params["code"],
           starts_on: parse_date(params["starts_on"]),
           ends_on: parse_date(params["ends_on"]),
-          organization_id: parse_int(params["organization_id"]),
-          department_id: parse_int(params["department_id"]),
+          organization_id: if(program, do: program.organization_id, else: nil),
+          department_id: if(program, do: program.department_id, else: nil),
           program_id: parse_int(params["program_id"]),
           supervisor_id: parse_int(params["supervisor_id"]),
           is_active: true
@@ -448,8 +436,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
              |> assign(:show_form, false)
              |> assign(:editing_project, nil)
              |> assign(:form_data, empty_form())
-             |> assign(:departments, [])
-             |> assign(:programs, [])
              |> assign(:projects, load_projects_with_stats())
              |> assign(:errors, %{})
              |> put_flash(
@@ -472,20 +458,12 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
       Eams.get_project!(parse_int(id))
       |> TrialApp.Repo.preload([:organization, :department, :program, :supervisor])
 
-    org_id = project.organization_id
-    dept_id = project.department_id
-
-    departments = if org_id, do: Orgs.list_departments_by_org(org_id), else: []
-    programs = if dept_id, do: Eams.list_programs_by_department(dept_id), else: []
-
     form_data = %{
       "name" => project.name || "",
       "description" => project.description || "",
       "code" => project.code || "",
       "starts_on" => if(project.starts_on, do: Date.to_string(project.starts_on), else: ""),
       "ends_on" => if(project.ends_on, do: Date.to_string(project.ends_on), else: ""),
-      "organization_id" => if(org_id, do: to_string(org_id), else: ""),
-      "department_id" => if(dept_id, do: to_string(dept_id), else: ""),
       "program_id" => if(project.program_id, do: to_string(project.program_id), else: ""),
       "supervisor_id" => if(project.supervisor_id, do: to_string(project.supervisor_id), else: "")
     }
@@ -495,8 +473,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
      |> assign(:editing_project, project)
      |> assign(:show_form, true)
      |> assign(:form_data, form_data)
-     |> assign(:departments, departments)
-     |> assign(:programs, programs)
      |> assign(:errors, %{})}
   end
 
@@ -535,8 +511,6 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
     %{
       "name" => "",
       "description" => "",
-      "organization_id" => "",
-      "department_id" => "",
       "program_id" => "",
       "supervisor_id" => "",
       "code" => "",
@@ -631,6 +605,37 @@ defmodule TrialAppWeb.AdminLive.ProjectManagement do
 
   defp trend_icon(_) do
     ~s(<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>)
+  end
+
+  # Real-time date validation for form changes
+  defp validate_dates_for_form(params, current_errors) do
+    starts_on = params["starts_on"] || ""
+    ends_on = params["ends_on"] || ""
+
+    # Remove previous date errors
+    errors = Map.drop(current_errors, [:starts_on, :ends_on, :date_range])
+
+    cond do
+      # Both dates empty - no error
+      starts_on == "" or ends_on == "" ->
+        errors
+
+      # Both dates present - validate
+      true ->
+        start_date = parse_date(starts_on)
+        end_date = parse_date(ends_on)
+
+        cond do
+          is_nil(start_date) or is_nil(end_date) ->
+            errors
+
+          Date.compare(end_date, start_date) == :lt ->
+            Map.put(errors, :ends_on, "End date must be on or after start date")
+
+          true ->
+            errors
+        end
+    end
   end
 
   defp validate_dates(params) do
