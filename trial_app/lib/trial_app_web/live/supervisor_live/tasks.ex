@@ -183,7 +183,6 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
           "admin" -> ~p"/admin/dashboard"
           "supervisor" -> ~p"/supervisor/dashboard"
           "attachee" -> ~p"/attachee"
-          "manager" -> ~p"/dashboard"
           "employee" -> ~p"/dashboard"
           _ -> ~p"/dashboard"
         end
