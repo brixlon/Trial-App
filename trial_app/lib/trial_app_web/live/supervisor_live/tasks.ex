@@ -1,6 +1,7 @@
 defmodule TrialAppWeb.SupervisorLive.Tasks do
   use TrialAppWeb, :live_view
   alias TrialApp.{Accounts, Eams}
+
   @impl true
   def mount(_params, _session, socket) do
     current_user = socket.assigns.current_scope.user
@@ -21,6 +22,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     overdue_tasks = get_overdue_tasks(all_tasks)
     tasks_by_project = Enum.group_by(all_tasks, & &1.project_id)
 
+
     {:ok,
      socket
      |> assign(:current_user, current_user)
@@ -28,19 +30,25 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
      |> assign(:active_role, active_role)
      |> assign(:all_tasks, all_tasks)
      |> assign(:projects, projects)
-     |> assign(:pending_approval, pending_approval)
+     |> assign(:pending_evaluation, pending_evaluation)
      |> assign(:overdue_tasks, overdue_tasks)
      |> assign(:tasks_by_project, tasks_by_project)
      |> assign(:selected_tab, "all")
      |> assign(:selected_task, nil)
+     |> assign(:selected_task_evaluation, nil)
      |> assign(:show_task_modal, false)
+     |> assign(:show_evaluate_modal, false)
+     |> assign(:evaluation_rating, nil)
+     |> assign(:evaluation_comments, "")
      |> assign(:page_title, "Tasks Management")}
   end
+
 
   @impl true
   def handle_event("select_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :selected_tab, tab)}
   end
+
 
   def handle_event("view_task", %{"id" => id}, socket) do
     task = Eams.get_task!(id, %{preloads: [:project, assignee: :user]})
@@ -48,6 +56,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     {:noreply,
      socket
      |> assign(:selected_task, task)
+     |> assign(:selected_task_evaluation, evaluation)
      |> assign(:show_task_modal, true)}
   end
 
@@ -55,8 +64,13 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     {:noreply,
      socket
      |> assign(:selected_task, nil)
-     |> assign(:show_task_modal, false)}
+     |> assign(:selected_task_evaluation, nil)
+     |> assign(:show_task_modal, false)
+     |> assign(:show_evaluate_modal, false)
+     |> assign(:evaluation_rating, nil)
+     |> assign(:evaluation_comments, "")}
   end
+
 
   def handle_event("stop_propagation", _params, socket) do
     {:noreply, socket}
@@ -98,6 +112,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
   def handle_info({:switch_role, new_role}, socket) do
     user = socket.assigns.current_scope.user
 
+
     case Accounts.switch_user_role(user, new_role) do
       {:ok, updated_user} ->
         updated_scope = %{socket.assigns.current_scope | user: updated_user}
@@ -117,8 +132,10 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
          |> assign(:current_scope, updated_scope)
          |> push_navigate(to: redirect_path)}
 
+
       {:error, :unauthorized_role} ->
         {:noreply, put_flash(socket, :error, "You don't have permission to switch to that role")}
+
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to switch role")}
@@ -153,6 +170,7 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     |> assign(:tasks_by_project, tasks_by_project)
   end
 
+
   defp get_overdue_tasks(tasks) do
     today = Date.utc_today()
 
@@ -162,10 +180,12 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     end)
   end
 
+
   defp is_overdue?(task) do
     task.due_on && Date.compare(task.due_on, Date.utc_today()) == :lt &&
       task.status not in ["completed"]
   end
+
 
   defp days_overdue(task) do
     if task.due_on do
@@ -657,5 +677,29 @@ defmodule TrialAppWeb.SupervisorLive.Tasks do
     |> String.split()
     |> Enum.map(&String.capitalize/1)
     |> Enum.join(" ")
+  end
+
+  defp get_latest_evaluation(task) do
+    case task.task_evaluations do
+      %Ecto.Association.NotLoaded{} -> nil
+      nil -> nil
+      [] -> nil
+      evaluations when is_list(evaluations) ->
+        evaluations
+        |> Enum.filter(fn eval -> eval.inserted_at != nil end)
+        |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+        |> List.first()
+    end
+  end
+
+  defp is_pending_evaluation?(task) do
+    task.status == "submitted" &&
+      case task.task_evaluations do
+        %Ecto.Association.NotLoaded{} -> true
+        nil -> true
+        [] -> true
+        evaluations when is_list(evaluations) -> false
+        _ -> false
+      end
   end
 end

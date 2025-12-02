@@ -1,0 +1,487 @@
+<div class="min-h-screen bg-base-200">
+  <div class="lg:ml-45 p-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-8">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">Tasks Management</h1>
+          <p class="text-gray-600 mt-1">Monitor and evaluate all tasks across projects</p>
+        </div>
+        <.link navigate={~p"/supervisor/dashboard"} class="px-6 py-2.5 border border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium">
+          ← Back to Dashboard
+        </.link>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-xl shadow-md p-6">
+          <p class="text-sm text-gray-600 mb-2">Total Tasks</p>
+          <p class="text-4xl font-bold text-purple-600"><%= length(@all_tasks) %></p>
+        </div>
+        <div class="bg-gradient-to-br from-yellow-500 to-orange-500 text-white rounded-xl shadow-md p-6 animate-pulse">
+          <p class="text-sm opacity-90 mb-2">Pending Evaluation</p>
+          <p class="text-4xl font-bold"><%= length(@pending_evaluation) %></p>
+        </div>
+        <div class={["bg-gradient-to-br from-red-500 to-red-700 text-white rounded-xl shadow-md p-6", length(@overdue_tasks) > 0 && "animate-pulse"]}>
+          <p class="text-sm opacity-90 mb-2">Overdue Tasks</p>
+          <p class="text-4xl font-bold"><%= length(@overdue_tasks) %></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-6">
+          <p class="text-sm text-gray-600 mb-2">Completed</p>
+          <p class="text-4xl font-bold text-green-600">
+            <%= Enum.count(@all_tasks, &(&1.status == "completed")) %>
+          </p>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="bg-white rounded-3xl shadow-md p-2 mb-9 inline-flex gap-1">
+        <button
+          phx-click="select_tab"
+          phx-value-tab="all"
+          class={["px-6 py-2.5 rounded-lg font-medium transition-colors",
+                  @selected_tab == "all" && "bg-purple-600 text-white" || "text-gray-600 hover:bg-gray-100"]}
+        >
+          All Tasks (<%= length(@all_tasks) %>)
+        </button>
+        <button
+          phx-click="select_tab"
+          phx-value-tab="pending"
+          class={["px-6 py-2.5 rounded-lg font-medium transition-colors",
+                  @selected_tab == "pending" && "bg-purple-600 text-white" || "text-gray-600 hover:bg-gray-100"]}
+        >
+          Pending Evaluation (<%= length(@pending_evaluation) %>)
+        </button>
+        <button
+          phx-click="select_tab"
+          phx-value-tab="overdue"
+          class={["px-6 py-2.5 rounded-lg font-medium transition-colors",
+                  @selected_tab == "overdue" && "bg-purple-600 text-white" || "text-gray-600 hover:bg-gray-100"]}
+        >
+          Overdue (<%= length(@overdue_tasks) %>)
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <%= case @selected_tab do %>
+        <%# ALL TASKS TAB %>
+        <% "all" -> %>
+          <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-6">
+              <h2 class="text-xl font-bold text-gray-900 mb-4">All Tasks</h2>
+              <%= if @all_tasks == [] do %>
+                <div class="text-center py-12">
+                  <p class="text-gray-500">No tasks yet</p>
+                </div>
+              <% else %>
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attachee</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <%= for task <- @all_tasks do %>
+                        <tr class={["hover:bg-gray-50", is_overdue?(task) && "bg-red-50 animate-pulse"]}>
+                          <td class="px-6 py-4">
+                            <div class="font-semibold text-gray-900"><%= task.title %></div>
+                            <div class="text-sm text-gray-500"><%= task.description %></div>
+                          </td>
+                          <td class="px-6 py-4">
+                            <div class="flex items-center gap-2">
+                              <div class="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-semibold">
+                                <%= String.first(task.assignee.user.username || task.assignee.user.email) |> String.upcase() %>
+                              </div>
+                              <span class="text-sm text-gray-900"><%= task.assignee.user.username || task.assignee.user.email %></span>
+                            </div>
+                          </td>
+                          <td class="px-6 py-4 text-sm text-gray-900"><%= task.project.name %></td>
+                          <td class="px-6 py-4">
+                            <span class={"inline-flex px-3 py-1 text-xs font-semibold rounded-full #{status_color(task.status)}"}>
+                              <%= format_status(task.status) %>
+                            </span>
+                          </td>
+                          <td class="px-6 py-4 text-sm">
+                            <%= if task.due_on do %>
+                              <div class={is_overdue?(task) && "text-red-600 font-bold animate-pulse" || "text-gray-900"}>
+                                <%= Calendar.strftime(task.due_on, "%b %d, %Y") %>
+                                <%= if is_overdue?(task) do %>
+                                  <div class="text-xs mt-1">Overdue by <%= days_overdue(task) %> days</div>
+                                <% end %>
+                              </div>
+                            <% else %>
+                              <span class="text-gray-500">No due date</span>
+                            <% end %>
+                          </td>
+                          <td class="px-6 py-4">
+                            <button
+                              phx-click="view_task"
+                              phx-value-id={task.id}
+                              class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+        <%# PENDING EVALUATION TAB %>
+        <% "pending" -> %>
+          <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl shadow-md border-2 border-yellow-400 overflow-hidden">
+            <div class="p-6">
+              <h2 class="text-xl font-bold text-yellow-800 mb-4">Tasks Awaiting Your Evaluation</h2>
+              <%= if @pending_evaluation == [] do %>
+                <div class="text-center py-12">
+                  <p class="text-gray-600 text-lg">All caught up! No tasks pending evaluation.</p>
+                </div>
+              <% else %>
+                <div class="space-y-4">
+                  <%= for task <- @pending_evaluation do %>
+                    <div class="bg-white rounded-lg shadow-md border-l-4 border-yellow-500 overflow-hidden">
+                      <div class="p-6">
+                        <div class="flex justify-between items-start">
+                          <div class="flex-1">
+                            <h3 class="font-bold text-lg text-gray-900"><%= task.title %></h3>
+                            <p class="text-sm text-gray-600 mb-3"><%= task.description %></p>
+                            <div class="flex gap-6 text-sm text-gray-700">
+                              <span><strong>Attachee:</strong> <%= task.assignee.user.username || task.assignee.user.email %></span>
+                              <span><strong>Project:</strong> <%= task.project.name %></span>
+                            </div>
+                          </div>
+                          <button
+                            phx-click="open_evaluate_modal"
+                            phx-value-id={task.id}
+                            class="px-4 py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 transition-colors"
+                          >
+                            Evaluate Task
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+        <%# OVERDUE TAB %>
+        <% "overdue" -> %>
+          <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-md border-2 border-red-500 overflow-hidden">
+            <div class="p-6">
+              <h2 class="text-xl font-bold text-red-800 mb-4">Overdue Tasks</h2>
+              <%= if @overdue_tasks == [] do %>
+                <div class="text-center py-12">
+                  <p class="text-gray-600 text-lg">Great! No overdue tasks.</p>
+                </div>
+              <% else %>
+                <div class="space-y-4">
+                  <%= for task <- Enum.sort_by(@overdue_tasks, &days_overdue/1, :desc) do %>
+                    <div class="bg-white rounded-lg shadow-md border-l-4 border-red-600 overflow-hidden">
+                      <div class="p-6">
+                        <div class="flex justify-between items-start">
+                          <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                              <span class="inline-flex px-3 py-1 text-xs font-bold bg-red-600 text-white rounded-full">
+                                <%= days_overdue(task) %> days overdue
+                              </span>
+                              <h3 class="font-bold text-lg text-gray-900"><%= task.title %></h3>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-3"><%= task.description %></p>
+                          </div>
+                          <button
+                            phx-click="view_task"
+                            phx-value-id={task.id}
+                            class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          </div>
+      <% end %>
+    </div>
+  </div>
+
+  <%# ENHANCED TASK DETAIL MODAL %>
+  <%= if @show_task_modal && @selected_task do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" phx-click="close_modal">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" phx-click="stop_propagation">
+        
+        <!-- Header Section -->
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-8 rounded-t-2xl">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <h2 class="text-3xl font-bold mb-2"><%= @selected_task.title %></h2>
+              <div class="flex items-center gap-3 mt-3">
+                <span class={"inline-flex px-4 py-1.5 text-sm font-semibold rounded-full #{status_color(@selected_task.status)}"}>
+                  <%= format_status(@selected_task.status) %>
+                </span>
+                <%= if is_overdue?(@selected_task) do %>
+                  <span class="inline-flex px-4 py-1.5 text-sm font-bold bg-red-600 text-white rounded-full animate-pulse">
+                    Overdue by <%= days_overdue(@selected_task) %> days
+                  </span>
+                <% end %>
+              </div>
+            </div>
+            <button phx-click="close_modal" class="text-white hover:text-gray-200 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content Section -->
+        <div class="p-8 space-y-6">
+          
+          <!-- Description -->
+          <div class="bg-gray-50 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Task Description
+            </h3>
+            <p class="text-gray-700 leading-relaxed"><%= @selected_task.description %></p>
+          </div>
+
+          <!-- Task Information Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Attachee Info -->
+            <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border-2 border-purple-200">
+              <h4 class="text-sm font-bold text-purple-900 mb-3 uppercase tracking-wide">Assigned To</h4>
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center text-lg font-bold shadow-lg">
+                  <%= String.first(@selected_task.assignee.user.username || @selected_task.assignee.user.email) |> String.upcase() %>
+                </div>
+                <div>
+                  <p class="font-semibold text-gray-900"><%= @selected_task.assignee.user.username || @selected_task.assignee.user.email %></p>
+                  <p class="text-sm text-gray-600">Attachee</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Project Info -->
+            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 border-2 border-blue-200">
+              <h4 class="text-sm font-bold text-blue-900 mb-3 uppercase tracking-wide">Project</h4>
+              <div class="flex items-start gap-3">
+                <svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                </svg>
+                <div>
+                  <p class="font-semibold text-gray-900"><%= @selected_task.project.name %></p>
+                  <p class="text-sm text-gray-600">Project Name</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Due Date -->
+            <div class={["rounded-xl p-6 border-2", 
+                        is_overdue?(@selected_task) && "bg-gradient-to-br from-red-50 to-red-100 border-red-300" || "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200"]}>
+              <h4 class={["text-sm font-bold mb-3 uppercase tracking-wide",
+                         is_overdue?(@selected_task) && "text-red-900" || "text-green-900"]}>Due Date</h4>
+              <div class="flex items-center gap-3">
+                <svg class={["w-6 h-6", is_overdue?(@selected_task) && "text-red-600" || "text-green-600"]} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <div>
+                  <%= if @selected_task.due_on do %>
+                    <p class={["font-bold text-lg", is_overdue?(@selected_task) && "text-red-700" || "text-gray-900"]}>
+                      <%= Calendar.strftime(@selected_task.due_on, "%B %d, %Y") %>
+                    </p>
+                    <p class={["text-sm", is_overdue?(@selected_task) && "text-red-600 font-medium" || "text-gray-600"]}>
+                      <%= Calendar.strftime(@selected_task.due_on, "%A") %>
+                    </p>
+                  <% else %>
+                    <p class="text-gray-500 font-medium">No due date set</p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <!-- Created Date -->
+            <div class="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 border-2 border-gray-200">
+              <h4 class="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">Created On</h4>
+              <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                  <p class="font-bold text-lg text-gray-900">
+                    <%= Calendar.strftime(@selected_task.inserted_at, "%B %d, %Y") %>
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    <%= Calendar.strftime(@selected_task.inserted_at, "%I:%M %p") %>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Submission Comment -->
+          <%= if @selected_task.submission_comment do %>
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-l-4 border-blue-500 shadow-md">
+              <h3 class="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                </svg>
+                Submission Comment
+              </h3>
+              <p class="text-gray-700 leading-relaxed whitespace-pre-wrap"><%= @selected_task.submission_comment %></p>
+            </div>
+          <% end %>
+
+          <!-- Evaluation Section -->
+          <%= if @selected_task_evaluation do %>
+            <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-300 shadow-lg">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 rounded-full bg-green-600 text-white flex items-center justify-center shadow-lg">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xl font-bold text-green-900">Task Evaluation</h3>
+                  <p class="text-sm text-green-700">This task has been evaluated and completed</p>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                  <p class="text-sm text-gray-600 mb-1">Score</p>
+                  <div class="flex items-center gap-2">
+                    <p class="text-3xl font-bold text-green-600"><%= @selected_task_evaluation.score %></p>
+                    <span class="text-gray-500">/100</span>
+                  </div>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                  <p class="text-sm text-gray-600 mb-1">Evaluated By</p>
+                  <p class="font-semibold text-gray-900"><%= @selected_task_evaluation.evaluator.username || @selected_task_evaluation.evaluator.email %></p>
+                </div>
+              </div>
+
+              <%= if @selected_task_evaluation.comments do %>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                  <p class="text-sm font-bold text-gray-700 mb-2">Feedback</p>
+                  <p class="text-gray-700 leading-relaxed whitespace-pre-wrap"><%= @selected_task_evaluation.comments %></p>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="bg-gray-50 px-8 py-6 rounded-b-2xl border-t border-gray-200">
+          <div class="flex gap-3 justify-end">
+            <%= if @selected_task.status == "submitted" && !@selected_task_evaluation do %>
+              <button type="button" phx-click="close_modal" class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                Close
+              </button>
+              <button type="button" phx-click="open_evaluate_modal" phx-value-id={@selected_task.id} class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg">
+                Evaluate Task
+              </button>
+            <% else %>
+              <button phx-click="close_modal" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg">
+                Close
+              </button>
+            <% end %>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  <% end %>
+
+  <%# EVALUATION MODAL %>
+  <%= if @show_evaluate_modal && @selected_task do %>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" phx-click="close_modal">
+      <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" phx-click="stop_propagation">
+        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 rounded-t-xl">
+          <h3 class="text-2xl font-bold mb-2">Task Evaluation</h3>
+          <p class="text-purple-100"><%= @selected_task.title %></p>
+        </div>
+
+        <form phx-submit="submit_evaluation" class="p-6 space-y-6">
+          <!-- Rating Section -->
+          <div class="border-t border-gray-200 pt-6">
+            <label class="block text-lg font-bold text-gray-900 mb-1">Performance Rating <span class="text-red-500">*</span></label>
+            <p class="text-sm text-gray-600 mb-4">Rate the quality and completeness of the task submission</p>
+            
+            <div class="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-6 border-2 border-purple-200">
+              <div class="flex gap-3 justify-center mb-4">
+                <%= for rating <- 1..5 do %>
+                  <button type="button" phx-click="set_rating" phx-value-rating={rating}
+                    class={["group relative flex flex-col items-center gap-3 p-5 rounded-xl transition-all transform hover:scale-105",
+                      @evaluation_rating == rating && "bg-purple-600 shadow-2xl scale-110 ring-4 ring-purple-300" || "bg-white hover:bg-purple-50 shadow-md hover:shadow-lg"]}
+                  >
+                    <svg class={["w-12 h-12 transition-all",
+                      @evaluation_rating == rating && "text-yellow-300 drop-shadow-lg" || "text-gray-300 group-hover:text-yellow-200"]} fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <div class="text-center">
+                      <span class={["text-2xl font-bold block transition-colors",
+                        @evaluation_rating == rating && "text-white" || "text-gray-700 group-hover:text-purple-700"]}><%= rating %></span>
+                      <span class={["text-xs font-medium transition-colors",
+                        @evaluation_rating == rating && "text-purple-100" || "text-gray-500"]}>
+                        <%= case rating do
+                          1 -> "Poor"
+                          2 -> "Fair"
+                          3 -> "Good"
+                          4 -> "Very Good"
+                          5 -> "Excellent"
+                        end %>
+                      </span>
+                    </div>
+                  </button>
+                <% end %>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comment Section -->
+          <div>
+            <label for="comment" class="block text-sm font-bold text-gray-900 mb-2">
+              Evaluation Feedback <span class="text-red-500">*</span>
+            </label>
+            <p class="text-xs text-gray-600 mb-2">Minimum 10 characters required</p>
+            <textarea id="comment" name="comment" rows="5"
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 text-sm text-gray-700 placeholder-gray-400 transition-all"
+              placeholder="Provide detailed feedback on the task completion, quality of work, and any areas for improvement..."
+              required
+            ><%= @evaluation_comments %></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-3 justify-end pt-6 border-t border-gray-200">
+            <button type="button" phx-click="close_modal" class="px-6 py-3 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg">
+              Submit Evaluation
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <% end %>
+</div>
