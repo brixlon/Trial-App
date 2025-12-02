@@ -158,10 +158,13 @@ defmodule TrialApp.Accounts do
           new_roles = Map.get(params, "roles", updated_user.roles || [])
           active_role = determine_default_role(new_roles)
 
-          # Update active_role
+          # Get the role record for the active_role to set role_id
+          role = get_role_by_name!(active_role)
+
+          # Update both active_role AND role_id
           {:ok, updated_user} =
             updated_user
-            |> Ecto.Changeset.change(%{active_role: active_role})
+            |> Ecto.Changeset.change(%{active_role: active_role, role_id: role.id})
             |> Repo.update()
 
           if Enum.any?(team_ids) do
@@ -745,16 +748,16 @@ defmodule TrialApp.Accounts do
 
   @doc """
   Helper to determine the best default role based on priority.
-  Attachee gets priority since that's the most specific role.
+  Admin has highest priority, followed by supervisor, then manager, then attachee.
   """
   def determine_default_role([]), do: "user"
 
   def determine_default_role(roles) when is_list(roles) do
     cond do
-      "attachee" in roles -> "attachee"
-      "supervisor" in roles -> "supervisor"
       "admin" in roles -> "admin"
+      "supervisor" in roles -> "supervisor"
       "manager" in roles -> "manager"
+      "attachee" in roles -> "attachee"
       "employee" in roles -> "employee"
       true -> List.first(roles) || "user"
     end
